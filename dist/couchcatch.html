@@ -301,10 +301,11 @@ canvas.mini{border-radius:8px;background:radial-gradient(circle at 50% 70%,rgba(
 </div></div>
 <div class="sheet" id="sSet" hidden><div class="inner">
   <div class="row"><h2>Settings<span class="zh" data-say="设置">设置<i>shèzhì</i></span></h2><button class="small" data-close>Close<span class="zh" data-say="关闭">关闭<i>guānbì</i></span></button></div>
-  <div class="sub">Chinese level<span class="zh" data-say="中文水平">中文水平<i>Zhōngwén shuǐpíng</i></span></div>
+  <div id="lvlBox"><div class="sub">Chinese level<span class="zh" data-say="中文水平">中文水平<i>Zhōngwén shuǐpíng</i></span></div>
   <div class="seg" id="lvlSeg"></div>
-  <div class="sub" id="lvlNote"></div>
-  <div id="setList" style="display:flex;flex-direction:column;gap:8px"></div>
+  <div class="sub" id="lvlNote"></div></div>
+  <div id="setList" class="seg"></div>
+  <div id="saveBox" class="savebox"></div>
 </div></div>
 
 <div class="quizwrap" id="quiz" hidden><div class="quizcard">
@@ -325,7 +326,7 @@ canvas.mini{border-radius:8px;background:radial-gradient(circle at 50% 70%,rgba(
 
 <div class="sheet" id="sBattle" hidden><div class="inner">
   <h2 id="bTitle"></h2>
-  <div class="hpbox"><div class="row"><span><b id="fName"></b><span class="titanbadge" id="fTitan"></span></span><span class="sub" id="fLv"></span></div><div class="hp"><i id="fBar"></i></div></div>
+  <div class="hpbox" data-toast><div class="row"><span><b id="fName"></b><span class="titanbadge" id="fTitan"></span></span><span class="sub" id="fLv"></span></div><div class="hp"><i id="fBar"></i></div></div>
   <canvas id="bcv"></canvas>
   <div class="hpbox"><div class="row"><span><b id="pName"></b><span class="titanbadge" id="pTitan"></span></span><span class="sub" id="pHp"></span></div><div class="hp"><i id="pBar"></i></div></div>
   <div id="blog"></div>
@@ -10396,7 +10397,10 @@ const ZM=n=>(typeof ZH_MOVES!=='undefined'&&ZH_MOVES[n])||{zh:'',py:''};
 const ZI=k=>(typeof ZH_ITEMS!=='undefined'&&ZH_ITEMS[k])||{zh:'',py:''};
 const W={nice:['Nice!','不错！','bú cuò!'],great:['Great!','很好！','hěn hǎo!'],excellent:['Excellent!','太棒了！','tài bàng le!'],hit:['Hit!','打中了！','dǎ zhòng le!'],curve:['Curveball!','曲线球！','qūxiàn qiú!'],
  short:['Too soft! It fell short.','太轻了！没打到。','tài qīng le! méi dǎ dào.'],over:['Too hard! It flew over.','太重了！飞过头了。','tài zhòng le! fēi guòtóu le.'],wide:['Missed! It went wide.','偏了！没打中。','piān le! méi dǎ zhòng.'],
- broke:['It broke free! Throw again.','它挣脱了！再扔一次。','tā zhèngtuō le! zài rēng yí cì.'],fled:['It broke free and ran away.','它挣脱后逃走了。','tā zhèngtuō hòu táozǒu le.'],drag:['Drag the orb up and let go.','把球往上拖，然后松手。','bǎ qiú wǎng shàng tuō, ránhòu sōngshǒu.'],
+ broke:['It broke free! Throw again.','它挣脱了！再扔一次。','tā zhèngtuō le! zài rēng yí cì.'],fled:['It broke free and ran away.','它挣脱后逃走了。','tā zhèngtuō hòu táozǒu le.'],
+ // catch hints for children who can't read English yet: each Chinese line has a recorded clip (whole, or one per clause)
+ drag:['Drag the orb up and throw!','往上，扔！','wǎng shàng, rēng!'],flick:['Now flick it up!','然后往上扔！','ránhòu wǎng shàng rēng!'],spin:['Curveball! Now flick it up!','曲线球！然后往上扔！','qūxiàn qiú! ránhòu wǎng shàng rēng!'],
+ again:['Try again!','再扔一次。','zài rēng yí cì.'],spellagain:['Your spell is still ready. Try again!','准备好了！再扔一次。','zhǔnbèi hǎo le! zài rēng yí cì.'],noorbs:['Out of orbs. Move on to find more.','没有。出发！','méiyǒu. chūfā!'],
  win:['You won!','你赢了！','nǐ yíng le!'],lose:['You lost.','你输了。','nǐ shū le.'],fainted:['fainted!','倒下了！','dǎo xià le!'],super:['It hit super hard!','效果很好！','xiàoguǒ hěn hǎo!'],weak:['It barely hurt.','效果不太好。','xiàoguǒ bú tài hǎo.'],
  giant:['grew GIANT!','变巨大了！','biàn jùdà le!'],evolving:['is evolving!','正在进化！','zhèngzài jìnhuà!'],berry:['ate the berry and calmed down.','吃了果子，安静下来了。','chī le guǒzi, ānjìng xiàlái le.']};
 function zw(zh,py,inl){return zh?`<span class="zh${inl?' inl':''}" data-say="${zh}">${zh}<i>${py}</i></span>`:''}
@@ -10530,15 +10534,17 @@ let last=0;
 function frame(ts){requestAnimationFrame(frame);try{sceneFrame(ts)}catch(e){console.error(e)}}
 function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,h,d}=sizeCanvas(scene);sctx.setTransform(d,0,0,d,0,0);
   const p=PLACES[S.place];
+  // a trip (and the creatures crossing the road) waits while a trace, a catch or any sheet is open
+  const paused=S.mode==='travel'&&sheetOpen()!==null;
   if(S.mode==='travel'){
-    const q=PLACES[travelTo],fly=!q.rift&&!p.rift&&q.region!==p.region;if(sheetOpen()===null)travelT+=dt/(fly?9:6);
+    const q=PLACES[travelTo],fly=!q.rift&&!p.rift&&q.region!==p.region;if(!paused)travelT+=dt/(fly?9:6);
     if(fly){drawFlight(sctx,w,h,T,travelT,q);if(travelT>=1)arrive()}else
     if(q.rift||p.rift){sctx.fillStyle='#0b0626';sctx.fillRect(0,0,w,h);
       for(let i=0;i<14;i++){const k=((T*.6+i/14)%1),r=k*k*w*.9;sctx.strokeStyle=['#b48cff','#5fe3ff','#ff8ce0'][i%3];sctx.globalAlpha=k*(1-k)*2.5;sctx.lineWidth=2+k*6;sctx.beginPath();sctx.ellipse(w/2,h/2,r,r*.7,0,0,7);sctx.stroke()}
       for(const s2 of AMB){const k=((T*.8+s2.a)%1),a=s2.b*Math.PI*2,r1=k*w*.7,r2=r1+k*k*40;sctx.strokeStyle='rgba(255,255,255,.8)';sctx.globalAlpha=k;sctx.lineWidth=1.5;sctx.beginPath();sctx.moveTo(w/2+Math.cos(a)*r1,h/2+Math.sin(a)*r1*.7);sctx.lineTo(w/2+Math.cos(a)*r2,h/2+Math.sin(a)*r2*.7);sctx.stroke()}
       sctx.globalAlpha=1;if(travelT>=1)arrive()}else{
     bg(sctx,w,h,travelT<.5?p:q);drawRoad(sctx,w,h,T,travelT<.5?p:q);
-    for(const rs of roadSpawns)if(!rs.done&&travelT>rs.at){rs.done=true;if(Math.random()<.75){const wd=spawnWild(true);wd.vx=-.07;wd.x=1.08;wild.push(wd);toast('Something is crossing the road!')}}
+    for(const rs of roadSpawns)if(!rs.done&&travelT>rs.at){rs.done=true;if(Math.random()<.75){const wd=spawnWild(true);wd.vx=-.07;wd.x=1.08;wild.push(wd);toast('Something is crossing the road! Tap it!')}}
     if(travelT>=1)arrive();}
   }else{bg(sctx,w,h,p);if(!hasScene(p))for(const pr of props)drawProp(sctx,pr,w,h);
     if(S.mode==='staying'&&S.spawned<quota()&&wild.length<7&&T-lastSpawn>1.3){{const nw=spawnWild(false);wild.push(nw);LOG('spawn',{sp:SP[nw.sp].n,lvl:nw.lvl,shiny:!!nw.shiny});if(!sheetOpen()){if(SP[nw.sp].leg){sfx('legend');toast(`A legendary ${SP[nw.sp].n} appeared! · 传说的${ZS(SP[nw.sp].n).zh}出现了！(chuánshuō de ${ZS(SP[nw.sp].n).py} chūxiàn le!)`)}else if(nw.shiny){sfx('shiny');toast(`A shiny ${SP[nw.sp].n} appeared! · 闪光的${ZS(SP[nw.sp].n).zh}出现了！(shǎnguāng de ${ZS(SP[nw.sp].n).py} chūxiàn le!)`)}else sfx('spawn')}}S.spawned++;lastSpawn=T;save();updateUI()}}
@@ -10549,19 +10555,23 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
   if(raidHere()){const bx=w*.5,by=h*.5,pulse=.5+.5*Math.sin(T*3);if((window.FX&&FX.attack)){try{FX.raidBeacon(sctx,bx,0,by,w*.12,T)}catch(e){}}else{sctx.fillStyle=`rgba(255,80,120,${.12+.1*pulse})`;sctx.fillRect(bx-w*.06,0,w*.12,by)}
     const bs=Math.min(h*.09,h*.3/(2.6*SP[S.raid.sp].sz));dc(sctx,S.raid.sp,bx,by,bs,T,{titan:true,shiny:S.raid.shiny,awake:true});
     const lab=`团体战 tuántǐ zhàn · RAID · Lv ${S.raid.lvl}`;sctx.font=`400 ${h*.045}px 'Sora',sans-serif`;sctx.textAlign='center';sctx.lineWidth=4;sctx.strokeStyle='#1a1424';sctx.strokeText(lab,bx,by+h*.06);sctx.fillStyle='#ffd23f';sctx.fillText(lab,bx,by+h*.06)}
-  if(S.mode==='staying'&&!sheetOpen()&&!C&&!B&&T-lastVisit>150&&typeof DIALOGUES!=='undefined'&&!document.getElementById('knock')){lastVisit=T;const phone=Math.random()<.5,keys=Object.keys(DIALOGUES).filter(k=>k.startsWith(phone?'phone_':'visit_'));if(keys.length){const wt=k=>/grand/.test(k)?3:1,k=(()=>{const pool=keys.map(k=>({k,w:wt(k)/(1+((S.talked||{})[k]||0))}));let r=Math.random()*pool.reduce((s,x)=>s+x.w,0);for(const x of pool){r-=x.w;if(r<=0)return x.k}return pool[0].k})();const kb=document.createElement('button');kb.id='knock';kb.className='raid knock';kb.innerHTML=phone?'Your phone is ringing!'+zw('电话来了！','diànhuà lái le!'):'Someone is at the door!'+zw('有人来了！','yǒu rén lái le!');kb.onclick=()=>{kb.remove();runTalk(k)};document.getElementById('banners').appendChild(kb);sfx(phone?'item':'spawn');if(phone)setTimeout(()=>sfx('item'),400);speak(phone?'电话来了！':'有人来了！');LOG(phone?'phone_ring':'door_knock',{k});setTimeout(()=>kb.remove(),45000)}}
-  if(T-lastIdle>.8&&!sheetOpen()&&!C&&!B&&!E&&S.mode!=='travel'&&document.getElementById('quiz').hidden){lastIdle=T;if(pendingTalks.length){const k=pendingTalks.shift();runTalk(k)}else if(evoQueue.length)runEvoQueue()}
+  if(S.mode==='staying'&&!sheetOpen()&&!C&&!B&&T-lastVisit>150&&typeof DIALOGUES!=='undefined'&&!document.getElementById('knock')){lastVisit=T;const phone=Math.random()<.5,keys=Object.keys(DIALOGUES).filter(k=>k.startsWith(phone?'phone_':'visit_'));if(keys.length){const wt=k=>/grand/.test(k)?3:1,k=(()=>{const pool=keys.map(k=>({k,w:wt(k)/(1+((S.talked||{})[k]||0))}));let r=Math.random()*pool.reduce((s,x)=>s+x.w,0);for(const x of pool){r-=x.w;if(r<=0)return x.k}return pool[0].k})();const kb=document.createElement('button');kb.id='knock';kb.className='raid knock';kb.innerHTML=phone?'Your phone is ringing!'+zw('电话来了！','diànhuà lái le!'):'Someone is at the door!'+zw('有人来了！','yǒu rén lái le!');kb.onclick=()=>{kb.remove();if(S.mode!=='travel'&&!B&&!C)runTalk(k)};document.getElementById('banners').appendChild(kb);sfx(phone?'item':'spawn');if(phone)setTimeout(()=>sfx('item'),400);speak(phone?'电话来了！':'有人来了！');LOG(phone?'phone_ring':'door_knock',{k});setTimeout(()=>kb.remove(),45000)}}
+  if(T-lastIdle>.8&&!idleHold&&!sheetOpen()&&!C&&!B&&!E&&S.mode!=='travel'){lastIdle=T;const k=nextTalk();if(k)runTalk(k);else if(evoQueue.length)runEvoQueue()}
   if(S.mode==='staying'&&!B&&T-lastHeal>3){lastHeal=T;for(const c of party()){const m=stats(c).maxhp;if(c.hp>0&&c.hp<m)c.hp=Math.min(m,c.hp+Math.ceil(m*.08))}}
-  wild=wild.filter(wd=>!(wd.road&&wd.x<-.15));
+  if(!paused){wild=wild.filter(wd=>!(wd.road&&wd.x<-.15));
   for(let i=0;i<wild.length;i++)for(let j=i+1;j<wild.length;j++){const a=wild[i],b=wild[j];if(a.road||b.road)continue;const dx=a.x-b.x,dy=(a.y-b.y)*1.6,d=Math.hypot(dx,dy);if(d<.16){const f=(.16-d)*dt*.8*(dx<0?-1:1);a.x=Math.min(.9,Math.max(.1,a.x+f));b.x=Math.min(.9,Math.max(.1,b.x-f));if(d<.06){a.vx=Math.abs(a.vx||.02)*(dx<0?-1:1);b.vx=-a.vx}}}
-  for(const wd of wild){wd.x+=wd.vx*dt;if(!wd.road&&(wd.x<.1||wd.x>.9))wd.vx=Math.abs(wd.vx)*(wd.x<.5?1:-1);if(!wd.road&&Math.random()<.004)wd.vx=R(-.03,.03)}
+  for(const wd of wild){wd.x+=wd.vx*dt;if(!wd.road&&(wd.x<.1||wd.x>.9))wd.vx=Math.abs(wd.vx)*(wd.x<.5?1:-1);if(!wd.road&&Math.random()<.004)wd.vx=R(-.03,.03)}}
   if(S.mode!=='travel'&&window.Reader){try{Reader.frame(sctx,w,h)}catch(e){console.error(e)}}
-  for(const wd of [...wild].sort((a,b)=>a.y-b.y)){if(C&&C.wd===wd)continue;const pop=Math.min(1,(T-wd.born)*3);const s=h*.11*(.75+(wd.y-.55)*1.3)*pop;
+  const labs=[];for(const wd of [...wild].sort((a,b)=>a.y-b.y)){if(C&&C.wd===wd)continue;const pop=Math.min(1,(T-wd.born)*3);const s=h*.11*(.75+(wd.y-.55)*1.3)*pop;
     const age=T-wd.born;if(age<.8&&window.FX&&FX.spawnRing){try{FX.spawnRing(sctx,wd.x*w,wd.y*h,age/.8,s*1.6)}catch(e){}}else if(age<.8){const k=age/.8;sctx.strokeStyle=`rgba(255,240,170,${1-k})`;sctx.lineWidth=3;sctx.beginPath();sctx.ellipse(wd.x*w,wd.y*h,s*2.2*k+4,s*.6*k+2,0,0,7);sctx.stroke();
       for(let i=0;i<6;i++){const a=i*1.05+wd.ph;el(sctx,wd.x*w+Math.cos(a)*s*1.6*k,wd.y*h-s*.8-Math.sin(a)*s*1.2*k-k*s,3*(1-k)+.5,3*(1-k)+.5,'#fff6c2')}}
     dc(sctx,wd.sp,wd.x*w,wd.y*h,s,T,{ethereal:inRift(),shiny:wd.shiny,flip:wd.vx<0,ph:wd.ph,hop:Math.abs(Math.sin(T*5+wd.ph))*s*.15});
     const zz=ZS(SP[wd.sp].n),lab=(zz.zh?zz.zh+' ':'')+'Lv '+wd.lvl,lab2=zz.py||'';sctx.font=`700 ${Math.max(10,h*.032)}px 'Noto Sans SC',Manrope,sans-serif`;const tw=Math.max(sctx.measureText(lab).width,lab2?sctx.measureText(lab2).width*.85:0);
-    const lh=h*.042,bh=lab2?lh*1.85:lh;sctx.fillStyle='rgba(16,18,22,.62)';sctx.beginPath();sctx.roundRect(wd.x*w-tw/2-7,wd.y*h+4,tw+14,bh,6);sctx.fill();sctx.strokeStyle='rgba(255,255,255,.18)';sctx.lineWidth=1;sctx.stroke();sctx.fillStyle='#fff';sctx.textAlign='center';sctx.textBaseline='middle';sctx.fillText(lab,wd.x*w,wd.y*h+4+lh*.55);if(lab2){sctx.font=`600 ${Math.max(9,h*.027)}px Manrope,sans-serif`;sctx.fillStyle='rgba(255,255,255,.82)';sctx.fillText(lab2,wd.x*w,wd.y*h+4+lh*1.35)}}
+    const lh=h*.042;labs.push({x:wd.x*w,y:wd.y*h+4,tw,lh,bh:lab2?lh*1.85:lh,lab,lab2})}
+  // name tags go on top, and a tag that would cover another one moves down (or above its creature at the bottom edge)
+  {const placed=[];for(const L of labs){const hit=(y)=>placed.find(o=>Math.abs(o.x-L.x)<(o.tw+L.tw)/2+16&&y<o.y+o.bh+2&&y+L.bh+2>o.y);let y=L.y,o,n=0;while((o=hit(y))&&n++<8)y=o.y+o.bh+2;
+    if(y+L.bh>h-2){y=L.y-L.bh-h*.12;n=0;while((o=hit(y))&&n++<8)y=o.y-L.bh-2}L.y=y;placed.push(L)}
+  for(const L of labs){sctx.font=`700 ${Math.max(10,h*.032)}px 'Noto Sans SC',Manrope,sans-serif`;sctx.fillStyle='rgba(16,18,22,.62)';sctx.beginPath();sctx.roundRect(L.x-L.tw/2-7,L.y,L.tw+14,L.bh,6);sctx.fill();sctx.strokeStyle='rgba(255,255,255,.18)';sctx.lineWidth=1;sctx.stroke();sctx.fillStyle='#fff';sctx.textAlign='center';sctx.textBaseline='middle';sctx.fillText(L.lab,L.x,L.y+L.lh*.55);if(L.lab2){sctx.font=`600 ${Math.max(9,h*.027)}px Manrope,sans-serif`;sctx.fillStyle='rgba(255,255,255,.82)';sctx.fillText(L.lab2,L.x,L.y+L.lh*1.35)}}}
   if(S.mode!=='travel')for(const f of (window.SCENE_HOOKS||[])){try{f(sctx,w,h)}catch(e){console.error(e)}}
   if(S.mode!=='travel'&&ambOK(p))ambient(sctx,w,h,p);vignette(sctx,w,h);
   if(S.mode==='travel')document.getElementById('meter').style.width=(travelT*100)+'%';
@@ -10659,10 +10669,12 @@ function startStay(){if(S.mode!=='arrived')return;
   if(!S.raid){S.staysNoRaid++;if(Math.random()<.35||S.staysNoRaid>=3){S.staysNoRaid=0;S.raid=pickBoss();raidAt=T+R(5,9)}}
   for(const c of S.col)c.hp=stats(c).maxhp;
   toast(`Staying at ${PLACES[S.place].n}. Your team rested.`);save();updateUI()}
-async function travel(i){close('sMap');if(i===S.place)return;{const from=PLACES[S.place],to=PLACES[i];if(!from.rift&&!to.rift&&from.region!==to.region){const ak=to.region==='California'?'airport_out':'airport_home';if(hasTalk(ak)){const ok=await runTalk(ak);if(!ok)return}}}LOG('travel',{from:PLACES[S.place].n,to:PLACES[i].n});if(S.rift&&S.rift.place===S.place)S.rift=null;if(S.raid){S.raid=null;toast('You left, so the raid ended.')}travelTo=i;travelT=0;S.mode='travel';wild=[];roadSpawns=(PLACES[i].rift||PLACES[S.place].rift)?[]:[{at:.3},{at:.65}];makeProps(i);save();updateUI()}
+async function travel(i){close('sMap');if(i===S.place)return;{const from=PLACES[S.place],to=PLACES[i];if(!from.rift&&!to.rift&&from.region!==to.region){const ak=to.region==='California'?'airport_out':'airport_home';if(hasTalk(ak)){const ok=await runTalk(ak);if(!ok)return}}}LOG('travel',{from:PLACES[S.place].n,to:PLACES[i].n});if(S.rift&&S.rift.place===S.place&&!S.rift.story)S.rift=null;if(S.raid){const was=raidHere();S.raid=null;if(was)toast('You left, so the raid ended.')}
+  {const kb=document.getElementById('knock');if(kb)kb.remove()}travelTo=i;travelT=0;S.mode='travel';wild=[];roadSpawns=(PLACES[i].rift||PLACES[S.place].rift)?[]:[{at:.3},{at:.65}];makeProps(i);save();updateUI()}
 function arrive(){S.place=travelTo;S.mode='arrived';S.spawned=0;wild=[];makeProps(S.place);
-  const first=!S.visited.includes(S.place);if(first)S.visited.push(S.place);{const ak='arrive_'+PLACES[S.place].key;if(first&&hasTalk(ak))queueTalk(ak)}const rw=PLACES[S.place].rift?(first?{great:3,ultra:2}:{great:2,ultra:1}):first?{orb:8,great:1,berry:2}:Math.random()<.5?{orb:4,berry:1}:{orb:5};give(rw);sfx('item');
-  LOG('arrive',{place:PLACES[S.place].n,rw});{const z=ZP(PLACES[S.place].n);toast(`Arrived at ${PLACES[S.place].n} · 到达${z.zh} (dàodá ${z.py}). Found ${rwTxt(rw)}.`);speak('到达'+z.zh)}save();updateUI()}
+  // the place's welcome chat is owed until it has been played through (see owedTalks), so a reload never loses it
+  const first=!S.visited.includes(S.place);if(first)S.visited.push(S.place);{const ak='arrive_'+PLACES[S.place].key;if(!(S.talked||{})[ak]&&hasTalk(ak))queueTalk(ak)}const rw=PLACES[S.place].rift?(first?{great:3,ultra:2}:{great:2,ultra:1}):first?{orb:8,great:1,berry:2}:Math.random()<.5?{orb:4,berry:1}:{orb:5};give(rw);sfx('item');
+  LOG('arrive',{place:PLACES[S.place].n,rw});{const z=ZP(PLACES[S.place].n);toast(`Arrived at ${PLACES[S.place].n} · 到达${z.zh} (dàodá ${z.py}). Found ${rwTxt(rw)}.`);holdIdle(window.speakAsync?speakAsync('到达'+z.zh):speak('到达'+z.zh))}save();updateUI()}
 
 function updateUI(){const p=PLACES[S.place];
   document.getElementById('cOrbs').textContent=`${S.items.orb} orbs · 球 qiú`;
@@ -10673,11 +10685,11 @@ function updateUI(){const p=PLACES[S.place];
   document.getElementById('cDex').textContent=`${new Set(S.col.map(c=>c.sp)).size}/${SP.length} kinds · 种 zhǒng`;
   const st=document.getElementById('status'),m=document.getElementById('meter');
   const nextQ=Math.min(15,5+2*(S.stayed.length-(S.stayed.includes(S.place)?1:0)));
-  if(S.mode==='travel'){st.innerHTML=(!PLACES[travelTo].rift&&!p.rift&&PLACES[travelTo].region!==p.region)?`<b>Flying to ${PLACES[travelTo].n}…</b>`:(PLACES[travelTo].rift||p.rift)?`<b>Warping to ${PLACES[travelTo].n}…</b>`:`<b>Traveling to ${PLACES[travelTo].n}…</b> Tap creatures on the road!`}
+  if(S.mode==='travel'){st.innerHTML=(!PLACES[travelTo].rift&&!p.rift&&PLACES[travelTo].region!==p.region)?`<b>Flying to ${PLACES[travelTo].n}…</b>`:(PLACES[travelTo].rift||p.rift)?`<b>Warping to ${PLACES[travelTo].n}…</b>`:`<b>Traveling to ${PLACES[travelTo].n}…</b>`}
   else if(S.mode==='staying'){const q=quota();m.style.width=(S.spawned/q*100)+'%';
     st.innerHTML=S.spawned<q?`<b>Staying at ${p.n}</b> · ${S.spawned} of ${q} creatures`:
       wild.length?`<b>All ${q} creatures are here!</b>`:`<b>${p.n} is quiet now.</b> Move on for more.`}
-  else if(p.rift&&S.mode==='arrived'){m.style.width='0%';st.innerHTML=`<b>Starveil Rift</b> · shinies and legendaries are common here`}
+  else if(p.rift&&S.mode==='arrived'){m.style.width='0%';st.innerHTML=`<b>Starveil Rift</b> · shinies are common here`}
   else{m.style.width='0%';st.innerHTML=`<b>${p.n}</b> · stay and ${nextQ} creatures will come`}
   st.innerHTML=`<span class="en sten">${st.innerHTML}</span>`;
   {const z=ZP(p.n);let zl='';if(S.mode==='travel'){const q2=PLACES[travelTo],zq=ZP(q2.n);zl=zw(`出发去${zq.zh}`,`chūfā qù ${zq.py}`)}else if(S.mode==='staying')zl=zw(`留在${z.zh}。生物会来找你！`,`liú zài ${z.py}. shēngwù huì lái zhǎo nǐ!`);else zl=zw(`你在${z.zh}。`,`nǐ zài ${z.py}.`);st.insertAdjacentHTML('beforeend',`<div class="zhline">${zl}</div>`)}
@@ -10689,14 +10701,42 @@ function updateUI(){const p=PLACES[S.place];
 function open(id){document.getElementById(id).hidden=false}
 function close(id){document.getElementById(id).hidden=true}
 const pendingTalks=[];function queueTalk(k){if(hasTalk(k)&&!pendingTalks.includes(k))pendingTalks.push(k)}
-let lastIdle=0;
-function sheetOpen(){if(document.querySelector('.sheet.talk:not([hidden]),.sheet.lesson:not([hidden])'))return'talk';for(const id of['sCatch','sBattle','sEvo','sStart','sQuest','sBag','sTeam','sMap','sContacts','sSet','sLearn','sRead','sWho']){const el=document.getElementById(id);if(el&&!el.hidden)return id}return null}
+// Conversations the game owes the player are worked out from the save itself, so a reload or a closed app never loses them:
+// the neighbor's intro after the starter, the first chat at a place, and the interview after a new badge.
+const interviewKey=()=>'interview_'+((S.interviews||0)%8+1);
+function owedTalks(){if(!S.col.length||typeof hasTalk!=='function')return[];const t=S.talked||{},out=[];
+  if(!t.intro_neighbor)out.push('intro_neighbor');
+  if(S.mode!=='travel'){const ak='arrive_'+PLACES[S.place].key;if((S.visited||[]).includes(S.place)&&!t[ak])out.push(ak)}
+  if(S.pendingInterview)out.push(interviewKey());
+  return out.filter(k=>hasTalk(k))}
+const owedTry={};
+// an arrival chat only makes sense at its own place
+const talkFits=k=>!k.startsWith('arrive_')||(S.mode!=='travel'&&k==='arrive_'+PLACES[S.place].key);
+function nextTalk(){while(pendingTalks.length){const k=pendingTalks.shift();if(talkFits(k)&&hasTalk(k))return k}
+  for(const k of owedTalks())if((owedTry[k]||0)<3){owedTry[k]=(owedTry[k]||0)+1;return k}return null}
+// the conversation player calls this when a conversation reaches its end
+window.onTalkDone=k=>{if(String(k).startsWith('interview_')&&S.pendingInterview){S.pendingInterview=false;S.interviews=(S.interviews||0)+1}};
+let lastIdle=0,idleHold=0;
+// wait for a spoken line (e.g. "到达…") to finish before a conversation can start and cut it off
+function holdIdle(p){const my=++idleHold;Promise.race([Promise.resolve(p).catch(()=>{}),new Promise(r=>setTimeout(r,4000))]).then(()=>{if(idleHold===my){idleHold=0;lastIdle=T}})}
+// what is covering the scene right now (null when the player is just looking at the field); travel and the field pause while anything is
+function sheetOpen(){if(document.querySelector('.sheet.talk:not([hidden]),.sheet.lesson:not([hidden])'))return'talk';for(const id of['sCatch','sBattle','sEvo','sStart','sQuest','sBag','sTeam','sMap','sContacts','sSet','sLearn','sRead','sWho']){const el=document.getElementById(id);if(el&&!el.hidden)return id}
+  if(document.querySelector('.tracewrap'))return'trace';if(C)return'catch';const qz=document.getElementById('quiz');if(qz&&!qz.hidden)return'quiz';return null}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.closest('.sheet').id));
-let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200)}
+// over an open sheet, a toast sits just below the sheet's header (its title, the speaker's name, the foe's name) instead of covering it;
+// it moves when a sheet opens or closes while it is showing
+function placeToast(){const t=document.getElementById('toast');if(!t||!t.classList.contains('on'))return;let top='';
+  try{const sh=[...document.querySelectorAll('.sheet:not([hidden])')].pop();if(sh){const hd=sh.querySelector('[data-toast]')||sh.querySelector('.talkhead,.inner>.row,.inner>h2');if(hd){const r=hd.getBoundingClientRect();if(r.height)top=Math.round(r.bottom+6)+'px'}}}catch(e){}
+  if(t.style.top!==top)t.style.top=top}
+new MutationObserver(()=>placeToast()).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});
+let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;
+  t.classList.add('on');placeToast();clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200)}
 document.getElementById('bStay').onclick=startStay;
 document.getElementById('bMove').onclick=()=>{const L=document.getElementById('mapList');L.innerHTML='';
-  let lastReg=null;PLACES.forEach((p,i)=>{if(p.rift&&i!==S.place)return;if(p.region!==lastReg){lastReg=p.region;const hh=document.createElement('div');hh.className='reghead';hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+(p.region!==PLACES[S.place].region?' · flight 飞行 fēixíng':''):'Home · 家乡 jiāxiāng'+(p.region!==PLACES[S.place].region?' · flight 飞行 fēixíng':'');L.appendChild(hh)}const c=document.createElement('div');c.className='card';
-    c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="nm">${plB(i,true)}${S.badges.includes(i)?' ★':''}</div><div class="sub">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join(' ')} · Lv ${Math.max(2,p.lv-3)}–${p.lv}</div></div>`;
+  let lastReg=null;PLACES.forEach((p,i)=>{if(p.rift&&i!==S.place)return;if(p.region!==lastReg){lastReg=p.region;const hh=document.createElement('div');hh.className='reghead';const fl=p.region!==PLACES[S.place].region&&!PLACES[S.place].rift?' · flight 飞行 fēixíng':''; // leaving the Rift is a warp, not a flight
+      hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+fl:'Home · 家乡 jiāxiāng'+fl;L.appendChild(hh)}const c=document.createElement('div');c.className='card';
+    // name in Chinese with pinyin, English and levels under it, then the creature types (no awkward wrapping on narrow phones)
+    const z=ZP(p.n);c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||p.n}</b><span class="tpy">${z.py}</span>${S.badges.includes(i)?'<span class="mbadge">★</span>':''}</div><div class="ten">${p.n} · Lv ${Math.max(2,p.lv-3)}–${p.lv}</div><div class="tmeta">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join('')}</div></div>`;
     const b=document.createElement('button');b.className='small'+(i===S.place?'':' big');b.textContent=i===S.place?'Here':'Go';b.disabled=i===S.place;b.onclick=()=>travel(i);c.appendChild(b);L.appendChild(c)});L.querySelectorAll('canvas.mapthumb').forEach(cv=>{try{const pl=PLACES[+cv.dataset.place],d=devicePixelRatio||1;cv.width=92*d;cv.height=62*d;const cx=cv.getContext('2d');cx.setTransform(d,0,0,d,0,0);if(hasScene(pl))cx.drawImage(painted(pl.key,160,108),0,0,160,108,0,0,92,62);else bgOld(cx,92,62,pl)}catch(e){}});open('sMap')};
 document.getElementById('bTeam').onclick=renderTeam;
 function renderTeam(){const L=document.getElementById('teamList');L.innerHTML='';
@@ -10732,7 +10772,9 @@ function evoFrame(){if(!E)return;const {w,h,d}=sizeCanvas(ecv);ectx.setTransform
   if(el_<dur){const f=Math.pow(el_/dur,2)*22;const showNew=Math.sin(el_*f)>0&&el_>.6;const sp=showNew?E.to:E.from;
     for(let i=0;i<14;i++){const a=i/14*Math.PI*2+el_*1.5,r=w*.32*(1-(el_*.4+i*.07)%1);el(ectx,w/2+Math.cos(a)*r,h*.5+Math.sin(a)*r*.6,3,3,'#fff6c2')}
     dc(ectx,sp,w/2,h*.9,fitS(w,h,sp,.8),T,{silhouette:'#fff8de',awake:true})}
-  else{if(!E.done){E.done=true;const c=E.c,old=stats(c);c.sp=E.to;S.caught=[...new Set([...(S.caught||[]),E.to])];const nw=stats(c);c.hp=c.hp>0?Math.max(1,Math.round(c.hp/old.maxhp*nw.maxhp)):0;save();
+  else{if(!E.done){E.done=true;const c=E.c,old=stats(c);c.sp=E.to;S.caught=[...new Set([...(S.caught||[]),E.to])];const nw=stats(c);c.hp=c.hp>0?Math.max(1,Math.round(c.hp/old.maxhp*nw.maxhp)):0;
+      // already past the next stage's level too (e.g. a Lv 40 first stage): evolve again right after this one
+      {const ns=SP[c.sp];if(ns.next!=null&&c.lvl>=ns.evoLv&&!evoQueue.includes(c.id))evoQueue.unshift(c.id)}save();
       document.getElementById('eTitle').textContent='Evolution complete';{const a=ZS(SP[E.from].n),b2=ZS(SP[E.to].n);document.getElementById('elog').innerHTML=`${SP[E.from].n} evolved into ${SP[E.to].n}!`+zw(`${a.zh}进化成了${b2.zh}！`,`${a.py} jìnhuà chéng le ${b2.py}!`);speak(`${a.zh}进化成了${b2.zh}！`)}document.getElementById('bEvoOk').hidden=false;document.getElementById('bEvoOk').focus()}
     const k=Math.min(1,(el_-dur)*3);el(ectx,w/2,h*.55,w*.5*(1-k)+1,w*.5*(1-k)+1,`rgba(255,250,220,${1-k})`);
     dc(ectx,E.to,w/2,h*.9,fitS(w,h,E.to,.8),T,{awake:true,shiny:E.c.shiny})}
@@ -10742,11 +10784,13 @@ document.getElementById('bEvoOk').onclick=()=>{E=null;document.getElementById('s
 // ---------- catching: drag-and-flick orb throw ----------
 const ccv=document.getElementById('ccv'),cctx=ccv.getContext('2d');
 const RING_MIN=.3;
-function openCatch(wd){if(C)return;LOG('catch_open',{sp:SP[wd.sp].n,lvl:wd.lvl,shiny:!!wd.shiny,raid:!!wd.raid});C={throws:0,berry:false,kind:pickKind(),wd,phase:'aim',t0:T,drag:null,orb:null,spin:0,turn:0,curve:0,dodge:R(0,6),visible:true,msgT:0,parts:[]};
+function openCatch(wd){if(C||!wd||(!wd.raid&&!wild.includes(wd)))return;LOG('catch_open',{sp:SP[wd.sp].n,lvl:wd.lvl,shiny:!!wd.shiny,raid:!!wd.raid});C={throws:0,berry:false,kind:pickKind(),wd,phase:'aim',t0:T,drag:null,orb:null,spin:0,turn:0,curve:0,dodge:R(0,6),visible:true,msgT:0,parts:[]};
   const z=ZS(SP[wd.sp].n),wname=(wd.raid?'巨大的':'野生的')+z.zh,wpy=(wd.raid?'jùdà de ':'yěshēng de ')+z.py;
   document.getElementById('catchTitle').innerHTML=`<span class="ctz" data-say="${wname}">${wname}${wd.shiny?' <b class="ctag">★</b>':''}${SP[wd.sp].leg?' <b class="ctag">传说</b>':''}</span><span class="ctp">${wpy}</span><span class="cte">${wd.raid?'Giant':'Wild'} ${SP[wd.sp].n} · Lv ${wd.lvl}${wd.shiny?' · Shiny':''}${SP[wd.sp].leg?' · Legendary':''}</span>`;if(wd.shiny)sfx('shiny');if(SP[wd.sp].leg)sfx('legend');
-  msg(orbsLeft()?'Drag the orb up and let go.':'You are out of orbs. Travel to a place to find more.');updOrbs();renderSpell();
-  const me=C,show=sayName=>{if(C!==me)return;open('sCatch');ccv.focus();requestAnimationFrame(catchLoop);if(sayName)setTimeout(()=>speak(wname),250)};
+  updOrbs();msgW(orbsLeft()?'drag':'noorbs');renderSpell();
+  // never open the catch screen for a creature that has left the field (a raid boss is never on the field)
+  const me=C,show=sayName=>{if(C!==me)return;if(!wd.raid&&!wild.includes(wd)){LOG('catch_gone',{sp:SP[wd.sp].n});C=null;updateUI();return}open('sCatch');C.aimT=T;ccv.focus();requestAnimationFrame(catchLoop);
+    if(sayName)setTimeout(()=>{if(C!==me)return;cSay(wname);if(!orbsLeft())cSay(W.noorbs[1],true)},250)};
   // the spell comes first: tapping a creature opens the trace right away, and the catch screen appears once the spell is cast
   if(orbsLeft()&&S.trace!==false&&window.traceChar)castSpell({title:`${wd.raid?'Giant':'Wild'} ${SP[wd.sp].n} · ${wname} <i>${wpy}</i>`,
     pic:(ctx,w,h,t)=>{ctx.clearRect(0,0,w,h);dc(ctx,wd.sp,w/2,h*.94,fitS(w,h,wd.sp,.82),t,{shiny:wd.shiny,awake:true,ethereal:inRift(),titan:!!wd.raid})},then:()=>show(false)});
@@ -10767,8 +10811,17 @@ function orbK(ctx,x,y,r,s,g){drawOrb(ctx,x,y,r,s||0,g||(C&&(C.power||C.spell)&&(
 function spellGlyph(ctx,x,y,r){if(!C||!C.spell||!C.spellCh)return;const k=Math.min(1,(T-(C.spellT||0))/.5);ctx.save();ctx.globalAlpha=k*(.75+.25*Math.sin(T*3));ctx.font=`700 ${Math.round(r*1.5)}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.shadowColor='#ffd27a';ctx.shadowBlur=18;ctx.fillStyle='#ffe7b0';ctx.fillText(C.spellCh,x,y-r*2.25-Math.sin(T*2)*3);
   for(let i=0;i<6;i++){const a=T*1.4+i*Math.PI/3,rr=r*1.55;ctx.globalAlpha=k*.6;ctx.beginPath();ctx.arc(x+Math.cos(a)*rr,y+Math.sin(a)*rr*.55,2.2,0,7);ctx.fillStyle='#ffd27a';ctx.fill()}ctx.restore()}
-function msg(t,zh,py,talk){document.getElementById('catchMsg').innerHTML=t+(zh?zw(zh,py):'');if(talk&&zh)speak(zh)}
+// the catch screen's voice: a new line cuts the old one; talk==='after' waits for the line that is playing to finish
+let cSayTok=0,cSayP=Promise.resolve();
+function cSay(zh,after){const tk=++cSayTok,go=()=>window.speakAsync?speakAsync(zh):(speak(zh),null);
+  cSayP=after?cSayP.then(()=>{if(tk===cSayTok&&C)return go()}).catch(()=>{}):Promise.resolve(go()).catch(()=>{})}
+function msg(t,zh,py,talk){document.getElementById('catchMsg').innerHTML=t+(zh?zw(zh,py):'');if(talk&&zh)cSay(zh,talk==='after')}
 function msgW(k,talk){const w=W[k];msg(w[0],w[1],w[2],talk)}
+// a hint for the throw, in Chinese and spoken, with an upward swipe drawn over the orb (works without reading)
+function throwHint(k,talk){if(!C)return;C.hintT=T;if(talk&&T-(C.hintSaid||-9)<2.5)talk=false;if(talk)C.hintSaid=T;msgW(k,talk)}
+function swipeCue(ctx,x,y,r){const k=(T*.9)%1;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=Math.max(3,r*.16);
+  for(let i=0;i<3;i++){const q=(k+i/3)%1,cy=y-r*1.3-q*r*3.2,w=r*.55;ctx.globalAlpha=Math.sin(q*Math.PI)*.95;ctx.strokeStyle='#fff';ctx.shadowColor='rgba(20,30,80,.55)';ctx.shadowBlur=6;
+    ctx.beginPath();ctx.moveTo(x-w,cy+w*.55);ctx.lineTo(x,cy);ctx.lineTo(x+w,cy+w*.55);ctx.stroke()}ctx.restore()}
 function cGeom(){const r=ccv.getBoundingClientRect(),w=r.width,h=r.height,sp=C.wd.sp,z=SP[sp].sz;
   const s=Math.min(h*.14,h*.42/(2.6*z));const range=Math.max(0,Math.min(w*(.05+.04*SP[sp].stage),w/2-1.7*s*z))*(C.berry?.3:1)*(C.spell===2?.45:1)*(isYoung()?.5:1);
   const cx=cxAt(T,range),gy=h*.5;
@@ -10778,14 +10831,14 @@ function cGeom(){const r=ccv.getBoundingClientRect(),w=r.width,h=r.height,sp=C.w
 function cxAt(tm,range){const sp=C.wd.sp,w=ccv.getBoundingClientRect().width;return w/2+Math.sin((tm-C.t0)*(.45+.15*SP[sp].stage)+C.dodge)*range}
 function cPt(e){const r=ccv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top,t:performance.now()}}
 ccv.addEventListener('pointerdown',e=>{if(!C||C.quizzing||C.phase!=='aim'||!orbsLeft())return;const g=cGeom(),p=cPt(e);
-  if(Math.hypot(p.x-g.rest.x,p.y-g.rest.y)>g.orbR*2.6)return;ccv.setPointerCapture(e.pointerId);C.drag={pts:[p],x:p.x,y:p.y,head:null,turn:0};ccv.style.cursor='grabbing'});
+  if(Math.hypot(p.x-g.rest.x,p.y-g.rest.y)>g.orbR*2.6)return;ccv.setPointerCapture(e.pointerId);C.drag={pts:[p],x:p.x,y:p.y,head:null,turn:0};C.aimT=T;C.hintT=0;ccv.style.cursor='grabbing'});
 ccv.addEventListener('pointermove',e=>{if(!C||!C.drag)return;const p=cPt(e),dr=C.drag,lp=dr.pts[dr.pts.length-1];
   const dx=p.x-lp.x,dy=p.y-lp.y;if(Math.hypot(dx,dy)>2){const hd=Math.atan2(dy,dx);if(dr.head!=null){let dd=hd-dr.head;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;dr.turn+=dd}dr.head=hd}
   dr.pts.push(p);if(dr.pts.length>40)dr.pts.shift();dr.x=p.x;dr.y=p.y;C.curve=Math.abs(dr.turn)>Math.PI*2.2?Math.sign(dr.turn):0});
 function release(e){if(!C||!C.drag)return;const dr=C.drag;C.drag=null;ccv.style.cursor='grab';const now=performance.now();
   let recent=dr.pts.filter(p=>now-p.t<110);if(recent.length<2)recent=dr.pts.slice(-2);const a=recent[0],b=dr.pts[dr.pts.length-1];const dt=Math.max(.016,(b.t-a.t)/1000);
   const vx=(b.x-a.x)/dt,vy=(b.y-a.y)/dt;
-  if(vy>-250){if(C.curve)msg('Spinning! Now flick it upward.');else msg('Flick upward to throw.');return}
+  if(vy>-250){C.aimT=T;throwHint(C.curve?'spin':'flick',true);return}
   throwOrb(dr.x,dr.y,vx,vy)}
 function predict(x0,y0,vx,vy){const g=cGeom(),P=-vy,slope=vx/(-vy),lo=g.h*1.1,hi=g.h*8;
   let y1=g.ty;if(P<lo)y1=y0-(y0-g.ty)*Math.max(.25,P/lo)*.8;else if(P>hi)y1=g.ty-Math.min(g.h*.3,(P-hi)*.06);
@@ -10814,7 +10867,10 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
     if(vy<-150){const pr=predict(C.drag.x,C.drag.y,vx,vy),o={x0:C.drag.x,y0:C.drag.y,x1:pr.x1,y1:pr.y1,curve:C.curve,arc:g.h*.14};
       for(let i=1;i<14;i++){const q=orbPos(o,i/14);el(cctx,q.x,q.y,3,3,'rgba(255,255,255,.75)')}}}
   if(C.phase==='aim'){const p=C.drag?{x:C.drag.x,y:C.drag.y}:g.rest;const spinning=C.curve!==0;
-    if(orbsLeft()){orbK(cctx,p.x,p.y,g.orbR,spinning?T*14*C.curve:0,spinning?.6+.4*Math.sin(T*12):0);spellGlyph(cctx,p.x,p.y,g.orbR)}}
+    if(orbsLeft()){orbK(cctx,p.x,p.y,g.orbR,spinning?T*14*C.curve:0,spinning?.6+.4*Math.sin(T*12):0);spellGlyph(cctx,p.x,p.y,g.orbR);
+      // no throw for a while: show (and say) how to throw
+      if(!C.drag&&!C.quizzing&&!C.hinted&&T-(C.aimT||T)>(isYoung()?3.5:7)){C.hinted=true;throwHint('drag','after')}
+      if(!C.drag&&C.hintT&&T-C.hintT<4.5&&!C.spell)swipeCue(cctx,g.rest.x,g.rest.y,g.orbR)}}
   else if(C.phase==='fly'){const o=C.orb,p=Math.min(1,(T-o.t0)/o.dur),q=orbPos(o,p);o.trail.push([q.x,q.y,q.sc]);if(o.trail.length>12)o.trail.shift();
     o.trail.forEach(([x,y,sc],i)=>el(cctx,x,y,g.orbR*sc*(i/12)*.8,g.orbR*sc*(i/12)*.8,C.spell?`rgba(255,210,122,${i/18})`:`rgba(120,255,230,${i/24})`));orbK(cctx,q.x,q.y,g.orbR*q.sc,(T-o.t0)*(o.curve?30:8));
     if(p>=1){const dist=Math.hypot(o.x1-cx,o.y1-g.ty);
@@ -10823,7 +10879,7 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
         LOG('throw_hit',{label:C.label});C.phase='absorb';C.pt=T;C.hit={x:o.x1,y:o.y1};sfx('hit');burst(o.x1,o.y1,'#fff3c4')}
       else{sfx('miss');C.berry=false;C.power=false;if(S.streak>=2)toast(`Streak lost at ×${S.streak}`);S.streak=0;updateUI();renderItemBar();C.whyK=o.y1>g.ty+1?'short':o.y1<g.ty-1?'over':'wide';C.why=W[C.whyK][0];LOG('throw_miss',{why:C.why});C.phase='miss';C.pt=T;C.miss={x:q.x,y:q.y,vx:(o.x1-o.x0)*.6,vy:-120};msgW(C.whyK,true)}}}
   else if(C.phase==='miss'){const tt=T-C.pt,m=C.miss;orbK(cctx,m.x+m.vx*tt,m.y+m.vy*tt+500*tt*tt,g.orbR*.58,tt*10);
-    if(tt>.8){C.phase='aim';C.t0=T-.3;renderSpell();msg(orbsLeft()?(C.spell?'Your spell is still ready. Try again!':'Try again. Drag the orb up and let go.'):'You are out of orbs.')}}
+    if(tt>.8){C.phase='aim';C.t0=T-.3;C.aimT=T;renderSpell();if(!orbsLeft())msgW('noorbs','after');else{msgW(C.spell?'spellagain':'again',isYoung()?'after':false);if(isYoung())C.hintT=T}}}
   else if(C.phase==='absorb'){const tt=T-C.pt;orbK(cctx,C.hit.x,C.hit.y,g.orbR*.58,0,1-tt/.5);
     if(tt>.5){C.visible=false;C.phase='drop';C.pt=T;decideCatch()}}
   else if(C.phase==='drop'||C.phase==='shake'||C.phase==='result'){const tt=T-C.pt,fy=g.gy-g.orbR*.6;
@@ -10841,7 +10897,7 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
 function decideCatch(){const s=SP[C.wd.sp],avg=party().reduce((a,c)=>a+c.lvl,0)/Math.max(1,party().length)||5;
   const kb=({orb:0,great:.15,ultra:.3}[C.kind]||0)+(C.power?.15:0)+(C.spell===2?.15:C.spell?.08:0);C.power=false;C.rollSpell=C.spell||0;C.spell=0;C.spellCh=null;
   const chance=Math.max(s.leg?.1:.25,Math.min(.92,.66-(C.wd.lvl-avg)*.02-(s.stage-1)*.08+(C.bonus||0)+kb+(C.berry?.1:0)+(C.wd.raid?.1:0)+(isYoung()?.25:0)-(s.leg?.35:0)));C.berry=false;
-  C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2)}
+  C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2);renderSpell()}
 function finishCatch(){const wd=C.wd,s=SP[wd.sp];
   if(C.caught){sfx('catch');C.burstT=T;const c=mk(wd.sp,wd.lvl,wd.shiny);S.col.push(c);S.caught=[...new Set([...(S.caught||[]),wd.sp])];wild=wild.filter(x=>x!==wd);burst(C.hit.x,C.hit.y,'#ffd23f');burst(C.hit.x,C.hit.y,'#45dc9a');
     S.streak=(S.streak||0)+1;streakReward();q('catch');q('type',s.t);if(C.throws===1)q('first');
@@ -10850,15 +10906,15 @@ function finishCatch(){const wd=C.wd,s=SP[wd.sp];
     save();const cur=C;setTimeout(()=>{if(C===cur)endCatch()},1800)}
   else{sfx('breakfree');C.visible=true;burst(C.hit.x,C.hit.y,'#fff3c4');
     if(!wd.raid&&C.rollSpell!==2&&!isYoung()&&Math.random()<.18){LOG('flee',{sp:s.n});S.streak=0;msgW('fled',true);wild=wild.filter(x=>x!==wd);save();const cur=C;setTimeout(()=>{if(C===cur)C.visible=false},700);setTimeout(()=>{if(C===cur)endCatch()},1500)}
-    else{msgW('broke',true);C.phase='aim';C.t0=T;renderItemBar();renderSpell();autoSpell(1300)}}
+    else{C.phase='aim';C.t0=T;C.aimT=T;updOrbs();renderSpell();msgW('broke',true);if(orbsLeft())autoSpell(1300);else{const cur=C;setTimeout(()=>{if(C===cur&&C.phase==='aim')msgW('noorbs','after')},1600)}}}
   updateUI()}
 document.getElementById('bRun').onclick=endCatch;
-function renderSpell(){const b=document.getElementById('bSpell');if(!b||!C)return;b.classList.toggle('ready',!!C.spell);b.disabled=!C.spell&&(!!C.spelling||C.phase!=='aim'||S.trace===false||!window.traceChar);
+function renderSpell(){const b=document.getElementById('bSpell');if(!b||!C)return;b.classList.toggle('ready',!!C.spell);b.disabled=!C.spell&&(!!C.spelling||C.phase!=='aim'||!orbsLeft()||S.trace===false||!window.traceChar);
   b.innerHTML=C.spell?`✦ ${C.spellCh} ready`+zw('准备好了','zhǔnbèi hǎo le'):'✍ Spell'+zw('施法','shīfǎ')}
 document.getElementById('bSpell').onclick=()=>castSpell();
 // every catch starts with a spell (and a break-free recharges it), so tracing is part of the flow rather than a button to remember
 function autoSpell(ms){if(S.trace===false||!window.traceChar||!C)return;const me=C;setTimeout(()=>{if(C===me&&C.phase==='aim'&&!C.spell&&!C.spelling)castSpell()},ms)}
-function castSpell(o){o=o||{};if(!C||C.spell||C.spelling||C.phase!=='aim'||!window.traceChar){o.then&&o.then();return}const me=C,s=SP[C.wd.sp];C.spelling=true;C.quizzing=true;renderSpell();sfx('tap');
+function castSpell(o){o=o||{};if(!C||C.spell||C.spelling||C.phase!=='aim'||!orbsLeft()||!window.traceChar){o.then&&o.then();return}const me=C,s=SP[C.wd.sp];C.spelling=true;C.quizzing=true;renderSpell();sfx('tap');
   traceChar(s.t,{purpose:'spell',title:o.title,pic:o.pic}).then(r=>{if(C!==me)return;C.spelling=false;C.quizzing=false;if(o.then)o.then();
     if(!r.skipped){C.spell=r.perfect?2:1;C.spellCh=r.ch;C.spellT=T;LOG('spell',{ch:r.ch,mistakes:r.mistakes});
       const z=ZS(s.n);if(r.perfect)msg(`Perfect spell! ${s.n} is charmed. Throw now!`,`${z.zh}安静下来了！`,`${z.py} ānjìng xiàlái le!`,true);else msg('The spell is ready. Throw now!','准备好了！','zhǔnbèi hǎo le!',true)}
@@ -10881,8 +10937,11 @@ function startGym(){
   const f=l=>{const c=mk(grown(pick(pool),l,1),l);S.nextId--;return c};
   LOG('battle_start',{kind:'gym',place:p.n,party:snap().party});
   B={foes:[f(lv-1),f(lv),f(lv+1)],fi:0,pi:party().findIndex(c=>c.hp>0),pm:0,pt:0,pused:false,ft:0,busy:true,hitP:-9,hitF:-9,lungeP:-9,lungeF:-9};
-  document.getElementById('bTitle').textContent=`${p.leader} · ${p.n} Gym${had?' (rematch)':''}`;open('sBattle');requestAnimationFrame(battleLoop);
+  document.getElementById('bTitle').textContent=`${p.leader} · ${p.n} Gym${had?' (rematch)':''}`;open('sBattle');fitText(document.getElementById('bTitle'),11);requestAnimationFrame(battleLoop);
   (async()=>{renderBattle();await say(`${p.leader} wants to battle! They have 3 creatures.`);await say(`${p.leader} sends out ${SP[B.foes[0].sp].n}!`);B.busy=false;renderBattle()})()};
+// shrink a one-line title until it fits its box (long gym names on a narrow phone)
+function fitText(el,min){if(!el)return;el.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(el).fontSize)||16;
+  while(el.scrollWidth>el.clientWidth+1&&fs>min){fs-=.5;el.style.setProperty('font-size',fs+'px','important')}}
 function battleLoop(){if(!B)return;requestAnimationFrame(battleLoop);try{battleFrame()}catch(e){console.error(e)}}
 // ---------- giant transformation: charge-up, spiral energy, swell with overshoot, flash, shockwave, light pillar ----------
 const easeBack=k=>{const c=1.9;return 1+(c+1)*Math.pow(k-1,3)+c*Math.pow(k-1,2)};
@@ -10899,9 +10958,12 @@ function giantFX(ctx,w,h,stage){const g=B.grow;if(!g||!B.pos)return;const k=(T-g
   // shockwave rings on the ground
   if(k>.4&&k<1.2){for(const d of[0,.12]){const q=(k-.4-d)/.7;if(q<0||q>1)continue;ctx.strokeStyle=`rgba(255,140,200,${1-q})`;ctx.lineWidth=4*(1-q)+1;ctx.beginPath();ctx.ellipse(x,feet,s*.5+q*w*.5,(s*.5+q*w*.5)*.22,0,0,7);ctx.stroke()}}
   // screen shake
-  if(k>.38&&k<.75){const a=(1-(k-.38)/.37)*6;bcv.style.transform=`translate(${(Math.random()-.5)*a}px,${(Math.random()-.5)*a}px)`}else bcv.style.transform='';
+
   if(window.FX&&FX.crit&&k>.4&&k<.9)try{FX.crit(ctx,x,y,(k-.4)/.5,s*1.4)}catch(e){}}
-function battleFrame(){if(!B)return;const {w,h,d}=sizeCanvas(bcv);bctx.setTransform(d,0,0,d,0,0);bg(bctx,w,h,PLACES[S.place]);
+// the screen shake when something goes Giant happens inside the canvas (a slight zoom hides the edges), so the sheet never gets wider than the screen
+function giantShake(){const g=B&&B.grow;if(!g)return 0;const k=(T-g.t0)/1.5;return k>.38&&k<.75?(1-(k-.38)/.37)*6:0}
+function battleFrame(){if(!B)return;const {w,h,d}=sizeCanvas(bcv);const sa=giantShake();
+  if(sa){const z=1.03;bctx.setTransform(d*z,0,0,d*z,d*(w*(1-z)/2+(Math.random()-.5)*sa),d*(h*(1-z)/2+(Math.random()-.5)*sa))}else bctx.setTransform(d,0,0,d,0,0);bg(bctx,w,h,PLACES[S.place]);
   if((window.FX&&FX.attack)){try{FX.platform(bctx,w*.72,h*.52,w*.22,h*.07,PLACES[S.place].ground);FX.platform(bctx,w*.28,h*.92,w*.24,h*.08,PLACES[S.place].ground)}catch(e){}}else{el(bctx,w*.72,h*.52,w*.22,h*.07,'rgba(255,255,255,.18)','rgba(255,255,255,.35)',2);el(bctx,w*.28,h*.92,w*.24,h*.08,'rgba(255,255,255,.18)','rgba(255,255,255,.35)',2)}
   const foe=B.foes[Math.min(B.fi,B.foes.length-1)],me=party()[B.pi];
   const shk=t0=>T-t0<.35?Math.sin((T-t0)*60)*8:0,lun=t0=>T-t0<.3?Math.sin((T-t0)/.3*Math.PI)*30:0;
@@ -10970,13 +11032,14 @@ function startRaid(){if(!raidHere()||B)return;if(!party().some(c=>c.hp>0)){toast
   const r=S.raid,boss=mk(r.sp,r.lvl,r.shiny);S.nextId--;boss.hpMul=4;boss.hp=stats(boss).maxhp;
   LOG('battle_start',{kind:'raid',boss:SP[r.sp].n,lvl:r.lvl,party:snap().party});
   B={raid:true,foes:[boss],fi:0,pi:party().findIndex(c=>c.hp>0),pm:0,pt:0,pused:false,ft:1,busy:true,hitP:-9,hitF:-9,lungeP:-9,lungeF:-9,grow:{side:'f',t0:performance.now()/1000+.3}};
-  document.getElementById('bTitle').textContent=`Giant raid · ${r.shiny?'Shiny ':''}${SP[r.sp].n}`;open('sBattle');requestAnimationFrame(battleLoop);sfx(SP[r.sp].leg?'legend':'raid');
+  document.getElementById('bTitle').textContent=`Giant raid · ${r.shiny?'Shiny ':''}${SP[r.sp].n}`;open('sBattle');fitText(document.getElementById('bTitle'),11);requestAnimationFrame(battleLoop);sfx(SP[r.sp].leg?'legend':'raid');
   (async()=>{renderBattle();await say(`A giant ${SP[r.sp].n} towers over you! Beat it to get a chance to catch it.`);B.busy=false;renderBattle()})()}
 async function raidWin(){const r=S.raid,rw=SP[r.sp].leg?{great:3,ultra:2,berry:3}:{great:2,ultra:1,berry:2};give(rw);
   await say(`You beat the giant ${SP[r.sp].n}! You got ${rwTxt(rw)}. Now catch it!`);
   S.raid=null;save();B=null;document.getElementById('sBattle').hidden=true;updateUI();
   openCatch({sp:r.sp,lvl:r.lvl,shiny:r.shiny,raid:true,x:.5,y:.6,vx:0,ph:0})}
-function endBattle(){closeSayCard&&closeSayCard();if(S.pendingInterview){S.pendingInterview=false;const k='interview_'+((S.interviews||0)%8+1);S.interviews=(S.interviews||0)+1;queueTalk(k)}save();B=null;close('sBattle');updateUI()}
+// the interview after a new badge stays owed (S.pendingInterview) until it has been played through: onTalkDone clears it
+function endBattle(){closeSayCard&&closeSayCard();if(S.pendingInterview)queueTalk(interviewKey());save();B=null;close('sBattle');updateUI()}
 
 // ---------- learning Chinese: spaced-repetition word challenges ----------
 function wordPool(){const out=[];if(typeof VOCAB!=='undefined')for(const v of VOCAB)out.push({zh:v[0],py:v[1],en:v[2],g:v[3],pic:v[4]||''});
@@ -11040,7 +11103,8 @@ function askQuiz(ctx){return new Promise(res=>{try{
 
 // ---------- items, streaks, quests ----------
 function give(rw){for(const k in rw)S.items[k]=(S.items[k]||0)+rw[k]}
-function rwTxt(rw){return Object.entries(rw).map(([k,n])=>`${n} ${ITEMS[k].n}${n>1?'s':''}`).join(', ')}
+const plural=(n,w)=>n===1?w:/[^aeiou]y$/.test(w)?w.slice(0,-1)+'ies':w+'s';
+function rwTxt(rw){return Object.entries(rw).map(([k,n])=>`${n} ${plural(n,ITEMS[k].n)}`).join(', ')}
 function streakReward(){const s=S.streak;let rw=null;if(s===3)rw={orb:3};else if(s===5)rw={great:2};else if(s===10)rw={ultra:1,berry:2};else if(s>10&&s%5===0)rw={great:2,ultra:1};
   if(rw){give(rw);sfx('streak');setTimeout(()=>toast(`Streak ×${s}! Shiny odds are up. You got ${rwTxt(rw)}.`),900)}}
 const QPOOL=[
@@ -11051,18 +11115,21 @@ const QPOOL=[
  {k:'type',g:[2,3],txt:(n,t)=>`Catch ${n} ${t}-type creatures`,rw:{orb:8,berry:2}},
  {k:'win',g:[1,1],txt:()=>'Win a gym battle or a raid',rw:{ultra:1}},
  {k:'stay',g:[2,2],txt:n=>`Stay at ${n} places`,rw:{orb:6,great:1}},
- {k:'words',g:[8,12],txt:n=>`Answer ${n} Chinese word challenges correctly · 答对${n}个中文问题`,rw:{great:3,ultra:1}}];
+ // counts what the child actually does in Chinese: lines said in the Speak lesson and in conversations, and traced characters
+ {k:'words',g:[8,12],txt:n=>`Say or write ${n} things in Chinese · 说一说，写一写 (shuō yi shuō, xiě yi xiě)`,rw:{great:3,ultra:1}}];
+// a quest's text comes from its definition, so a wording change also reaches quests saved earlier today
+function qText(x){const d=QPOOL.find(qq=>qq.k===x.k);try{return d?d.txt(x.goal,x.t):x.txt}catch(e){return x.txt}}
 function today(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`}
 function ensureQuests(){const day=today();if(S.quests&&S.quests.day===day)return;const pool=[QPOOL.find(x=>x.k==='words'),...QPOOL.filter(x=>x.k!=='words').sort(()=>Math.random()-.5).slice(0,2)];
   S.quests={day,bonus:false,list:pool.map(qq=>{const goal=RI(qq.g[0],qq.g[1]),tp=qq.k==='type'?pick(Object.keys(TYPES)):null;return{k:qq.k,t:tp,goal,prog:0,done:false,txt:qq.txt(goal,tp),rw:qq.rw}})}}
 function q(k,tp){try{qInner(k,tp)}catch(e){console.error(e)}}
 function questEv(k,tp){q(k,tp)}
 function qInner(k,tp){ensureQuests();for(const x of S.quests.list){if(x.done||x.k!==k||(k==='type'&&x.t!==tp))continue;x.prog++;
-    if(x.prog>=x.goal){x.done=true;LOG('quest_done',{txt:x.txt});give(x.rw);sfx('quest');setTimeout(()=>toast(`Quest done · 任务完成 rènwu wánchéng: ${x.txt}. You got ${rwTxt(x.rw)}.`),600)}}
+    if(x.prog>=x.goal){x.done=true;LOG('quest_done',{txt:qText(x)});give(x.rw);sfx('quest');setTimeout(()=>toast(`Quest done · 任务完成 rènwu wánchéng: ${qText(x)}. You got ${rwTxt(x.rw)}.`),600)}}
   if(!S.quests.bonus&&S.quests.list.every(x=>x.done)){S.quests.bonus=true;give({ultra:2,great:2});setTimeout(()=>toast('All daily quests done! Bonus: 2 Ultra Orbs and 2 Great Orbs.'),2600)}save()}
 document.getElementById('bQuest').onclick=()=>{ensureQuests();const L=document.getElementById('questList');L.innerHTML='';
   if(window.storyGoalHTML){const sg=storyGoalHTML();if(sg){L.insertAdjacentHTML('beforeend',sg);const cv=L.querySelector('canvas[data-star]');if(cv&&window.drawLittleStar){const d=devicePixelRatio||1;cv.width=72*d;cv.height=72*d;const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);drawLittleStar(x,36,38,20,T,true)}}}
-  for(const x of S.quests.list){const d=document.createElement('div');d.className='card';d.innerHTML=`<div class="info"><div class="nm">${x.done?'✓ ':''}${x.txt}</div><div class="sub">${Math.min(x.prog,x.goal)}/${x.goal} · Reward: ${rwTxt(x.rw)}</div><div class="qbar"><i style="width:${Math.min(1,x.prog/x.goal)*100}%"></i></div></div>`;L.appendChild(d)}
+  for(const x of S.quests.list){const d=document.createElement('div');d.className='card';d.innerHTML=`<div class="info"><div class="nm">${x.done?'✓ ':''}${qText(x)}</div><div class="sub">${Math.min(x.prog,x.goal)}/${x.goal} · Reward: ${rwTxt(x.rw)}</div><div class="qbar"><i style="width:${Math.min(1,x.prog/x.goal)*100}%"></i></div></div>`;L.appendChild(d)}
   const b=document.createElement('div');b.className='card';b.innerHTML=`<div class="info"><div class="nm">${S.quests.bonus?'✓ ':''}Daily bonus</div><div class="sub">2 Ultra Orbs · 2 Great Orbs</div></div>`;L.appendChild(b);
   const st=document.createElement('div');st.className='card';st.innerHTML=`<div class="info"><div class="nm">Catch streak ×${S.streak||0}</div></div>`;L.appendChild(st);
   save();open('sQuest')};
@@ -11076,7 +11143,9 @@ document.getElementById('bBag').onclick=()=>{const L=document.getElementById('ba
 const GROUPS={number:'Numbers 数字 shùzì',color:'Colors 颜色 yánsè',nature:'Nature 自然 zìrán',animal:'Animals 动物 dòngwù',action:'Actions 动作 dòngzuò',thing:'Things 东西 dōngxi',describe:'Describing 形容 xíngróng',phrase:'Phrases 短语 duǎnyǔ',place:'Places 地方 dìfang',type:'Types 属性 shǔxìng',creature:'Your creatures 你的生物 nǐ de shēngwù'};
 const UNITS={1:'Hello 你好',2:'About me 我',3:'I want 我要',4:'I like 我喜欢',5:'Let’s play 一起玩',6:'What and where 什么·哪里',7:'Feelings 心情',8:'Everyday 每天'};
 // a small progress overview (what a parent wants to see at a glance)
-function progressHTML(){const tt=window.traceTotals?traceTotals():{learned:0,total:0},ph=Object.values(S.ph||{}).filter(v=>v.intro).length,talks=Object.values(S.talked||{}).reduce((a,b)=>a+b,0),
+// phrasebook phrases the child has said (the same count as the phrase list below the tiles)
+const phrasesSaid=()=>typeof PHRASEBOOK==='undefined'?0:PHRASEBOOK.filter(p=>((S.ph||{})[p.zh]||{}).intro).length;
+function progressHTML(){const tt=window.traceTotals?traceTotals():{learned:0,total:0},ph=phrasesSaid(),talks=Object.values(S.talked||{}).reduce((a,b)=>a+b,0),
   reads=Object.keys(S.read||{}).length,found=new Set([...(S.caught||[]),...S.col.map(c=>c.sp)]).size,mins=Math.round((S.playMs||0)/60000),days=Object.keys(S.days||{}).length;
   const t=(n,en,zh,py)=>`<div class="pt"><b>${n}</b><span>${en}</span><i data-say="${zh}">${zh} ${py}</i></div>`;
   return `<div class="ptiles">${t(tt.learned,'characters','汉字','hànzì')}${t(ph,'phrases said','句子','jùzi')}${t(talks,'conversations','对话','duìhuà')}${t(reads,'things read','读过','dú guò')}${t(found+'/'+SP.length,'creatures','生物','shēngwù')}${t(mins+' min','played · '+days+(days===1?' day':' days'),'玩了','wán le')}</div>`}
@@ -11107,26 +11176,38 @@ document.getElementById('bPractice').onclick=()=>{close('sLearn');runLesson()};
 document.getElementById('bPracticeOld')&&(document.getElementById('bPracticeOld').onclick=async()=>{let right=0;for(let i=0;i<5;i++){const ok=await askQuiz('practice');if(ok)right++}
   const rw=right===5?{orb:10,great:1}:{orb:right*2};if(right)give(rw);save();renderLearn();toast(`${right}/5 correct · 答对了${right}个 (dá duì le ${right} gè). ${right?'You got '+rwTxt(rw)+'.':''}`);speak(`答对了${['零','一','二','三','四','五'][right]}个`);updateUI()});
 // ---------- Settings ----------
-function renderSettings(){const seg=document.getElementById('lvlSeg');seg.innerHTML='';
+// Settings fit on one phone screen: the Chinese level, a 2-column grid of switches, and the save code
+function renderSettings(full){const seg=document.getElementById('lvlSeg');seg.innerHTML='';
+  // little kids keep the beginner level (Chinese, pinyin and English all shown), so the level choice is not offered to them
+  document.getElementById('lvlBox').hidden=isYoung();
   const LV=[[1,'Beginner','初级','chūjí','English shown small under the Chinese.'],[2,'Intermediate','中级','zhōngjí','English hidden. Tap any Chinese to hear it and see the English.'],[3,'Advanced','高级','gāojí','English and pinyin hidden until you tap.']];
   for(const[l,en,zh,py,note]of LV){const b=document.createElement('button');b.className='small'+((S.lvl||1)===l?' on':'');b.innerHTML=en+zw(zh,py);b.onclick=()=>{S.lvl=l;applyLevel();save();renderSettings()};seg.appendChild(b);if((S.lvl||1)===l)document.getElementById('lvlNote').textContent=note}
   const L=document.getElementById('setList');L.innerHTML='';
-  const tg=(en,zh,py,get,set)=>{const d=document.createElement('div');d.className='toggle';d.innerHTML=`<span>${en}${zw(zh,py)}</span>`;const b=document.createElement('button');b.className='small'+(get()?' big':'');b.textContent=get()?'On 开':'Off 关';b.onclick=()=>{set(!get());save();renderSettings()};d.appendChild(b);L.appendChild(d)};
-  tg('Trace characters for moves and spells','写字出招','xiě zì chū zhāo',()=>S.trace!==false,v=>S.trace=v);
-  if(window.SpeechRecognition||window.webkitSpeechRecognition)tg('Check my speaking with the microphone','听我说','tīng wǒ shuō',()=>S.listen!==false,v=>S.listen=v);
+  const tg=(en,zh,py,get,set)=>{const on=!!get(),b=document.createElement('button');b.className='toggle settile'+(on?' on':'');b.setAttribute('aria-pressed',String(on));
+    b.innerHTML=`<span class="tl">${en}${zw(zh,py)}</span><i class="sw">${on?'On · 开 kāi':'Off · 关 guān'}</i>`;b.onclick=()=>{set(!get());save();renderSettings()};L.appendChild(b)};
+  tg('Trace characters','写字出招','xiě zì chū zhāo',()=>S.trace!==false,v=>S.trace=v);
+  if(window.SpeechRecognition||window.webkitSpeechRecognition)tg('Check my speaking','听我说','tīng wǒ shuō',()=>S.listen!==false,v=>S.listen=v);
   tg('Chinese voice','中文语音','Zhōngwén yǔyīn',()=>S.zhVoice!==false,v=>{S.zhVoice=v;if(v)speak('你好！我们一起学中文吧。')});
   tg('Sound effects','音效','yīnxiào',()=>!(window.SFX&&SFX.muted),v=>{if(window.SFX&&SFX.muted===v)SFX.toggle()});
   if(window.SFX&&SFX.toggleMusic)tg('Music','音乐','yīnyuè',()=>!SFX.musicMuted,v=>{if(SFX.musicMuted===v)SFX.toggleMusic();musicNow()});
-  {pickVoice();const d=document.createElement('div');d.className='sub';d.style.margin='2px 2px 6px';d.textContent=zhVoice?`Device Chinese voice: ${zhVoice.name}`:'No Chinese voice on this device, so only recorded lines are spoken. Opening the game in Chrome usually adds one.';L.appendChild(d)}
-  // move a save between devices or sites
-  const sv=document.createElement('div');sv.className='savebox';sv.innerHTML=`<div class="toggle"><span>Save code${zw('存档','cúndàng')}</span><span style="display:flex;gap:6px"><button class="small" id="svCopy">Copy</button><button class="small" id="svLoad">Load</button></span></div><textarea id="svText" rows="2" spellcheck="false" placeholder="Paste a save code here, then tap Load"></textarea>`;L.appendChild(sv);
+  pickVoice();
+  // move a save between devices or sites (built when Settings opens, so switching something above keeps a pasted code)
+  const sv=document.getElementById('saveBox');if(!full&&sv.firstChild)return;
+  sv.innerHTML=`<div class="saverow"><span class="tl">Save code${zw('存档','cúndàng')}</span><button class="small" id="svCopy">Copy</button><button class="small" id="svLoad">Load</button></div><textarea id="svText" rows="2" spellcheck="false" placeholder="Paste a save code here, then tap Load"></textarea>`;
   const ta=sv.querySelector('#svText');
   sv.querySelector('#svCopy').onclick=()=>{snapshotState();const code='CC1:'+btoa(unescape(encodeURIComponent(JSON.stringify(S))));ta.value=code;ta.select();try{navigator.clipboard&&navigator.clipboard.writeText(code).then(()=>toast('Save code copied'),()=>toast('Select the code and copy it'))}catch(e){toast('Select the code and copy it')}};
-  let armed=0;sv.querySelector('#svLoad').onclick=e=>{const raw=(ta.value||'').trim();let obj=null;try{obj=JSON.parse(decodeURIComponent(escape(atob(raw.replace(/^CC1:/,'')))))}catch(err){}
-    if(!obj||!Array.isArray(obj.col)){toast('That is not a save code');return}
-    if(Date.now()-armed>4000){armed=Date.now();e.target.textContent='Tap again';toast(`Replace this game with the saved one (${obj.col.length} creatures)? Tap Load again.`);return}
-    LOG('save_import',{n:obj.col.length});S=obj;S.savedAt=Date.now();writeLocal();save();setTimeout(()=>location.reload(),400)}}
-document.getElementById('bSet').onclick=()=>{renderSettings();open('sSet')};
+  let armed=0,armT=0;const lb=sv.querySelector('#svLoad');lb.onclick=()=>{const raw=(ta.value||'').trim();let obj=null;try{obj=JSON.parse(decodeURIComponent(escape(atob(raw.replace(/^CC1:/,'')))))}catch(err){}
+    if(!obj||obj.v!==2||!Array.isArray(obj.col)){toast('That is not a save code');return}
+    // the first tap asks, a second tap within 4 s replaces the game; after that the button goes back to "Load"
+    if(Date.now()-armed>4000){armed=Date.now();lb.textContent='Tap again';clearTimeout(armT);armT=setTimeout(()=>{armed=0;lb.textContent='Load'},4000);toast(`Replace this game with the saved one (${obj.col.length} creature${obj.col.length===1?'':'s'})? Tap Load again.`);return}
+    clearTimeout(armT);importSave(obj)}}
+// Replace the whole game with an imported save: everything comes from the save (team, field, trip), nothing from this page
+function importSave(obj){LOG('save_import',{n:obj.col.length});
+  try{window.stopTalk&&stopTalk();window.stopLesson&&stopLesson()}catch(e){}document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());
+  C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;
+  S=obj;S.savedAt=Date.now();migrate();restore(); // restore() sets the field and the trip from the save, so writing it back keeps them
+  writeLocal();clearTimeout(localTimer);clearTimeout(remoteTimer);pushRemote();setTimeout(()=>location.reload(),400)}
+document.getElementById('bSet').onclick=()=>{renderSettings(true);open('sSet')};
 const CONTACTS=[
  {en:'Grandma',zh:'奶奶',py:'nǎinai',keys:['phone_grandma','phone_grandma_2'],call:1},
  {en:'Grandpa',zh:'爷爷',py:'yéye',keys:['phone_grandpa','phone_grandpa_2'],call:1},
@@ -11144,23 +11225,26 @@ function renderContacts(){const L=document.getElementById('contactList');L.inner
 document.getElementById('bTalk').onclick=()=>{renderContacts();open('sContacts')};
 // ---------- who's playing ----------
 const PICS=['🦊','🐰','🐼','🐯','🐨','🐸'];
-function playerSummary(x){try{const d=x.id===PID?S:parse(localStorage.getItem(x.id==='p1'?'couchcatch2':'couchcatch2_'+x.id));if(!d)return'New';return `${d.col.length} creatures · ★ ${(d.badges||[]).length}`}catch(e){return''}}
-function renderWho(){const me=curPlayer(),i=PL.list.indexOf(me);document.getElementById('bWho').textContent=`${PICS[i%PICS.length]} ${me.name||'Player 1'}`;
+function playerSummary(x){try{const d=x.id===PID?S:parse(localStorage.getItem(x.id==='p1'?'couchcatch2':'couchcatch2_'+x.id));if(!d)return'New';return `${d.col.length} ${plural(d.col.length,'creature')} · ★ ${(d.badges||[]).length}`}catch(e){return''}}
+const escH=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function playerName(x){x=x||curPlayer();return x.name||'Player '+(Math.max(0,PL.list.indexOf(x))+1)}
+function renderWho(){const me=curPlayer(),i=PL.list.indexOf(me);document.getElementById('bWho').textContent=`${PICS[i%PICS.length]} ${playerName(me)}`;
   const L=document.getElementById('whoList');if(!L)return;L.innerHTML='';
   PL.list.forEach((x,j)=>{const d=document.createElement('div');d.className='card who'+(x.id===PID?' on':'');
-    d.innerHTML=`<div class="wpic">${PICS[j%PICS.length]}</div><div class="info"><div class="nm">${x.name||'Player '+(j+1)}</div><div class="sub">${x.young?'Little kid · 小孩子':'Big kid · 大孩子'} · ${playerSummary(x)}</div></div>`;
+    d.innerHTML=`<div class="wpic">${PICS[j%PICS.length]}</div><div class="info"><div class="nm">${escH(playerName(x))}</div><div class="sub">${x.young?'Little kid · 小孩子':'Big kid · 大孩子'} · ${playerSummary(x)}</div></div>`;
     const ed=document.createElement('button');ed.className='small';ed.textContent='✎';ed.title='Rename or change mode';
-    ed.onclick=()=>{const nm=d.querySelector('.nm');if(d.querySelector('input'))return;nm.innerHTML=`<input value="${(x.name||'').replace(/"/g,'')}" maxlength="16"> <button class="small" data-m="1">${x.young?'Big kid':'Little kid'}</button> <button class="small" data-m="ok">OK</button>`;
+    ed.onclick=()=>{const nm=d.querySelector('.nm');if(d.querySelector('input'))return;nm.innerHTML=`<input value="${escH(x.name||'')}" maxlength="16"> <button class="small" data-m="1">${x.young?'Big kid':'Little kid'}</button> <button class="small" data-m="ok">OK</button>`;
       nm.querySelector('[data-m="1"]').onclick=e=>{e.stopPropagation();x.young=!x.young;writePlayers();renderWho();if(x.id===PID)applyYoung()};
       nm.querySelector('[data-m="ok"]').onclick=e=>{e.stopPropagation();x.name=nm.querySelector('input').value.trim().slice(0,16);writePlayers();renderWho()}};
     const go=document.createElement('button');go.className='small'+(x.id===PID?'':' big');go.innerHTML=x.id===PID?'Playing':'Play'+zw('玩','wán');go.disabled=x.id===PID;go.onclick=()=>switchPlayer(x.id);
     d.appendChild(ed);d.appendChild(go);L.appendChild(d)})}
 function applyYoung(){document.documentElement.classList.toggle('young',isYoung());if(isYoung()&&(S.lvl||1)!==1){S.lvl=1;applyLevel()}}
 async function switchPlayer(id){if(id===PID)return;LOG('player_switch',{from:PID,to:id});flush();
-  document.querySelectorAll('.sheet').forEach(x=>x.hidden=true);document.querySelectorAll('.tracewrap,.saycard').forEach(x=>x.remove());try{stopSpeech()}catch(e){}
+  try{window.stopTalk&&stopTalk();window.stopLesson&&stopLesson()}catch(e){}
+  document.querySelectorAll('.sheet').forEach(x=>x.hidden=true);document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());try{stopSpeech()}catch(e){}
   C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;PID=id;writePlayers();
   S=readLocal()||fresh();migrate();restore();applyLevel();applyYoung();renderWho();updateUI();if(!S.col.length)starters();
-  toast(`${curPlayer().name||'Player'} is playing!`);
+  toast(`${playerName()} is playing!`);
   if(DB&&UID){try{const sn=await DB.doc('data/users/'+UID+'/'+rdoc()).get();const d=sn.exists?sn.data():null,remote=d&&parse(d.json);
     if(remote&&remote.savedAt>(S.savedAt||0)&&PID===id){S=remote;restore();close('sStart');applyLevel();updateUI();renderWho()}}catch(e){}}}
 document.getElementById('bWho').onclick=()=>{renderWho();open('sWho')};
@@ -11407,15 +11491,24 @@ function closeCard(){if(card){card.remove();card=null}}
 window.closeSayCard=closeCard;
 
 // ---------- Pimsleur-style Speak lesson ----------
-let lessonEl=null;
+let lessonEl=null,lessonGen=0;
+// Stop: end the lesson now (no more audio, nothing more recorded as said)
+window.stopLesson=function(){lessonGen++;if(lessonEl){lessonEl.hidden=true;lessonEl.querySelectorAll('.ring').forEach(r=>r._skip&&r._skip())}try{stopSpeech()}catch(e){}};
 function lessonSheet(){if(lessonEl)return lessonEl;lessonEl=document.createElement('div');lessonEl.className='sheet lesson';lessonEl.hidden=true;
   lessonEl.innerHTML=`<div class="inner" style="height:100%;gap:10px"><div class="row"><h2>Speak${Z('说中文','shuō Zhōngwén')}</h2><button class="small" data-a="quit">Stop${Z('停','tíng')}</button></div>
   <div class="step" id="lsStep"></div><div class="stage" id="lsStage"></div><div class="row2" id="lsBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div></div>`;
   document.body.appendChild(lessonEl);return lessonEl}
-window.runLesson=async function(){const el=lessonSheet();el.hidden=false;let quit=false;el.querySelector('[data-a=quit]').onclick=()=>{quit=true;tok++;el.hidden=true};
+window.runLesson=async function(){const el=lessonSheet();if(!el.hidden)stopLesson();el.hidden=false;const gen=++lessonGen,QUIT={};let pend=null;
+  // every step checks that the lesson is still running, so Stop (or another lesson, or a player switch) ends it at once
+  const live=()=>{if(gen!==lessonGen)throw QUIT};
+  el.querySelector('[data-a=quit]').onclick=()=>{stopLesson();if(pend)pend(null)};
   const stage=el.querySelector('#lsStage'),step=el.querySelector('#lsStep'),btns=el.querySelector('#lsBtns');
-  const show=(html)=>{stage.innerHTML=html};
-  const pause=async(secs,label)=>{show(stage.innerHTML+`<div class="ring"><span></span></div><div class="step">${label}</div>`);await ring(stage.querySelector('.ring'),secs)};
+  const show=(html)=>{live();stage.innerHTML=html};
+  const speakAsync=async z=>{live();await window.speakAsync(z);live()};
+  const wait=async ms=>{live();await new Promise(r=>setTimeout(r,ms));live()};
+  const pause=async(secs,label)=>{show(stage.innerHTML+`<div class="ring"><span></span></div><div class="step">${label}</div>`);await ring(stage.querySelector('.ring'),secs);live()};
+  const said1=(zh,good)=>{live();heard(zh,good);if(good)try{questEv('words')}catch(e){}};
+  try{
   const plan=[];const nw=[nextNew(),null].filter(Boolean);const due=dueList();
   // session: new phrase, then recalls mixed with a recall of the new phrase a little later (graduated interval recall)
   if(nw[0])plan.push({p:nw[0],kind:'new'});for(const d of due.slice(0,3))plan.push({p:d,kind:'recall'});
@@ -11423,25 +11516,31 @@ window.runLesson=async function(){const el=lessonSheet();el.hidden=false;let qui
   if(nw[0])plan.push({p:nw[0],kind:'recall'});if(nw2&&plan.some(x=>x.p===nw2))plan.push({p:nw2,kind:'recall'});
   if(!plan.length)for(const p of PB().slice(0,4))plan.push({p,kind:'recall'});
   let said=0;
-  for(let i=0;i<plan.length&&!quit;i++){const {p,kind}=plan[i];step.textContent=`${i+1} / ${plan.length}`;btns.innerHTML='';
+  const SAY1='Say it! 说一说 shuō yi shuō',SAYZH='Say it in Chinese! 用中文说 yòng Zhōngwén shuō',SAY2='Say it again! 再说一次 zài shuō yí cì';
+  for(let i=0;i<plan.length;i++){live();const {p,kind}=plan[i];step.textContent=`${i+1} / ${plan.length}`;btns.innerHTML='';
     if(kind==='new'){
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Listen: “${p.en}”</div>`);await wait(500);if(quit)break;
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Listen: “${p.en}”</div>`);await wait(500);
       show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">“${p.en}”</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div>`);await speakAsync(p.zh);await wait(700);await speakAsync(p.zh);
-      for(const [bz,bp] of (p.build||[])){if(quit)break;show(`<div class="step">Build it up, one piece at a time</div><div class="bigzh">${bz}</div><div class="bigpy">${bp}</div>`);await speakAsync(bz);await pause(2.2,'Say it! 说一说');}
-      if(quit)break;show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Now say the whole thing in Chinese: “${p.en}”</div>`);await pause(3,'Say it in Chinese! 用中文说');
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div>`);await speakAsync(p.zh);await pause(2.4,'Say it again! 再说一次');await speakAsync(p.zh);heard(p.zh,true);said++}
+      for(const [bz,bp] of (p.build||[])){show(`<div class="step">Build it up, one piece at a time</div><div class="bigzh">${bz}</div><div class="bigpy">${bp}</div>`);await speakAsync(bz);await pause(2.2,SAY1);}
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Now say the whole thing in Chinese: “${p.en}”</div>`);await pause(3,SAYZH);
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div>`);await speakAsync(p.zh);await pause(2.4,SAY2);await speakAsync(p.zh);said1(p.zh,true);said++}
     else{
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">How do you say “${p.en}” in Chinese?</div><div class="step">用中文怎么说？ yòng Zhōngwén zěnme shuō?</div>`);await pause(3.6,'Say it in Chinese! 用中文说');if(quit)break;
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div><div class="step">${p.en}</div>`);await speakAsync(p.zh);await pause(2.4,'Say it again! 再说一次');await speakAsync(p.zh);
-      const ok=await new Promise(r=>{btns.innerHTML='';const a=document.createElement('button');a.className='big';a.innerHTML='I got it'+Z('我会了','wǒ huì le');a.onclick=()=>r(true);const b=document.createElement('button');b.innerHTML='Not yet'+Z('再来','zài lái');b.onclick=()=>r(false);btns.append(a,b)});
-      heard(p.zh,ok);if(ok)said++}
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">How do you say “${p.en}” in Chinese?</div><div class="step">用中文怎么说？ yòng Zhōngwén zěnme shuō?</div>`);await pause(3.6,SAYZH);
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div><div class="step">${p.en}</div>`);await speakAsync(p.zh);await pause(2.4,SAY2);await speakAsync(p.zh);
+      const ok=await new Promise(r=>{pend=r;btns.innerHTML='';const a=document.createElement('button');a.className='big';a.innerHTML='I got it'+Z('我会了','wǒ huì le');a.onclick=()=>r(true);const b=document.createElement('button');b.innerHTML='Not yet'+Z('再来','zài lái');b.onclick=()=>r(false);btns.append(a,b)});
+      pend=null;said1(p.zh,!!ok);if(ok)said++}
     save()}
-  if(!quit){const rw={orb:3+said*2};if(said>=4)rw.great=1;give(rw);save();show(`<div class="bigpic">🌟</div><div class="bigzh">太棒了！</div><div class="bigpy">tài bàng le!</div><div class="bigen">You said ${said} phrases. You got ${rwTxt(rw)}.</div>`);
-    speakAsync('太棒了！');btns.innerHTML='';const d=document.createElement('button');d.className='big';d.style.gridColumn='1/-1';d.innerHTML='Done'+Z('好的','hǎo de');d.onclick=()=>{el.hidden=true;if(typeof renderLearn==='function')renderLearn();updateUI()};btns.append(d);LOG('lesson',{said,n:plan.length})}
+  live();const rw={orb:3+said*2};if(said>=4)rw.great=1;give(rw);save();show(`<div class="bigpic">🌟</div><div class="bigzh">太棒了！</div><div class="bigpy">tài bàng le!</div><div class="bigen">You said ${said} phrase${said===1?'':'s'}. You got ${rwTxt(rw)}.</div>`);
+  window.speakAsync('太棒了！');btns.innerHTML='';const d=document.createElement('button');d.className='big';d.style.gridColumn='1/-1';d.innerHTML='Done'+Z('好的','hǎo de');d.onclick=()=>{el.hidden=true;if(typeof renderLearn==='function')renderLearn();updateUI()};btns.append(d);LOG('lesson',{said,n:plan.length})
+  }catch(e){if(e!==QUIT)console.error(e)}
 };
 
 // ---------- conversations with gentle recasts ----------
-let talkEl=null,curP=null,curPhone=false;
+let talkEl=null,curP=null,curPhone=false,talkGen=0,talkPend=null;
+// end the running conversation at once (used when another player takes over); it stays owed, since it was not finished
+window.stopTalk=function(){talkGen++;if(talkPend){const r=talkPend;talkPend=null;r(null)}if(talkEl){talkEl.hidden=true;talkEl.querySelectorAll('.ring').forEach(r=>r._skip&&r._skip())}};
+// every line the child says in a conversation counts for the daily "say or write" quest
+function said(){try{questEv('words')}catch(e){}}
 const ROLE_PIC={'phone':'📱','gym leader':'🏅','reporter':'🎤','host':'📺','neighbor':'🏡','agent':'🛫','ranger':'🌲','cashier':'🌮','barista':'☕','traveler':'✨','friend':'🧒','kid':'👧','classmate':'🎒','tourist':'🗺️'};
 // ---------- drawn people (original characters) for every conversation ----------
 const SK=['#f6d7bf','#eec5a2','#e2b08a','#c98f66','#a8714c','#7d5235'];
@@ -11549,22 +11648,26 @@ function bubble(kind,l){const log=talkEl.querySelector('#tkLog'),b=document.crea
   if(kind!=='you'&&curP){const row=document.createElement('div');row.className='bubrow';const cv=document.createElement('canvas');cv.className='mini-person';row.append(cv,b);log.appendChild(row);drawPerson(cv,curP,false)}else log.appendChild(b);scrollLog();return b}
 const readMs=l=>Math.min(5200,1100+String(l.zh||'').length*170+String(l.en||'').length*18)*(window.TALK_PACE||1);
 window.hasTalk=k=>typeof DIALOGUES!=='undefined'&&!!DIALOGUES[k];
-window.runTalk=function(key){return new Promise(async res=>{try{
-  if(!hasTalk(key)){res(false);return}const D=DIALOGUES[key],el=talkSheet();closeCard();
+window.runTalk=function(key){return new Promise(async res=>{if(!hasTalk(key)){res(false);return}
+  // every step checks that this conversation is still the one running: stopTalk() (a player switch) ends it without recording it as done
+  const gen=++talkGen,ABORT={};if(talkPend){const r=talkPend;talkPend=null;r(null)}
+  const live=()=>{if(gen!==talkGen)throw ABORT};const after=async p=>{const v=await p;live();return v};
+  try{
+  const D=DIALOGUES[key],el=talkSheet();closeCard();
   try{for(const t of D.turns||[]){if(t.npc)preloadZh(t.npc.zh);for(const o of t.you||[]){if(o.ok)preloadZh(o.zh);if(o.reply)preloadZh(o.reply.zh)}}}catch(e){}curP=personFor(key,D.who);curPhone=/phone/.test(String(D.who&&D.who.role||''))||key.startsWith('phone_');drawPerson(el.querySelector('#tkAv'),curP,curPhone);el.querySelector('#tkWho').innerHTML=(D.who.name||'')+zw(D.who.zh||'',D.who.py||'',true);
   el.querySelector('#tkSet').textContent=D.setting||'';el.querySelector('#tkLog').innerHTML='';const panel=el.querySelector('#tkPanel');panel.innerHTML='';el.hidden=false;
   LOG('talk_start',{key});let fixes=0;
   for(const turn of D.turns){
-    if(turn.npc){bubble('npc',turn.npc);await Promise.all([speakAsync(turn.npc.zh),wait(readMs(turn.npc))]);continue}
+    if(turn.npc){bubble('npc',turn.npc);await after(Promise.all([speakAsync(turn.npc.zh),wait(readMs(turn.npc))]));continue}
     const all=turn.you||[];const good=all.filter(o=>o.ok);const target=good[0]||all[0];const young=!!(window.isYoung&&isYoung());const opts=young?[target]:good.length?good:all;
     // 1) cue in English, pause so the child can say it out loud
     panel.innerHTML=`<div class="talkcue"><div class="c">${young?`🔊 <b>${target.zh}</b> <i>${target.py||''}</i>${zw('听一听，说一说','tīng yi tīng, shuō yi shuō')}`:`Say it in Chinese: “${target.en}”${zw('用中文说','yòng Zhōngwén shuō')}`}</div><div class="ring"><span></span></div></div>
       <div class="talkopts"></div>`;
-    if(young){try{await speakAsync(target.zh)}catch(e){}} // little kids hear the line first, then say it back
-    await ring(panel.querySelector('.ring'),young?4:3);
+    if(young){try{await speakAsync(target.zh)}catch(e){}live()} // little kids hear the line first, then say it back
+    await after(ring(panel.querySelector('.ring'),young?4:3));
     // 2) choose what you said (each option plays its audio)
-    const chosen=await new Promise(r=>{const box=panel.querySelector('.talkopts');
-      if(window.canListen()){const mic=document.createElement('button');mic.className='mic';mic.innerHTML=`🎤 <b>Say it</b>${zw('说出来','shuō chūlái')}`;box.appendChild(mic);
+    const chosen=await after(new Promise(r=>{talkPend=r;const box=panel.querySelector('.talkopts');
+      if(window.canListen()&&!young){const mic=document.createElement('button');mic.className='mic';mic.innerHTML=`🎤 <b>Say it</b>${zw('说出来','shuō chūlái')}`;box.appendChild(mic);
         mic.onclick=async()=>{if(mic.disabled)return;mic.disabled=true;mic.classList.add('on');mic.innerHTML='🎤 …'+zw('我在听','wǒ zài tīng');
           const alts=await listenZh();mic.disabled=false;mic.classList.remove('on');
           if(alts===null){mic.remove();return}
@@ -11574,21 +11677,21 @@ window.runTalk=function(key){return new Promise(async res=>{try{
           else{mic.innerHTML=(heardTxt?`🎤 “${heardTxt}” · again`:'🎤 Again')+zw('再说一次','zài shuō yí cì')}}}
       [...opts].sort(()=>Math.random()-.5).forEach(o=>{const b=document.createElement('button');
       b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`;let armed=false;b.onclick=()=>{if(!armed){armed=true;[...box.children].forEach(x=>x!==b&&(x._armed=false));speakAsync(o.zh);b.style.outline='3px solid var(--accent)';
-        [...box.children].forEach(x=>{if(x!==b)x.style.outline=''});b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div><div class="p" style="color:var(--accent)">Tap again to say this ${'· 再点一下'}</div>`;
-        [...box.children].forEach(x=>{if(x!==b&&x._reset)x._reset()});return}r(o)};b._reset=()=>{armed=false;b.style.outline='';b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`};box.appendChild(b)})});
-    panel.innerHTML='';bubble('you',chosen);await Promise.all([speakAsync(chosen.zh),wait(900)]);
-    if(chosen.ok){heard(chosen.zh,true);if(chosen.reply){bubble('npc',chosen.reply);await Promise.all([speakAsync(chosen.reply.zh),wait(readMs(chosen.reply))])}else{bubble('npc',{zh:'对！',py:'duì!',en:'Right!'});await Promise.all([speakAsync('对！'),wait(1100)])}}
+        [...box.children].forEach(x=>{if(x!==b)x.style.outline=''});b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div><div class="p" style="color:var(--accent)">Tap again to say this · 再点一下 zài diǎn yí xià</div>`;
+        [...box.children].forEach(x=>{if(x!==b&&x._reset)x._reset()});return}r(o)};b._reset=()=>{armed=false;b.style.outline='';b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`};box.appendChild(b)})}));talkPend=null;
+    panel.innerHTML='';bubble('you',chosen);await after(Promise.all([speakAsync(chosen.zh),wait(900)]));
+    if(chosen.ok){heard(chosen.zh,true);said();if(chosen.reply){bubble('npc',chosen.reply);await after(Promise.all([speakAsync(chosen.reply.zh),wait(readMs(chosen.reply))]))}else{bubble('npc',{zh:'对！',py:'duì!',en:'Right!'});await after(Promise.all([speakAsync('对！'),wait(1100)]))}}
     else{ // gentle recast: the character says it back the natural way, then the child repeats it
       fixes++;const fx={zh:'你是说「'+target.zh.replace(/[。！？!?]$/,'')+'」吧？',py:'nǐ shì shuō “'+target.py.replace(/[.!?]$/,'')+'” ba?',en:'Did you mean “'+target.en+'”?'};
-      bubble('fix',fx);await speakAsync('你是说');await speakAsync(target.zh);await speakAsync('吧');
-      panel.innerHTML=`<div class="talkcue"><div class="c">Say it again: ${target.zh} <span class="sub">${target.py}</span></div><div class="ring"><span></span></div></div>`;await ring(panel.querySelector('.ring'),2.6);
-      bubble('you',target);await speakAsync(target.zh);heard(target.zh,false);panel.innerHTML='';
-      if(target.reply){bubble('npc',target.reply);await Promise.all([speakAsync(target.reply.zh),wait(readMs(target.reply))])}}
-    await wait(300)}
-  if(D.end){bubble('npc',D.end);await Promise.all([speakAsync(D.end.zh),wait(readMs(D.end))])}
-  const dayKey=(typeof today==='function'?today():'');S.talkDay=S.talkDay||{};const gotReward=D.reward&&S.talkDay[key]!==dayKey;if(gotReward){give(D.reward);S.talkDay[key]=dayKey}S.talked=S.talked||{};S.talked[key]=(S.talked[key]||0)+1;questEv('words');save();LOG('talk_end',{key,fixes});
+      bubble('fix',fx);await after(speakAsync('你是说'));await after(speakAsync(target.zh));await after(speakAsync('吧'));
+      panel.innerHTML=`<div class="talkcue"><div class="c">Say it again: ${target.zh} <span class="sub">${target.py}</span></div><div class="ring"><span></span></div></div>`;await after(ring(panel.querySelector('.ring'),2.6));
+      bubble('you',target);await after(speakAsync(target.zh));heard(target.zh,false);said();panel.innerHTML='';
+      if(target.reply){bubble('npc',target.reply);await after(Promise.all([speakAsync(target.reply.zh),wait(readMs(target.reply))]))}}
+    await after(wait(300))}
+  if(D.end){bubble('npc',D.end);await after(Promise.all([speakAsync(D.end.zh),wait(readMs(D.end))]))}
+  const dayKey=(typeof today==='function'?today():'');S.talkDay=S.talkDay||{};const gotReward=D.reward&&S.talkDay[key]!==dayKey;if(gotReward){give(D.reward);S.talkDay[key]=dayKey}S.talked=S.talked||{};S.talked[key]=(S.talked[key]||0)+1;try{window.onTalkDone&&onTalkDone(key)}catch(e){}save();LOG('talk_end',{key,fixes});
   panel.innerHTML='';const b=document.createElement('button');b.className='big';b.innerHTML=(gotReward?`Continue · You got ${rwTxt(D.reward)}`:'Continue')+zw('继续','jìxù');panel.appendChild(b);
-  b.onclick=()=>{el.hidden=true;updateUI();res(true)}}catch(e){console.error(e);if(talkEl)talkEl.hidden=true;res(false)}})};
+  b.onclick=()=>{el.hidden=true;updateUI();res(true)}}catch(e){if(e!==ABORT){console.error(e);if(talkEl&&gen===talkGen)talkEl.hidden=true}res(false)}})};
 })();
 
 </script>
@@ -12778,7 +12881,7 @@ window.traceChar=function(kind,opts){if(typeof opts==='string')opts={title:opts}
     writer.quiz({showHintAfterMisses:1,markStrokeCorrectAfterMisses:young()?1:3,highlightOnComplete:true,leniency:young()?1.9:1.35,
     onMistake:()=>{msgEl.innerHTML='Try that stroke again. Follow the glow.'+zw('再试一次','zài shì yí cì')},
     onCorrectStroke:(d)=>{msgEl.innerHTML=`${d.strokeNum+1} / ${d.strokeNum+1+d.strokesRemaining}`+zw('很好！','hěn hǎo!')},
-    onComplete:(s)=>{if(a.done)return;const perfect=s.totalMistakes===0;tr[ch]=(tr[ch]||0)+(s.totalMistakes<=2?1:0);try{save()}catch(e){}
+    onComplete:(s)=>{if(a.done)return;const perfect=s.totalMistakes===0;tr[ch]=(tr[ch]||0)+(s.totalMistakes<=2?1:0);try{questEv('words')}catch(e){}try{save()}catch(e){}
       const good=purpose==='spell'?(perfect?'Perfect spell!':'Spell ready!'):purpose==='giant'?'Giant power!':(perfect?'Perfect! Critical hit!':'Done!');
       const gz=perfect?['太棒了！','tài bàng le!']:['写好了！','xiě hǎo le!'];
       msgEl.innerHTML=good+zw(gz[0],gz[1]);try{sfx(perfect?'super':'quest')}catch(e){}
@@ -13294,8 +13397,8 @@ window.READINGS.push(...[
 if(typeof READINGS==='undefined')window.READINGS=[];
 const KIND={letter:['Letter','信','xìn','✉️'],note:['Note','纸条','zhǐtiáo','📝'],postcard:['Postcard','明信片','míngxìnpiàn','🏞️'],book:['Book','书','shū','📖'],
   magazine:['Magazine','杂志','zázhì','📰'],newspaper:['Newspaper','报纸','bàozhǐ','🗞️'],poster:['Poster','海报','hǎibào','📌'],diary:['Diary','日记','rìjì','📔'],guide:['Field guide','图鉴','tújiàn','🔎']};
-const css=`#sRead .inner{gap:12px}
-.paper{background:#f6f0e3;color:#2b2420;border-radius:14px;padding:16px 14px 18px;box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 0 0 1px rgba(120,90,50,.18);background-image:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,0) 40%)}
+const css=`#sRead .inner{gap:12px;height:100%}
+.paper{flex:1 1 0;min-height:0;overflow:hidden;position:relative;background:#f6f0e3;color:#2b2420;border-radius:14px;padding:16px 14px 18px;box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 0 0 1px rgba(120,90,50,.18);background-image:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,0) 40%)}
 .paper.k-newspaper{background-color:#eeebe4;background-image:none}.paper.k-guide{background-color:#eef3ea}.paper.k-poster{background-color:#fbefd9}.paper.k-diary{background-color:#f3ecf6}
 .paper .ptitle{display:flex;flex-direction:column;align-items:center;gap:2px;border-bottom:1px solid rgba(80,60,30,.18);padding-bottom:10px;margin-bottom:6px;text-align:center}
 .paper .ptitle b{font-family:'Noto Sans SC',sans-serif;font-size:1.35rem;letter-spacing:.04em}.paper .ptitle i{font-style:normal;color:#8a6d4a;font-size:.8rem}.paper .ptitle span{color:#7a7268;font-size:.74rem}
@@ -13308,7 +13411,8 @@ const css=`#sRead .inner{gap:12px}
 .tok i{font-style:normal;font-size:.68rem;color:#8a5a2b;line-height:1.15}
 .tok u{text-decoration:none;font-size:.6rem;color:#7a7268;line-height:1.15;max-width:6.5em;text-align:center}
 .tok.p{cursor:default;min-width:0;padding:1px 0}.tok.p b{color:#6b5a48}
-.readbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.paper .off{display:none!important}
+.readbtns{display:flex;gap:8px;flex:none}.readbtns button{flex:1 1 0;min-width:0}.readbtns #rdPrev{flex:0 0 auto;padding-left:16px;padding-right:16px}
 .rdlib{grid-column:1/-1;display:flex;flex-direction:column;gap:6px}
 .rdlib button{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px}
 .rdlib button span.k{font-size:1.2rem}.rdlib button b{font-family:'Noto Sans SC',sans-serif;font-weight:500}.rdlib button small{color:var(--muted);display:block}`;
@@ -13316,15 +13420,23 @@ const sty=document.createElement('style');sty.textContent=css;document.head.appe
 const sh=document.createElement('div');sh.className='sheet';sh.id='sRead';sh.hidden=true;
 sh.innerHTML=`<div class="inner"><div class="row"><h2 id="rdKind"></h2><button class="small" id="rdClose">Close<span class="zh" data-say="关闭">关闭<i>guānbì</i></span></button></div>
   <div class="paper" id="rdPaper"></div>
-  <div class="readbtns"><button id="rdPlay">▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdDone" class="primary">Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
+  <div class="readbtns"><button id="rdPrev" aria-label="Back" hidden>‹</button><button id="rdPlay">▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdNext" class="primary" hidden>Next ›<span class="zh" data-say="继续">继续<i>jìxù</i></span></button><button id="rdDone" class="primary">Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
 document.body.appendChild(sh);
 const $=id=>document.getElementById(id);
 const isP=t=>t.length===1;
 const sentZh=l=>l.w.map(t=>t[0]).join('');
-let cur=null,tok=0;
+let cur=null,tok=0,page=0,npages=1;
 function stopRead(){tok++;try{stopSpeech()}catch(e){}document.querySelectorAll('#rdPaper .sent.now').forEach(x=>x.classList.remove('now'))}
+// A long piece is split into pages that fit the screen (no scrolling): Next turns the page, and Done is on the last one.
+function paginate(){const paper=$('rdPaper'),bl=[...paper.children];bl.forEach(b=>b.classList.remove('off'));
+  const cs=getComputedStyle(paper),H=paper.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);let pg=0,top=null;
+  for(const b of bl){if(top==null)top=b.offsetTop;if(b.offsetTop+b.offsetHeight-top>H+1&&b!==bl[0]&&b.offsetTop>top){pg++;top=b.offsetTop}b.dataset.pg=pg}
+  npages=pg+1;showPage(Math.min(page,pg))}
+function showPage(n){page=Math.max(0,Math.min(n,npages-1));for(const b of $('rdPaper').children)b.classList.toggle('off',+b.dataset.pg!==page);
+  const last=page>=npages-1;$('rdDone').hidden=!last;$('rdNext').hidden=last;$('rdPrev').hidden=page===0}
+function turnTo(n){if(n<0||n>=npages)return;showPage(n);const first=$('rdPaper').querySelector(`.sent[data-pg="${page}"]`);if(first)narrate(+first.dataset.i);else stopRead()}
 async function narrate(from){const my=++tok;try{stopSpeech()}catch(e){}tok=my;const ss=[...document.querySelectorAll('#rdPaper .sent')];
-  for(let i=from||0;i<ss.length;i++){if(tok!==my||sh.hidden)return;ss.forEach(x=>x.classList.toggle('now',x===ss[i]));ss[i].scrollIntoView({block:'nearest',behavior:'smooth'});
+  for(let i=from||0;i<ss.length;i++){if(tok!==my||sh.hidden)return;if(+ss[i].dataset.pg!==page)showPage(+ss[i].dataset.pg);ss.forEach(x=>x.classList.toggle('now',x===ss[i]));
     const t0=performance.now();try{await (window.speakAsync?speakAsync(ss[i].dataset.zh):Promise.resolve())}catch(e){}
     const spent=performance.now()-t0;await new Promise(r=>setTimeout(r,Math.max(450,900-spent)));} // a short pause between sentences; longer if the line had no audio
   if(tok===my)ss.forEach(x=>x.classList.remove('now'))}
@@ -13337,11 +13449,14 @@ function openReading(id,opts){const r=READINGS.find(x=>x.id===id);if(!r)return;c
   $('rdPaper').className='paper k-'+r.kind;$('rdPaper').innerHTML=h;
   $('rdDone').innerHTML=(cur.fresh&&r.reward?`Done · ${rwTxt(r.reward)}`:'Done')+zw('读完了','dú wán le');
   try{for(const l of r.lines)preloadZh(sentZh(l))}catch(e){}
-  sh.hidden=false;sh.scrollTop=0;try{LOG('read_open',{id,fresh:cur.fresh})}catch(e){}
+  sh.hidden=false;sh.scrollTop=0;page=0;paginate();try{LOG('read_open',{id,fresh:cur.fresh})}catch(e){}
   setTimeout(()=>narrate(0),350)}
+addEventListener('resize',()=>{if(!sh.hidden&&cur)paginate()});
+try{document.fonts&&document.fonts.ready.then(()=>{if(!sh.hidden&&cur)paginate()})}catch(e){}
 $('rdPaper').addEventListener('click',e=>{const t=e.target.closest('.tok');if(t&&t.dataset.w){e.stopPropagation();stopRead();speak(t.dataset.w);return}
   const s=e.target.closest('.sent');if(s)narrate(+s.dataset.i)});
-$('rdPlay').onclick=()=>narrate(0);
+$('rdPlay').onclick=()=>{const first=$('rdPaper').querySelector(`.sent[data-pg="${page}"]`);narrate(first?+first.dataset.i:0)};
+$('rdNext').onclick=()=>turnTo(page+1);$('rdPrev').onclick=()=>turnTo(page-1);
 function closeReading(){stopRead();sh.hidden=true;cur=null;try{lastIdle=T}catch(e){}updateUI()}
 $('rdClose').onclick=closeReading;
 $('rdDone').onclick=()=>{if(!cur)return closeReading();const {r,fresh}=cur;S.read=S.read||{};
@@ -13481,7 +13596,7 @@ const CH=[
  {when:()=>pieces()>=3,goal:['Fly to California','去加州','qù Jiāzhōu']},
  {when:()=>PLACES[S.place].region==='California'&&S.mode!=='travel',goal:['Go to San Francisco','去旧金山','qù Jiùjīnshān']},
  {when:()=>placeIs('sanfrancisco'),goal:['Go to Yosemite','去优胜美地','qù Yōushèngměidì']},
- {when:()=>placeIs('yosemite'),goal:['Step into the Starveil','去星幕裂谷','qù xīngmù liègǔ'],after:()=>{S.rift={place:PI('yosemite'),shown:true}}},
+ {when:()=>placeIs('yosemite'),goal:['Step into the Starveil','去星幕裂谷','qù xīngmù liègǔ'],after:()=>{S.rift={place:PI('yosemite'),shown:true,story:true}}},
  {when:()=>placeIs('starveil'),goal:['Little Star is home!','小星回家了！','Xiǎo Xīng huí jiā le!']},
  {when:()=>st().t.story_8&&Date.now()-st().t.story_8>60000,goal:null},
 ];
@@ -13491,7 +13606,12 @@ function done(k){return !!(S.talked||{})[k]}
 function tick(){try{if(typeof S==='undefined'||!S.col||!S.col.length)return;const s=st();
   // advance past finished chapters
   while(s.ch<CH.length&&done(key(s.ch))){const c=CH[s.ch];s.t[key(s.ch)]=Date.now();s.ch++;try{c.after&&c.after()}catch(e){}
-    try{LOG('story',{ch:s.ch})}catch(e){}if(c.goal){sfx('quest');toast(`New goal: ${c.goal[0]} · ${c.goal[1]} (${c.goal[2]})`)}save();try{updateUI()}catch(e){}}
+    // announce the new goal only if it is still to do (e.g. the Backyard badge may already be won)
+    let met=false;try{met=s.ch<CH.length&&!!CH[s.ch].when()}catch(e){}
+    try{LOG('story',{ch:s.ch})}catch(e){}if(c.goal&&!met){sfx('quest');toast(`New goal: ${c.goal[0]} · ${c.goal[1]} (${c.goal[2]})`)}save();try{updateUI()}catch(e){}}
+  // the way into the Starveil stays open at Yosemite until Little Star is home (also mends saves where leaving Yosemite closed it)
+  if(s.ch===7&&!S.rift){S.rift={place:PI('yosemite'),shown:true,story:true};save();try{updateUI()}catch(e){}}
+  else if(s.ch>=8&&S.rift&&S.rift.story)delete S.rift.story; // home: from now on it is an ordinary rift
   if(s.ch>=3&&s.ch<CH.length){const pc=pieces();if(s.pc==null)s.pc=pc;if(pc>s.pc){s.pc=pc;sfx('legend');toast(`You got a star piece! 星星碎片 xīngxing suìpiàn · ${pc} / 3`);speak('星星碎片');save()}}
   if(s.ch>=CH.length)return;const k=key(s.ch);if(!has(k))return;
   if(pendingTalks.includes(k)||document.querySelector('.sheet.talk:not([hidden])'))return;
@@ -13542,15 +13662,16 @@ function placesFor(i){const s=SP[i];let b=i;while(SP[b].prev!=null)b=SP[b].prev;
   PLACES.forEach((p,k)=>{const hab=SP[b].hab&&SP[b].hab.includes(p.key),typ=p.types.includes(SP[b].t);if(hab||(typ&&!SP[b].hab))out.push({k,hab})});
   if(SP[b].leg)return[{k:PLACES.findIndex(p=>p.rift),hab:true}];return out.sort((a,b)=>(b.hab-a.hab))}
 function mini(cv,i,got,w,h){const d=Math.min(3,devicePixelRatio||1);cv.width=w*d;cv.height=h*d;const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);dc(x,i,w/2,h*.94,fitS(w,h,i,.9),0,got?{awake:true}:{silhouette:'#4a5578'})}
+// a creature not found yet keeps its mystery: only its silhouette, no type, evolutions or places
 window.openDex=function(i,got){const s=SP[i],z=ZS(s.n);const wrap=document.createElement('div');wrap.className='dexwrap';
   const chain=[];let b=i;while(SP[b].prev!=null)b=SP[b].prev;for(let k=b;k!=null;k=SP[k].next)chain.push(k);
   const seen=new Set([...(S.caught||[]),...S.col.map(c=>c.sp)]);
   const pl=placesFor(i).slice(0,5).map(o=>`<span class="dplace">${o.hab?'★ ':''}${ZP(PLACES[o.k].n).zh||''} ${PLACES[o.k].n}</span>`).join('');
   wrap.innerHTML=`<div class="dexcard"><canvas class="dbig"></canvas>
-    ${got?`<div class="dzh" data-say="${z.zh}">${z.zh}</div><div class="dpy">${z.py}</div><div class="den">${s.n}${s.leg?' · Legendary':''}</div>`:`<div class="dzh">？？？</div><div class="den">Not found yet${zw('还没找到','hái méi zhǎo dào')}</div>`}
+    ${got?`<div class="dzh" data-say="${z.zh}">${z.zh}</div><div class="dpy">${z.py}</div><div class="den">${s.n}${s.leg?' · Legendary':''}</div>
     <div class="drow"><span class="type" style="background:${TYPES[s.t]}">${tyB(s.t)}</span></div>
     ${chain.length>1?`<div class="devo">${chain.map((k,j)=>`${j?'<span>›</span>':''}<canvas data-k="${k}"></canvas>`).join('')}</div>`:''}
-    <div class="drow">${pl}</div>
+    <div class="drow">${pl}</div>`:`<div class="dzh">？？？</div><div class="den">Not found yet${zw('还没找到','hái méi zhǎo dào')}</div>`}
     <button class="small">OK${zw('好的','hǎo de')}</button></div>`;
   document.body.appendChild(wrap);
   const big=wrap.querySelector('.dbig'),d=Math.min(3,devicePixelRatio||1);big.width=200*d;big.height=170*d;const bx=big.getContext('2d');
@@ -13788,6 +13909,18 @@ header{position:relative}#bWho{position:absolute;right:0;top:2px;max-width:9.5em
 #catchTitle .ctz{font-family:'Noto Sans SC',sans-serif;font-size:1.12rem;font-weight:600;white-space:nowrap}#catchTitle .ctag{font-size:.7rem;padding:1px 6px;border-radius:99px;background:#ffd23f;color:#3a2a00;vertical-align:middle}
 #catchTitle .ctp{font-size:.72rem;opacity:.8;font-weight:500}#catchTitle .cte{font-size:.68rem;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sCatch .inner>.row{align-items:center}
+/* Settings: one screen, no scrolling */
+#sSet .inner{gap:8px}#lvlBox{display:flex;flex-direction:column;gap:6px}
+#setList.seg{grid-template-columns:1fr 1fr;gap:6px}
+#setList .settile{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;padding:7px 10px!important;border-radius:18px!important;position:relative;min-width:0;gap:0}
+#setList .settile .bi{align-items:flex-start;text-align:left}#setList .settile .sw{position:absolute;right:10px;top:7px;font-style:normal;font-size:.6rem;font-weight:700;opacity:.75}
+#setList .settile.on .sw{opacity:1;color:#1c3fa6}
+#sSet .savebox{display:flex;flex-direction:column;gap:6px}#sSet .saverow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}#sSet .saverow .bi{align-items:flex-start}
+#sSet .savebox textarea{height:44px}
+/* map cards: thumbnail · Chinese name, pinyin, English + levels, types · Go */
+#mapList .card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
+#mapList .tname b{font-size:1.1rem}#mapList .tmeta{gap:3px}#mapList .tmeta .type{margin:0}#mapList .mbadge{color:#b67500;font-size:.85rem}
+@media (max-width:350px){.mapthumb{width:70px!important;height:47px!important}#mapList .card{gap:8px}}
 .itembar button{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.12}
 .itembar button b{font-family:'Noto Sans SC',sans-serif;font-size:.88rem;font-weight:600}.itembar button small{font-size:.6rem;opacity:.75;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 </style>
