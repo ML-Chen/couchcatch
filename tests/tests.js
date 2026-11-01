@@ -828,7 +828,7 @@ module.exports = [
   T.ok(await T.ev(() => __said.includes(W.flick[1]) && C.hintT > 0), 'the flick hint is spoken and the swipe cue is on');
   // no throw for a while: the drag hint comes by itself
   await T.ev(() => { C.aimT = T - 20; C.hinted = false; C.hintSaid = -9; __said.length = 0; });
-  await T.until(() => /往上，扔/.test(document.getElementById('catchMsg').innerText), null, 'after a while without a throw the drag hint shows', 3000);
+  await T.until(() => /把球往上扔/.test(document.getElementById('catchMsg').innerText), null, 'after a while without a throw the drag hint shows', 3000);
   await T.until(() => __said.includes(W.drag[1]), null, 'and is spoken', 3000);
   // V1: once the throw lands, the spell is used up and the button says so
   await forceCatch(T);
@@ -844,7 +844,7 @@ module.exports = [
   r = await T.ev(() => ({dis: document.getElementById('bSpell').disabled, msg: document.getElementById('catchMsg').innerText, tr: __tr}));
   T.ok(r.dis, 'Spell is disabled with no orbs');
   T.eq(r.tr, 0, 'spell traces opened with no orbs');
-  T.ok(/没有。出发/.test(r.msg), 'the out-of-orbs line is in Chinese: ' + r.msg);
+  T.ok(/没有球了/.test(r.msg), 'the out-of-orbs line is in Chinese: ' + r.msg);
   await T.ev(() => castSpell());
   T.eq(await T.ev(() => __tr + (document.querySelector('.tracewrap') ? 1 : 0)), 0, 'casting does nothing without orbs');
   await T.until(() => __said.includes(W.noorbs[1]), null, 'the out-of-orbs line is spoken', 3000);
