@@ -1220,11 +1220,18 @@ function renderSettings(){const seg=document.getElementById('lvlSeg');seg.innerH
   const sv=document.createElement('div');sv.className='savebox';sv.innerHTML=`<div class="toggle"><span>Save code${zw('存档','cúndàng')}</span><span style="display:flex;gap:6px"><button class="small" id="svCopy">Copy</button><button class="small" id="svLoad">Load</button></span></div><textarea id="svText" rows="2" spellcheck="false" placeholder="Paste a save code here, then tap Load"></textarea>`;L.appendChild(sv);
   const ta=sv.querySelector('#svText');
   sv.querySelector('#svCopy').onclick=()=>{snapshotState();const code='CC1:'+btoa(unescape(encodeURIComponent(JSON.stringify(S))));ta.value=code;ta.select();try{navigator.clipboard&&navigator.clipboard.writeText(code).then(()=>toast('Save code copied'),()=>toast('Select the code and copy it'))}catch(e){toast('Select the code and copy it')}};
-  let armed=0;sv.querySelector('#svLoad').onclick=e=>{const raw=(ta.value||'').trim();let obj=null;try{obj=JSON.parse(decodeURIComponent(escape(atob(raw.replace(/^CC1:/,'')))))}catch(err){}
-    if(!obj||!Array.isArray(obj.col)){toast('That is not a save code');return}
-    if(Date.now()-armed>4000){armed=Date.now();e.target.textContent='Tap again';toast(`Replace this game with the saved one (${obj.col.length} creatures)? Tap Load again.`);return}
-    LOG('save_import',{n:obj.col.length});S=obj;S.savedAt=Date.now();writeLocal();save();setTimeout(()=>location.reload(),400)}}
-document.getElementById('bSet').onclick=()=>{renderSettings();open('sSet')};
+  let armed=0,armT=0;const lb=sv.querySelector('#svLoad');lb.onclick=()=>{const raw=(ta.value||'').trim();let obj=null;try{obj=JSON.parse(decodeURIComponent(escape(atob(raw.replace(/^CC1:/,'')))))}catch(err){}
+    if(!obj||obj.v!==2||!Array.isArray(obj.col)){toast('That is not a save code');return}
+    // the first tap asks, a second tap within 4 s replaces the game; after that the button goes back to "Load"
+    if(Date.now()-armed>4000){armed=Date.now();lb.textContent='Tap again';clearTimeout(armT);armT=setTimeout(()=>{armed=0;lb.textContent='Load'},4000);toast(`Replace this game with the saved one (${obj.col.length} creature${obj.col.length===1?'':'s'})? Tap Load again.`);return}
+    clearTimeout(armT);importSave(obj)}}
+// Replace the whole game with an imported save: everything comes from the save (team, field, trip), nothing from this page
+function importSave(obj){LOG('save_import',{n:obj.col.length});
+  try{window.stopTalk&&stopTalk();window.stopLesson&&stopLesson()}catch(e){}document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());
+  C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;
+  S=obj;S.savedAt=Date.now();migrate();restore(); // restore() sets the field and the trip from the save, so writing it back keeps them
+  writeLocal();clearTimeout(localTimer);clearTimeout(remoteTimer);pushRemote();setTimeout(()=>location.reload(),400)}
+document.getElementById('bSet').onclick=()=>{renderSettings(true);open('sSet')};
 const CONTACTS=[
  {en:'Grandma',zh:'奶奶',py:'nǎinai',keys:['phone_grandma','phone_grandma_2'],call:1},
  {en:'Grandpa',zh:'爷爷',py:'yéye',keys:['phone_grandpa','phone_grandpa_2'],call:1},
