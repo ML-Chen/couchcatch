@@ -153,15 +153,24 @@ function closeCard(){if(card){card.remove();card=null}}
 window.closeSayCard=closeCard;
 
 // ---------- Pimsleur-style Speak lesson ----------
-let lessonEl=null;
+let lessonEl=null,lessonGen=0;
+// Stop: end the lesson now (no more audio, nothing more recorded as said)
+window.stopLesson=function(){lessonGen++;if(lessonEl){lessonEl.hidden=true;lessonEl.querySelectorAll('.ring').forEach(r=>r._skip&&r._skip())}try{stopSpeech()}catch(e){}};
 function lessonSheet(){if(lessonEl)return lessonEl;lessonEl=document.createElement('div');lessonEl.className='sheet lesson';lessonEl.hidden=true;
   lessonEl.innerHTML=`<div class="inner" style="height:100%;gap:10px"><div class="row"><h2>Speak${Z('说中文','shuō Zhōngwén')}</h2><button class="small" data-a="quit">Stop${Z('停','tíng')}</button></div>
   <div class="step" id="lsStep"></div><div class="stage" id="lsStage"></div><div class="row2" id="lsBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div></div>`;
   document.body.appendChild(lessonEl);return lessonEl}
-window.runLesson=async function(){const el=lessonSheet();el.hidden=false;let quit=false;el.querySelector('[data-a=quit]').onclick=()=>{quit=true;tok++;el.hidden=true};
+window.runLesson=async function(){const el=lessonSheet();if(!el.hidden)stopLesson();el.hidden=false;const gen=++lessonGen,QUIT={};let pend=null;
+  // every step checks that the lesson is still running, so Stop (or another lesson, or a player switch) ends it at once
+  const live=()=>{if(gen!==lessonGen)throw QUIT};
+  el.querySelector('[data-a=quit]').onclick=()=>{stopLesson();if(pend)pend(null)};
   const stage=el.querySelector('#lsStage'),step=el.querySelector('#lsStep'),btns=el.querySelector('#lsBtns');
-  const show=(html)=>{stage.innerHTML=html};
-  const pause=async(secs,label)=>{show(stage.innerHTML+`<div class="ring"><span></span></div><div class="step">${label}</div>`);await ring(stage.querySelector('.ring'),secs)};
+  const show=(html)=>{live();stage.innerHTML=html};
+  const speakAsync=async z=>{live();await window.speakAsync(z);live()};
+  const wait=async ms=>{live();await new Promise(r=>setTimeout(r,ms));live()};
+  const pause=async(secs,label)=>{show(stage.innerHTML+`<div class="ring"><span></span></div><div class="step">${label}</div>`);await ring(stage.querySelector('.ring'),secs);live()};
+  const said1=(zh,good)=>{live();heard(zh,good);if(good)try{questEv('words')}catch(e){}};
+  try{
   const plan=[];const nw=[nextNew(),null].filter(Boolean);const due=dueList();
   // session: new phrase, then recalls mixed with a recall of the new phrase a little later (graduated interval recall)
   if(nw[0])plan.push({p:nw[0],kind:'new'});for(const d of due.slice(0,3))plan.push({p:d,kind:'recall'});
@@ -169,25 +178,31 @@ window.runLesson=async function(){const el=lessonSheet();el.hidden=false;let qui
   if(nw[0])plan.push({p:nw[0],kind:'recall'});if(nw2&&plan.some(x=>x.p===nw2))plan.push({p:nw2,kind:'recall'});
   if(!plan.length)for(const p of PB().slice(0,4))plan.push({p,kind:'recall'});
   let said=0;
-  for(let i=0;i<plan.length&&!quit;i++){const {p,kind}=plan[i];step.textContent=`${i+1} / ${plan.length}`;btns.innerHTML='';
+  const SAY1='Say it! 说一说 shuō yi shuō',SAYZH='Say it in Chinese! 用中文说 yòng Zhōngwén shuō',SAY2='Say it again! 再说一次 zài shuō yí cì';
+  for(let i=0;i<plan.length;i++){live();const {p,kind}=plan[i];step.textContent=`${i+1} / ${plan.length}`;btns.innerHTML='';
     if(kind==='new'){
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Listen: “${p.en}”</div>`);await wait(500);if(quit)break;
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Listen: “${p.en}”</div>`);await wait(500);
       show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">“${p.en}”</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div>`);await speakAsync(p.zh);await wait(700);await speakAsync(p.zh);
-      for(const [bz,bp] of (p.build||[])){if(quit)break;show(`<div class="step">Build it up, one piece at a time</div><div class="bigzh">${bz}</div><div class="bigpy">${bp}</div>`);await speakAsync(bz);await pause(2.2,'Say it! 说一说');}
-      if(quit)break;show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Now say the whole thing in Chinese: “${p.en}”</div>`);await pause(3,'Say it in Chinese! 用中文说');
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div>`);await speakAsync(p.zh);await pause(2.4,'Say it again! 再说一次');await speakAsync(p.zh);heard(p.zh,true);said++}
+      for(const [bz,bp] of (p.build||[])){show(`<div class="step">Build it up, one piece at a time</div><div class="bigzh">${bz}</div><div class="bigpy">${bp}</div>`);await speakAsync(bz);await pause(2.2,SAY1);}
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">Now say the whole thing in Chinese: “${p.en}”</div>`);await pause(3,SAYZH);
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div>`);await speakAsync(p.zh);await pause(2.4,SAY2);await speakAsync(p.zh);said1(p.zh,true);said++}
     else{
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">How do you say “${p.en}” in Chinese?</div><div class="step">用中文怎么说？ yòng Zhōngwén zěnme shuō?</div>`);await pause(3.6,'Say it in Chinese! 用中文说');if(quit)break;
-      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div><div class="step">${p.en}</div>`);await speakAsync(p.zh);await pause(2.4,'Say it again! 再说一次');await speakAsync(p.zh);
-      const ok=await new Promise(r=>{btns.innerHTML='';const a=document.createElement('button');a.className='big';a.innerHTML='I got it'+Z('我会了','wǒ huì le');a.onclick=()=>r(true);const b=document.createElement('button');b.innerHTML='Not yet'+Z('再来','zài lái');b.onclick=()=>r(false);btns.append(a,b)});
-      heard(p.zh,ok);if(ok)said++}
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigen">How do you say “${p.en}” in Chinese?</div><div class="step">用中文怎么说？ yòng Zhōngwén zěnme shuō?</div>`);await pause(3.6,SAYZH);
+      show(`<div class="bigpic">${p.pic||'💬'}</div><div class="bigzh">${p.zh}</div><div class="bigpy">${p.py}</div><div class="step">${p.en}</div>`);await speakAsync(p.zh);await pause(2.4,SAY2);await speakAsync(p.zh);
+      const ok=await new Promise(r=>{pend=r;btns.innerHTML='';const a=document.createElement('button');a.className='big';a.innerHTML='I got it'+Z('我会了','wǒ huì le');a.onclick=()=>r(true);const b=document.createElement('button');b.innerHTML='Not yet'+Z('再来','zài lái');b.onclick=()=>r(false);btns.append(a,b)});
+      pend=null;said1(p.zh,!!ok);if(ok)said++}
     save()}
-  if(!quit){const rw={orb:3+said*2};if(said>=4)rw.great=1;give(rw);save();show(`<div class="bigpic">🌟</div><div class="bigzh">太棒了！</div><div class="bigpy">tài bàng le!</div><div class="bigen">You said ${said} phrases. You got ${rwTxt(rw)}.</div>`);
-    speakAsync('太棒了！');btns.innerHTML='';const d=document.createElement('button');d.className='big';d.style.gridColumn='1/-1';d.innerHTML='Done'+Z('好的','hǎo de');d.onclick=()=>{el.hidden=true;if(typeof renderLearn==='function')renderLearn();updateUI()};btns.append(d);LOG('lesson',{said,n:plan.length})}
+  live();const rw={orb:3+said*2};if(said>=4)rw.great=1;give(rw);save();show(`<div class="bigpic">🌟</div><div class="bigzh">太棒了！</div><div class="bigpy">tài bàng le!</div><div class="bigen">You said ${said} phrase${said===1?'':'s'}. You got ${rwTxt(rw)}.</div>`);
+  window.speakAsync('太棒了！');btns.innerHTML='';const d=document.createElement('button');d.className='big';d.style.gridColumn='1/-1';d.innerHTML='Done'+Z('好的','hǎo de');d.onclick=()=>{el.hidden=true;if(typeof renderLearn==='function')renderLearn();updateUI()};btns.append(d);LOG('lesson',{said,n:plan.length})
+  }catch(e){if(e!==QUIT)console.error(e)}
 };
 
 // ---------- conversations with gentle recasts ----------
-let talkEl=null,curP=null,curPhone=false;
+let talkEl=null,curP=null,curPhone=false,talkGen=0,talkPend=null;
+// end the running conversation at once (used when another player takes over); it stays owed, since it was not finished
+window.stopTalk=function(){talkGen++;if(talkPend){const r=talkPend;talkPend=null;r(null)}if(talkEl){talkEl.hidden=true;talkEl.querySelectorAll('.ring').forEach(r=>r._skip&&r._skip())}};
+// every line the child says in a conversation counts for the daily "say or write" quest
+function said(){try{questEv('words')}catch(e){}}
 const ROLE_PIC={'phone':'📱','gym leader':'🏅','reporter':'🎤','host':'📺','neighbor':'🏡','agent':'🛫','ranger':'🌲','cashier':'🌮','barista':'☕','traveler':'✨','friend':'🧒','kid':'👧','classmate':'🎒','tourist':'🗺️'};
 // ---------- drawn people (original characters) for every conversation ----------
 const SK=['#f6d7bf','#eec5a2','#e2b08a','#c98f66','#a8714c','#7d5235'];
@@ -295,22 +310,26 @@ function bubble(kind,l){const log=talkEl.querySelector('#tkLog'),b=document.crea
   if(kind!=='you'&&curP){const row=document.createElement('div');row.className='bubrow';const cv=document.createElement('canvas');cv.className='mini-person';row.append(cv,b);log.appendChild(row);drawPerson(cv,curP,false)}else log.appendChild(b);scrollLog();return b}
 const readMs=l=>Math.min(5200,1100+String(l.zh||'').length*170+String(l.en||'').length*18)*(window.TALK_PACE||1);
 window.hasTalk=k=>typeof DIALOGUES!=='undefined'&&!!DIALOGUES[k];
-window.runTalk=function(key){return new Promise(async res=>{try{
-  if(!hasTalk(key)){res(false);return}const D=DIALOGUES[key],el=talkSheet();closeCard();
+window.runTalk=function(key){return new Promise(async res=>{if(!hasTalk(key)){res(false);return}
+  // every step checks that this conversation is still the one running: stopTalk() (a player switch) ends it without recording it as done
+  const gen=++talkGen,ABORT={};if(talkPend){const r=talkPend;talkPend=null;r(null)}
+  const live=()=>{if(gen!==talkGen)throw ABORT};const after=async p=>{const v=await p;live();return v};
+  try{
+  const D=DIALOGUES[key],el=talkSheet();closeCard();
   try{for(const t of D.turns||[]){if(t.npc)preloadZh(t.npc.zh);for(const o of t.you||[]){if(o.ok)preloadZh(o.zh);if(o.reply)preloadZh(o.reply.zh)}}}catch(e){}curP=personFor(key,D.who);curPhone=/phone/.test(String(D.who&&D.who.role||''))||key.startsWith('phone_');drawPerson(el.querySelector('#tkAv'),curP,curPhone);el.querySelector('#tkWho').innerHTML=(D.who.name||'')+zw(D.who.zh||'',D.who.py||'',true);
   el.querySelector('#tkSet').textContent=D.setting||'';el.querySelector('#tkLog').innerHTML='';const panel=el.querySelector('#tkPanel');panel.innerHTML='';el.hidden=false;
   LOG('talk_start',{key});let fixes=0;
   for(const turn of D.turns){
-    if(turn.npc){bubble('npc',turn.npc);await Promise.all([speakAsync(turn.npc.zh),wait(readMs(turn.npc))]);continue}
+    if(turn.npc){bubble('npc',turn.npc);await after(Promise.all([speakAsync(turn.npc.zh),wait(readMs(turn.npc))]));continue}
     const all=turn.you||[];const good=all.filter(o=>o.ok);const target=good[0]||all[0];const young=!!(window.isYoung&&isYoung());const opts=young?[target]:good.length?good:all;
     // 1) cue in English, pause so the child can say it out loud
     panel.innerHTML=`<div class="talkcue"><div class="c">${young?`🔊 <b>${target.zh}</b> <i>${target.py||''}</i>${zw('听一听，说一说','tīng yi tīng, shuō yi shuō')}`:`Say it in Chinese: “${target.en}”${zw('用中文说','yòng Zhōngwén shuō')}`}</div><div class="ring"><span></span></div></div>
       <div class="talkopts"></div>`;
-    if(young){try{await speakAsync(target.zh)}catch(e){}} // little kids hear the line first, then say it back
-    await ring(panel.querySelector('.ring'),young?4:3);
+    if(young){try{await speakAsync(target.zh)}catch(e){}live()} // little kids hear the line first, then say it back
+    await after(ring(panel.querySelector('.ring'),young?4:3));
     // 2) choose what you said (each option plays its audio)
-    const chosen=await new Promise(r=>{const box=panel.querySelector('.talkopts');
-      if(window.canListen()){const mic=document.createElement('button');mic.className='mic';mic.innerHTML=`🎤 <b>Say it</b>${zw('说出来','shuō chūlái')}`;box.appendChild(mic);
+    const chosen=await after(new Promise(r=>{talkPend=r;const box=panel.querySelector('.talkopts');
+      if(window.canListen()&&!young){const mic=document.createElement('button');mic.className='mic';mic.innerHTML=`🎤 <b>Say it</b>${zw('说出来','shuō chūlái')}`;box.appendChild(mic);
         mic.onclick=async()=>{if(mic.disabled)return;mic.disabled=true;mic.classList.add('on');mic.innerHTML='🎤 …'+zw('我在听','wǒ zài tīng');
           const alts=await listenZh();mic.disabled=false;mic.classList.remove('on');
           if(alts===null){mic.remove();return}
@@ -320,19 +339,19 @@ window.runTalk=function(key){return new Promise(async res=>{try{
           else{mic.innerHTML=(heardTxt?`🎤 “${heardTxt}” · again`:'🎤 Again')+zw('再说一次','zài shuō yí cì')}}}
       [...opts].sort(()=>Math.random()-.5).forEach(o=>{const b=document.createElement('button');
       b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`;let armed=false;b.onclick=()=>{if(!armed){armed=true;[...box.children].forEach(x=>x!==b&&(x._armed=false));speakAsync(o.zh);b.style.outline='3px solid var(--accent)';
-        [...box.children].forEach(x=>{if(x!==b)x.style.outline=''});b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div><div class="p" style="color:var(--accent)">Tap again to say this ${'· 再点一下'}</div>`;
-        [...box.children].forEach(x=>{if(x!==b&&x._reset)x._reset()});return}r(o)};b._reset=()=>{armed=false;b.style.outline='';b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`};box.appendChild(b)})});
-    panel.innerHTML='';bubble('you',chosen);await Promise.all([speakAsync(chosen.zh),wait(900)]);
-    if(chosen.ok){heard(chosen.zh,true);if(chosen.reply){bubble('npc',chosen.reply);await Promise.all([speakAsync(chosen.reply.zh),wait(readMs(chosen.reply))])}else{bubble('npc',{zh:'对！',py:'duì!',en:'Right!'});await Promise.all([speakAsync('对！'),wait(1100)])}}
+        [...box.children].forEach(x=>{if(x!==b)x.style.outline=''});b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div><div class="p" style="color:var(--accent)">Tap again to say this · 再点一下 zài diǎn yí xià</div>`;
+        [...box.children].forEach(x=>{if(x!==b&&x._reset)x._reset()});return}r(o)};b._reset=()=>{armed=false;b.style.outline='';b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`};box.appendChild(b)})}));talkPend=null;
+    panel.innerHTML='';bubble('you',chosen);await after(Promise.all([speakAsync(chosen.zh),wait(900)]));
+    if(chosen.ok){heard(chosen.zh,true);said();if(chosen.reply){bubble('npc',chosen.reply);await after(Promise.all([speakAsync(chosen.reply.zh),wait(readMs(chosen.reply))]))}else{bubble('npc',{zh:'对！',py:'duì!',en:'Right!'});await after(Promise.all([speakAsync('对！'),wait(1100)]))}}
     else{ // gentle recast: the character says it back the natural way, then the child repeats it
       fixes++;const fx={zh:'你是说「'+target.zh.replace(/[。！？!?]$/,'')+'」吧？',py:'nǐ shì shuō “'+target.py.replace(/[.!?]$/,'')+'” ba?',en:'Did you mean “'+target.en+'”?'};
-      bubble('fix',fx);await speakAsync('你是说');await speakAsync(target.zh);await speakAsync('吧');
-      panel.innerHTML=`<div class="talkcue"><div class="c">Say it again: ${target.zh} <span class="sub">${target.py}</span></div><div class="ring"><span></span></div></div>`;await ring(panel.querySelector('.ring'),2.6);
-      bubble('you',target);await speakAsync(target.zh);heard(target.zh,false);panel.innerHTML='';
-      if(target.reply){bubble('npc',target.reply);await Promise.all([speakAsync(target.reply.zh),wait(readMs(target.reply))])}}
-    await wait(300)}
-  if(D.end){bubble('npc',D.end);await Promise.all([speakAsync(D.end.zh),wait(readMs(D.end))])}
-  const dayKey=(typeof today==='function'?today():'');S.talkDay=S.talkDay||{};const gotReward=D.reward&&S.talkDay[key]!==dayKey;if(gotReward){give(D.reward);S.talkDay[key]=dayKey}S.talked=S.talked||{};S.talked[key]=(S.talked[key]||0)+1;questEv('words');save();LOG('talk_end',{key,fixes});
+      bubble('fix',fx);await after(speakAsync('你是说'));await after(speakAsync(target.zh));await after(speakAsync('吧'));
+      panel.innerHTML=`<div class="talkcue"><div class="c">Say it again: ${target.zh} <span class="sub">${target.py}</span></div><div class="ring"><span></span></div></div>`;await after(ring(panel.querySelector('.ring'),2.6));
+      bubble('you',target);await after(speakAsync(target.zh));heard(target.zh,false);said();panel.innerHTML='';
+      if(target.reply){bubble('npc',target.reply);await after(Promise.all([speakAsync(target.reply.zh),wait(readMs(target.reply))]))}}
+    await after(wait(300))}
+  if(D.end){bubble('npc',D.end);await after(Promise.all([speakAsync(D.end.zh),wait(readMs(D.end))]))}
+  const dayKey=(typeof today==='function'?today():'');S.talkDay=S.talkDay||{};const gotReward=D.reward&&S.talkDay[key]!==dayKey;if(gotReward){give(D.reward);S.talkDay[key]=dayKey}S.talked=S.talked||{};S.talked[key]=(S.talked[key]||0)+1;try{window.onTalkDone&&onTalkDone(key)}catch(e){}save();LOG('talk_end',{key,fixes});
   panel.innerHTML='';const b=document.createElement('button');b.className='big';b.innerHTML=(gotReward?`Continue · You got ${rwTxt(D.reward)}`:'Continue')+zw('继续','jìxù');panel.appendChild(b);
-  b.onclick=()=>{el.hidden=true;updateUI();res(true)}}catch(e){console.error(e);if(talkEl)talkEl.hidden=true;res(false)}})};
+  b.onclick=()=>{el.hidden=true;updateUI();res(true)}}catch(e){if(e!==ABORT){console.error(e);if(talkEl&&gen===talkGen)talkEl.hidden=true}res(false)}})};
 })();

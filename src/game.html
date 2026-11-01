@@ -624,8 +624,8 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
   if(raidHere()){const bx=w*.5,by=h*.5,pulse=.5+.5*Math.sin(T*3);if((window.FX&&FX.attack)){try{FX.raidBeacon(sctx,bx,0,by,w*.12,T)}catch(e){}}else{sctx.fillStyle=`rgba(255,80,120,${.12+.1*pulse})`;sctx.fillRect(bx-w*.06,0,w*.12,by)}
     const bs=Math.min(h*.09,h*.3/(2.6*SP[S.raid.sp].sz));dc(sctx,S.raid.sp,bx,by,bs,T,{titan:true,shiny:S.raid.shiny,awake:true});
     const lab=`团体战 tuántǐ zhàn · RAID · Lv ${S.raid.lvl}`;sctx.font=`400 ${h*.045}px 'Sora',sans-serif`;sctx.textAlign='center';sctx.lineWidth=4;sctx.strokeStyle='#1a1424';sctx.strokeText(lab,bx,by+h*.06);sctx.fillStyle='#ffd23f';sctx.fillText(lab,bx,by+h*.06)}
-  if(S.mode==='staying'&&!sheetOpen()&&!C&&!B&&T-lastVisit>150&&typeof DIALOGUES!=='undefined'&&!document.getElementById('knock')){lastVisit=T;const phone=Math.random()<.5,keys=Object.keys(DIALOGUES).filter(k=>k.startsWith(phone?'phone_':'visit_'));if(keys.length){const wt=k=>/grand/.test(k)?3:1,k=(()=>{const pool=keys.map(k=>({k,w:wt(k)/(1+((S.talked||{})[k]||0))}));let r=Math.random()*pool.reduce((s,x)=>s+x.w,0);for(const x of pool){r-=x.w;if(r<=0)return x.k}return pool[0].k})();const kb=document.createElement('button');kb.id='knock';kb.className='raid knock';kb.innerHTML=phone?'Your phone is ringing!'+zw('电话来了！','diànhuà lái le!'):'Someone is at the door!'+zw('有人来了！','yǒu rén lái le!');kb.onclick=()=>{kb.remove();runTalk(k)};document.getElementById('banners').appendChild(kb);sfx(phone?'item':'spawn');if(phone)setTimeout(()=>sfx('item'),400);speak(phone?'电话来了！':'有人来了！');LOG(phone?'phone_ring':'door_knock',{k});setTimeout(()=>kb.remove(),45000)}}
-  if(T-lastIdle>.8&&!sheetOpen()&&!C&&!B&&!E&&S.mode!=='travel'&&document.getElementById('quiz').hidden){lastIdle=T;if(pendingTalks.length){const k=pendingTalks.shift();runTalk(k)}else if(evoQueue.length)runEvoQueue()}
+  if(S.mode==='staying'&&!sheetOpen()&&!C&&!B&&T-lastVisit>150&&typeof DIALOGUES!=='undefined'&&!document.getElementById('knock')){lastVisit=T;const phone=Math.random()<.5,keys=Object.keys(DIALOGUES).filter(k=>k.startsWith(phone?'phone_':'visit_'));if(keys.length){const wt=k=>/grand/.test(k)?3:1,k=(()=>{const pool=keys.map(k=>({k,w:wt(k)/(1+((S.talked||{})[k]||0))}));let r=Math.random()*pool.reduce((s,x)=>s+x.w,0);for(const x of pool){r-=x.w;if(r<=0)return x.k}return pool[0].k})();const kb=document.createElement('button');kb.id='knock';kb.className='raid knock';kb.innerHTML=phone?'Your phone is ringing!'+zw('电话来了！','diànhuà lái le!'):'Someone is at the door!'+zw('有人来了！','yǒu rén lái le!');kb.onclick=()=>{kb.remove();if(S.mode!=='travel'&&!B&&!C)runTalk(k)};document.getElementById('banners').appendChild(kb);sfx(phone?'item':'spawn');if(phone)setTimeout(()=>sfx('item'),400);speak(phone?'电话来了！':'有人来了！');LOG(phone?'phone_ring':'door_knock',{k});setTimeout(()=>kb.remove(),45000)}}
+  if(T-lastIdle>.8&&!idleHold&&!sheetOpen()&&!C&&!B&&!E&&S.mode!=='travel'){lastIdle=T;const k=nextTalk();if(k)runTalk(k);else if(evoQueue.length)runEvoQueue()}
   if(S.mode==='staying'&&!B&&T-lastHeal>3){lastHeal=T;for(const c of party()){const m=stats(c).maxhp;if(c.hp>0&&c.hp<m)c.hp=Math.min(m,c.hp+Math.ceil(m*.08))}}
   wild=wild.filter(wd=>!(wd.road&&wd.x<-.15));
   for(let i=0;i<wild.length;i++)for(let j=i+1;j<wild.length;j++){const a=wild[i],b=wild[j];if(a.road||b.road)continue;const dx=a.x-b.x,dy=(a.y-b.y)*1.6,d=Math.hypot(dx,dy);if(d<.16){const f=(.16-d)*dt*.8*(dx<0?-1:1);a.x=Math.min(.9,Math.max(.1,a.x+f));b.x=Math.min(.9,Math.max(.1,b.x-f));if(d<.06){a.vx=Math.abs(a.vx||.02)*(dx<0?-1:1);b.vx=-a.vx}}}
@@ -736,8 +736,9 @@ function startStay(){if(S.mode!=='arrived')return;
   toast(`Staying at ${PLACES[S.place].n}. Your team rested.`);save();updateUI()}
 async function travel(i){close('sMap');if(i===S.place)return;{const from=PLACES[S.place],to=PLACES[i];if(!from.rift&&!to.rift&&from.region!==to.region){const ak=to.region==='California'?'airport_out':'airport_home';if(hasTalk(ak)){const ok=await runTalk(ak);if(!ok)return}}}LOG('travel',{from:PLACES[S.place].n,to:PLACES[i].n});if(S.rift&&S.rift.place===S.place)S.rift=null;if(S.raid){S.raid=null;toast('You left, so the raid ended.')}travelTo=i;travelT=0;S.mode='travel';wild=[];roadSpawns=(PLACES[i].rift||PLACES[S.place].rift)?[]:[{at:.3},{at:.65}];makeProps(i);save();updateUI()}
 function arrive(){S.place=travelTo;S.mode='arrived';S.spawned=0;wild=[];makeProps(S.place);
-  const first=!S.visited.includes(S.place);if(first)S.visited.push(S.place);{const ak='arrive_'+PLACES[S.place].key;if(first&&hasTalk(ak))queueTalk(ak)}const rw=PLACES[S.place].rift?(first?{great:3,ultra:2}:{great:2,ultra:1}):first?{orb:8,great:1,berry:2}:Math.random()<.5?{orb:4,berry:1}:{orb:5};give(rw);sfx('item');
-  LOG('arrive',{place:PLACES[S.place].n,rw});{const z=ZP(PLACES[S.place].n);toast(`Arrived at ${PLACES[S.place].n} · 到达${z.zh} (dàodá ${z.py}). Found ${rwTxt(rw)}.`);speak('到达'+z.zh)}save();updateUI()}
+  // the place's welcome chat is owed until it has been played through (see owedTalks), so a reload never loses it
+  const first=!S.visited.includes(S.place);if(first)S.visited.push(S.place);{const ak='arrive_'+PLACES[S.place].key;if(!(S.talked||{})[ak]&&hasTalk(ak))queueTalk(ak)}const rw=PLACES[S.place].rift?(first?{great:3,ultra:2}:{great:2,ultra:1}):first?{orb:8,great:1,berry:2}:Math.random()<.5?{orb:4,berry:1}:{orb:5};give(rw);sfx('item');
+  LOG('arrive',{place:PLACES[S.place].n,rw});{const z=ZP(PLACES[S.place].n);toast(`Arrived at ${PLACES[S.place].n} · 到达${z.zh} (dàodá ${z.py}). Found ${rwTxt(rw)}.`);holdIdle(window.speakAsync?speakAsync('到达'+z.zh):speak('到达'+z.zh))}save();updateUI()}
 
 function updateUI(){const p=PLACES[S.place];
   document.getElementById('cOrbs').textContent=`${S.items.orb} orbs · 球 qiú`;
@@ -764,8 +765,27 @@ function updateUI(){const p=PLACES[S.place];
 function open(id){document.getElementById(id).hidden=false}
 function close(id){document.getElementById(id).hidden=true}
 const pendingTalks=[];function queueTalk(k){if(hasTalk(k)&&!pendingTalks.includes(k))pendingTalks.push(k)}
-let lastIdle=0;
-function sheetOpen(){if(document.querySelector('.sheet.talk:not([hidden]),.sheet.lesson:not([hidden])'))return'talk';for(const id of['sCatch','sBattle','sEvo','sStart','sQuest','sBag','sTeam','sMap','sContacts','sSet','sLearn','sRead','sWho']){const el=document.getElementById(id);if(el&&!el.hidden)return id}return null}
+// Conversations the game owes the player are worked out from the save itself, so a reload or a closed app never loses them:
+// the neighbor's intro after the starter, the first chat at a place, and the interview after a new badge.
+const interviewKey=()=>'interview_'+((S.interviews||0)%8+1);
+function owedTalks(){if(!S.col.length||typeof hasTalk!=='function')return[];const t=S.talked||{},out=[];
+  if(!t.intro_neighbor)out.push('intro_neighbor');
+  if(S.mode!=='travel'){const ak='arrive_'+PLACES[S.place].key;if((S.visited||[]).includes(S.place)&&!t[ak])out.push(ak)}
+  if(S.pendingInterview)out.push(interviewKey());
+  return out.filter(k=>hasTalk(k))}
+const owedTry={};
+// an arrival chat only makes sense at its own place
+const talkFits=k=>!k.startsWith('arrive_')||(S.mode!=='travel'&&k==='arrive_'+PLACES[S.place].key);
+function nextTalk(){while(pendingTalks.length){const k=pendingTalks.shift();if(talkFits(k)&&hasTalk(k))return k}
+  for(const k of owedTalks())if((owedTry[k]||0)<3){owedTry[k]=(owedTry[k]||0)+1;return k}return null}
+// the conversation player calls this when a conversation reaches its end
+window.onTalkDone=k=>{if(String(k).startsWith('interview_')&&S.pendingInterview){S.pendingInterview=false;S.interviews=(S.interviews||0)+1}};
+let lastIdle=0,idleHold=0;
+// wait for a spoken line (e.g. "到达…") to finish before a conversation can start and cut it off
+function holdIdle(p){const my=++idleHold;Promise.race([Promise.resolve(p).catch(()=>{}),new Promise(r=>setTimeout(r,4000))]).then(()=>{if(idleHold===my){idleHold=0;lastIdle=T}})}
+// what is covering the scene right now (null when the player is just looking at the field); travel and the field pause while anything is
+function sheetOpen(){if(document.querySelector('.sheet.talk:not([hidden]),.sheet.lesson:not([hidden])'))return'talk';for(const id of['sCatch','sBattle','sEvo','sStart','sQuest','sBag','sTeam','sMap','sContacts','sSet','sLearn','sRead','sWho']){const el=document.getElementById(id);if(el&&!el.hidden)return id}
+  if(document.querySelector('.tracewrap'))return'trace';if(C)return'catch';const qz=document.getElementById('quiz');if(qz&&!qz.hidden)return'quiz';return null}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.closest('.sheet').id));
 let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200)}
 document.getElementById('bStay').onclick=startStay;
@@ -1051,7 +1071,8 @@ async function raidWin(){const r=S.raid,rw=SP[r.sp].leg?{great:3,ultra:2,berry:3
   await say(`You beat the giant ${SP[r.sp].n}! You got ${rwTxt(rw)}. Now catch it!`);
   S.raid=null;save();B=null;document.getElementById('sBattle').hidden=true;updateUI();
   openCatch({sp:r.sp,lvl:r.lvl,shiny:r.shiny,raid:true,x:.5,y:.6,vx:0,ph:0})}
-function endBattle(){closeSayCard&&closeSayCard();if(S.pendingInterview){S.pendingInterview=false;const k='interview_'+((S.interviews||0)%8+1);S.interviews=(S.interviews||0)+1;queueTalk(k)}save();B=null;close('sBattle');updateUI()}
+// the interview after a new badge stays owed (S.pendingInterview) until it has been played through: onTalkDone clears it
+function endBattle(){closeSayCard&&closeSayCard();if(S.pendingInterview)queueTalk(interviewKey());save();B=null;close('sBattle');updateUI()}
 
 // ---------- learning Chinese: spaced-repetition word challenges ----------
 function wordPool(){const out=[];if(typeof VOCAB!=='undefined')for(const v of VOCAB)out.push({zh:v[0],py:v[1],en:v[2],g:v[3],pic:v[4]||''});
@@ -1232,7 +1253,8 @@ function renderWho(){const me=curPlayer(),i=PL.list.indexOf(me);document.getElem
     d.appendChild(ed);d.appendChild(go);L.appendChild(d)})}
 function applyYoung(){document.documentElement.classList.toggle('young',isYoung());if(isYoung()&&(S.lvl||1)!==1){S.lvl=1;applyLevel()}}
 async function switchPlayer(id){if(id===PID)return;LOG('player_switch',{from:PID,to:id});flush();
-  document.querySelectorAll('.sheet').forEach(x=>x.hidden=true);document.querySelectorAll('.tracewrap,.saycard').forEach(x=>x.remove());try{stopSpeech()}catch(e){}
+  try{window.stopTalk&&stopTalk();window.stopLesson&&stopLesson()}catch(e){}
+  document.querySelectorAll('.sheet').forEach(x=>x.hidden=true);document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());try{stopSpeech()}catch(e){}
   C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;PID=id;writePlayers();
   S=readLocal()||fresh();migrate();restore();applyLevel();applyYoung();renderWho();updateUI();if(!S.col.length)starters();
   toast(`${curPlayer().name||'Player'} is playing!`);
