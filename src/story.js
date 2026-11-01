@@ -15,7 +15,7 @@ const CH=[
  {when:()=>pieces()>=3,goal:['Fly to California','去加州','qù Jiāzhōu']},
  {when:()=>PLACES[S.place].region==='California'&&S.mode!=='travel',goal:['Go to San Francisco','去旧金山','qù Jiùjīnshān']},
  {when:()=>placeIs('sanfrancisco'),goal:['Go to Yosemite','去优胜美地','qù Yōushèngměidì']},
- {when:()=>placeIs('yosemite'),goal:['Step into the Starveil','去星幕裂谷','qù xīngmù liègǔ'],after:()=>{S.rift={place:PI('yosemite'),shown:true}}},
+ {when:()=>placeIs('yosemite'),goal:['Step into the Starveil','去星幕裂谷','qù xīngmù liègǔ'],after:()=>{S.rift={place:PI('yosemite'),shown:true,story:true}}},
  {when:()=>placeIs('starveil'),goal:['Little Star is home!','小星回家了！','Xiǎo Xīng huí jiā le!']},
  {when:()=>st().t.story_8&&Date.now()-st().t.story_8>60000,goal:null},
 ];
@@ -25,7 +25,12 @@ function done(k){return !!(S.talked||{})[k]}
 function tick(){try{if(typeof S==='undefined'||!S.col||!S.col.length)return;const s=st();
   // advance past finished chapters
   while(s.ch<CH.length&&done(key(s.ch))){const c=CH[s.ch];s.t[key(s.ch)]=Date.now();s.ch++;try{c.after&&c.after()}catch(e){}
-    try{LOG('story',{ch:s.ch})}catch(e){}if(c.goal){sfx('quest');toast(`New goal: ${c.goal[0]} · ${c.goal[1]} (${c.goal[2]})`)}save();try{updateUI()}catch(e){}}
+    // announce the new goal only if it is still to do (e.g. the Backyard badge may already be won)
+    let met=false;try{met=s.ch<CH.length&&!!CH[s.ch].when()}catch(e){}
+    try{LOG('story',{ch:s.ch})}catch(e){}if(c.goal&&!met){sfx('quest');toast(`New goal: ${c.goal[0]} · ${c.goal[1]} (${c.goal[2]})`)}save();try{updateUI()}catch(e){}}
+  // the way into the Starveil stays open at Yosemite until Little Star is home (also mends saves where leaving Yosemite closed it)
+  if(s.ch===7&&!S.rift){S.rift={place:PI('yosemite'),shown:true,story:true};save();try{updateUI()}catch(e){}}
+  else if(s.ch>=8&&S.rift&&S.rift.story)delete S.rift.story; // home: from now on it is an ordinary rift
   if(s.ch>=3&&s.ch<CH.length){const pc=pieces();if(s.pc==null)s.pc=pc;if(pc>s.pc){s.pc=pc;sfx('legend');toast(`You got a star piece! 星星碎片 xīngxing suìpiàn · ${pc} / 3`);speak('星星碎片');save()}}
   if(s.ch>=CH.length)return;const k=key(s.ch);if(!has(k))return;
   if(pendingTalks.includes(k)||document.querySelector('.sheet.talk:not([hidden])'))return;
