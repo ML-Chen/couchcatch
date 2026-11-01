@@ -471,7 +471,10 @@ const ZM=n=>(typeof ZH_MOVES!=='undefined'&&ZH_MOVES[n])||{zh:'',py:''};
 const ZI=k=>(typeof ZH_ITEMS!=='undefined'&&ZH_ITEMS[k])||{zh:'',py:''};
 const W={nice:['Nice!','不错！','bú cuò!'],great:['Great!','很好！','hěn hǎo!'],excellent:['Excellent!','太棒了！','tài bàng le!'],hit:['Hit!','打中了！','dǎ zhòng le!'],curve:['Curveball!','曲线球！','qūxiàn qiú!'],
  short:['Too soft! It fell short.','太轻了！没打到。','tài qīng le! méi dǎ dào.'],over:['Too hard! It flew over.','太重了！飞过头了。','tài zhòng le! fēi guòtóu le.'],wide:['Missed! It went wide.','偏了！没打中。','piān le! méi dǎ zhòng.'],
- broke:['It broke free! Throw again.','它挣脱了！再扔一次。','tā zhèngtuō le! zài rēng yí cì.'],fled:['It broke free and ran away.','它挣脱后逃走了。','tā zhèngtuō hòu táozǒu le.'],drag:['Drag the orb up and let go.','把球往上拖，然后松手。','bǎ qiú wǎng shàng tuō, ránhòu sōngshǒu.'],
+ broke:['It broke free! Throw again.','它挣脱了！再扔一次。','tā zhèngtuō le! zài rēng yí cì.'],fled:['It broke free and ran away.','它挣脱后逃走了。','tā zhèngtuō hòu táozǒu le.'],
+ // catch hints for children who can't read English yet: each Chinese line has a recorded clip (whole, or one per clause)
+ drag:['Drag the orb up and throw!','往上，扔！','wǎng shàng, rēng!'],flick:['Now flick it up!','然后往上扔！','ránhòu wǎng shàng rēng!'],spin:['Curveball! Now flick it up!','曲线球！然后往上扔！','qūxiàn qiú! ránhòu wǎng shàng rēng!'],
+ again:['Try again!','再扔一次。','zài rēng yí cì.'],spellagain:['Your spell is still ready. Try again!','准备好了！再扔一次。','zhǔnbèi hǎo le! zài rēng yí cì.'],noorbs:['Out of orbs. Move on to find more.','没有。出发！','méiyǒu. chūfā!'],
  win:['You won!','你赢了！','nǐ yíng le!'],lose:['You lost.','你输了。','nǐ shū le.'],fainted:['fainted!','倒下了！','dǎo xià le!'],super:['It hit super hard!','效果很好！','xiàoguǒ hěn hǎo!'],weak:['It barely hurt.','效果不太好。','xiàoguǒ bú tài hǎo.'],
  giant:['grew GIANT!','变巨大了！','biàn jùdà le!'],evolving:['is evolving!','正在进化！','zhèngzài jìnhuà!'],berry:['ate the berry and calmed down.','吃了果子，安静下来了。','chī le guǒzi, ānjìng xiàlái le.']};
 function zw(zh,py,inl){return zh?`<span class="zh${inl?' inl':''}" data-say="${zh}">${zh}<i>${py}</i></span>`:''}
@@ -842,8 +845,10 @@ const RING_MIN=.3;
 function openCatch(wd){if(C||!wd||(!wd.raid&&!wild.includes(wd)))return;LOG('catch_open',{sp:SP[wd.sp].n,lvl:wd.lvl,shiny:!!wd.shiny,raid:!!wd.raid});C={throws:0,berry:false,kind:pickKind(),wd,phase:'aim',t0:T,drag:null,orb:null,spin:0,turn:0,curve:0,dodge:R(0,6),visible:true,msgT:0,parts:[]};
   const z=ZS(SP[wd.sp].n),wname=(wd.raid?'巨大的':'野生的')+z.zh,wpy=(wd.raid?'jùdà de ':'yěshēng de ')+z.py;
   document.getElementById('catchTitle').innerHTML=`<span class="ctz" data-say="${wname}">${wname}${wd.shiny?' <b class="ctag">★</b>':''}${SP[wd.sp].leg?' <b class="ctag">传说</b>':''}</span><span class="ctp">${wpy}</span><span class="cte">${wd.raid?'Giant':'Wild'} ${SP[wd.sp].n} · Lv ${wd.lvl}${wd.shiny?' · Shiny':''}${SP[wd.sp].leg?' · Legendary':''}</span>`;if(wd.shiny)sfx('shiny');if(SP[wd.sp].leg)sfx('legend');
-  msg(orbsLeft()?'Drag the orb up and let go.':'You are out of orbs. Travel to a place to find more.');updOrbs();renderSpell();
-  const me=C,show=sayName=>{if(C!==me)return;open('sCatch');ccv.focus();requestAnimationFrame(catchLoop);if(sayName)setTimeout(()=>speak(wname),250)};
+  updOrbs();msgW(orbsLeft()?'drag':'noorbs');renderSpell();
+  // never open the catch screen for a creature that has left the field (a raid boss is never on the field)
+  const me=C,show=sayName=>{if(C!==me)return;if(!wd.raid&&!wild.includes(wd)){LOG('catch_gone',{sp:SP[wd.sp].n});C=null;updateUI();return}open('sCatch');C.aimT=T;ccv.focus();requestAnimationFrame(catchLoop);
+    if(sayName)setTimeout(()=>{if(C!==me)return;cSay(wname);if(!orbsLeft())cSay(W.noorbs[1],true)},250)};
   // the spell comes first: tapping a creature opens the trace right away, and the catch screen appears once the spell is cast
   if(orbsLeft()&&S.trace!==false&&window.traceChar)castSpell({title:`${wd.raid?'Giant':'Wild'} ${SP[wd.sp].n} · ${wname} <i>${wpy}</i>`,
     pic:(ctx,w,h,t)=>{ctx.clearRect(0,0,w,h);dc(ctx,wd.sp,w/2,h*.94,fitS(w,h,wd.sp,.82),t,{shiny:wd.shiny,awake:true,ethereal:inRift(),titan:!!wd.raid})},then:()=>show(false)});
@@ -864,8 +869,17 @@ function orbK(ctx,x,y,r,s,g){drawOrb(ctx,x,y,r,s||0,g||(C&&(C.power||C.spell)&&(
 function spellGlyph(ctx,x,y,r){if(!C||!C.spell||!C.spellCh)return;const k=Math.min(1,(T-(C.spellT||0))/.5);ctx.save();ctx.globalAlpha=k*(.75+.25*Math.sin(T*3));ctx.font=`700 ${Math.round(r*1.5)}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.shadowColor='#ffd27a';ctx.shadowBlur=18;ctx.fillStyle='#ffe7b0';ctx.fillText(C.spellCh,x,y-r*2.25-Math.sin(T*2)*3);
   for(let i=0;i<6;i++){const a=T*1.4+i*Math.PI/3,rr=r*1.55;ctx.globalAlpha=k*.6;ctx.beginPath();ctx.arc(x+Math.cos(a)*rr,y+Math.sin(a)*rr*.55,2.2,0,7);ctx.fillStyle='#ffd27a';ctx.fill()}ctx.restore()}
-function msg(t,zh,py,talk){document.getElementById('catchMsg').innerHTML=t+(zh?zw(zh,py):'');if(talk&&zh)speak(zh)}
+// the catch screen's voice: a new line cuts the old one; talk==='after' waits for the line that is playing to finish
+let cSayTok=0,cSayP=Promise.resolve();
+function cSay(zh,after){const tk=++cSayTok,go=()=>window.speakAsync?speakAsync(zh):(speak(zh),null);
+  cSayP=after?cSayP.then(()=>{if(tk===cSayTok&&C)return go()}).catch(()=>{}):Promise.resolve(go()).catch(()=>{})}
+function msg(t,zh,py,talk){document.getElementById('catchMsg').innerHTML=t+(zh?zw(zh,py):'');if(talk&&zh)cSay(zh,talk==='after')}
 function msgW(k,talk){const w=W[k];msg(w[0],w[1],w[2],talk)}
+// a hint for the throw, in Chinese and spoken, with an upward swipe drawn over the orb (works without reading)
+function throwHint(k,talk){if(!C)return;C.hintT=T;if(talk&&T-(C.hintSaid||-9)<2.5)talk=false;if(talk)C.hintSaid=T;msgW(k,talk)}
+function swipeCue(ctx,x,y,r){const k=(T*.9)%1;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=Math.max(3,r*.16);
+  for(let i=0;i<3;i++){const q=(k+i/3)%1,cy=y-r*1.3-q*r*3.2,w=r*.55;ctx.globalAlpha=Math.sin(q*Math.PI)*.95;ctx.strokeStyle='#fff';ctx.shadowColor='rgba(20,30,80,.55)';ctx.shadowBlur=6;
+    ctx.beginPath();ctx.moveTo(x-w,cy+w*.55);ctx.lineTo(x,cy);ctx.lineTo(x+w,cy+w*.55);ctx.stroke()}ctx.restore()}
 function cGeom(){const r=ccv.getBoundingClientRect(),w=r.width,h=r.height,sp=C.wd.sp,z=SP[sp].sz;
   const s=Math.min(h*.14,h*.42/(2.6*z));const range=Math.max(0,Math.min(w*(.05+.04*SP[sp].stage),w/2-1.7*s*z))*(C.berry?.3:1)*(C.spell===2?.45:1)*(isYoung()?.5:1);
   const cx=cxAt(T,range),gy=h*.5;
@@ -875,14 +889,14 @@ function cGeom(){const r=ccv.getBoundingClientRect(),w=r.width,h=r.height,sp=C.w
 function cxAt(tm,range){const sp=C.wd.sp,w=ccv.getBoundingClientRect().width;return w/2+Math.sin((tm-C.t0)*(.45+.15*SP[sp].stage)+C.dodge)*range}
 function cPt(e){const r=ccv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top,t:performance.now()}}
 ccv.addEventListener('pointerdown',e=>{if(!C||C.quizzing||C.phase!=='aim'||!orbsLeft())return;const g=cGeom(),p=cPt(e);
-  if(Math.hypot(p.x-g.rest.x,p.y-g.rest.y)>g.orbR*2.6)return;ccv.setPointerCapture(e.pointerId);C.drag={pts:[p],x:p.x,y:p.y,head:null,turn:0};ccv.style.cursor='grabbing'});
+  if(Math.hypot(p.x-g.rest.x,p.y-g.rest.y)>g.orbR*2.6)return;ccv.setPointerCapture(e.pointerId);C.drag={pts:[p],x:p.x,y:p.y,head:null,turn:0};C.aimT=T;C.hintT=0;ccv.style.cursor='grabbing'});
 ccv.addEventListener('pointermove',e=>{if(!C||!C.drag)return;const p=cPt(e),dr=C.drag,lp=dr.pts[dr.pts.length-1];
   const dx=p.x-lp.x,dy=p.y-lp.y;if(Math.hypot(dx,dy)>2){const hd=Math.atan2(dy,dx);if(dr.head!=null){let dd=hd-dr.head;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;dr.turn+=dd}dr.head=hd}
   dr.pts.push(p);if(dr.pts.length>40)dr.pts.shift();dr.x=p.x;dr.y=p.y;C.curve=Math.abs(dr.turn)>Math.PI*2.2?Math.sign(dr.turn):0});
 function release(e){if(!C||!C.drag)return;const dr=C.drag;C.drag=null;ccv.style.cursor='grab';const now=performance.now();
   let recent=dr.pts.filter(p=>now-p.t<110);if(recent.length<2)recent=dr.pts.slice(-2);const a=recent[0],b=dr.pts[dr.pts.length-1];const dt=Math.max(.016,(b.t-a.t)/1000);
   const vx=(b.x-a.x)/dt,vy=(b.y-a.y)/dt;
-  if(vy>-250){if(C.curve)msg('Spinning! Now flick it upward.');else msg('Flick upward to throw.');return}
+  if(vy>-250){C.aimT=T;throwHint(C.curve?'spin':'flick',true);return}
   throwOrb(dr.x,dr.y,vx,vy)}
 function predict(x0,y0,vx,vy){const g=cGeom(),P=-vy,slope=vx/(-vy),lo=g.h*1.1,hi=g.h*8;
   let y1=g.ty;if(P<lo)y1=y0-(y0-g.ty)*Math.max(.25,P/lo)*.8;else if(P>hi)y1=g.ty-Math.min(g.h*.3,(P-hi)*.06);
@@ -911,7 +925,10 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
     if(vy<-150){const pr=predict(C.drag.x,C.drag.y,vx,vy),o={x0:C.drag.x,y0:C.drag.y,x1:pr.x1,y1:pr.y1,curve:C.curve,arc:g.h*.14};
       for(let i=1;i<14;i++){const q=orbPos(o,i/14);el(cctx,q.x,q.y,3,3,'rgba(255,255,255,.75)')}}}
   if(C.phase==='aim'){const p=C.drag?{x:C.drag.x,y:C.drag.y}:g.rest;const spinning=C.curve!==0;
-    if(orbsLeft()){orbK(cctx,p.x,p.y,g.orbR,spinning?T*14*C.curve:0,spinning?.6+.4*Math.sin(T*12):0);spellGlyph(cctx,p.x,p.y,g.orbR)}}
+    if(orbsLeft()){orbK(cctx,p.x,p.y,g.orbR,spinning?T*14*C.curve:0,spinning?.6+.4*Math.sin(T*12):0);spellGlyph(cctx,p.x,p.y,g.orbR);
+      // no throw for a while: show (and say) how to throw
+      if(!C.drag&&!C.quizzing&&!C.hinted&&T-(C.aimT||T)>(isYoung()?3.5:7)){C.hinted=true;throwHint('drag','after')}
+      if(!C.drag&&C.hintT&&T-C.hintT<4.5&&!C.spell)swipeCue(cctx,g.rest.x,g.rest.y,g.orbR)}}
   else if(C.phase==='fly'){const o=C.orb,p=Math.min(1,(T-o.t0)/o.dur),q=orbPos(o,p);o.trail.push([q.x,q.y,q.sc]);if(o.trail.length>12)o.trail.shift();
     o.trail.forEach(([x,y,sc],i)=>el(cctx,x,y,g.orbR*sc*(i/12)*.8,g.orbR*sc*(i/12)*.8,C.spell?`rgba(255,210,122,${i/18})`:`rgba(120,255,230,${i/24})`));orbK(cctx,q.x,q.y,g.orbR*q.sc,(T-o.t0)*(o.curve?30:8));
     if(p>=1){const dist=Math.hypot(o.x1-cx,o.y1-g.ty);
@@ -920,7 +937,7 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
         LOG('throw_hit',{label:C.label});C.phase='absorb';C.pt=T;C.hit={x:o.x1,y:o.y1};sfx('hit');burst(o.x1,o.y1,'#fff3c4')}
       else{sfx('miss');C.berry=false;C.power=false;if(S.streak>=2)toast(`Streak lost at ×${S.streak}`);S.streak=0;updateUI();renderItemBar();C.whyK=o.y1>g.ty+1?'short':o.y1<g.ty-1?'over':'wide';C.why=W[C.whyK][0];LOG('throw_miss',{why:C.why});C.phase='miss';C.pt=T;C.miss={x:q.x,y:q.y,vx:(o.x1-o.x0)*.6,vy:-120};msgW(C.whyK,true)}}}
   else if(C.phase==='miss'){const tt=T-C.pt,m=C.miss;orbK(cctx,m.x+m.vx*tt,m.y+m.vy*tt+500*tt*tt,g.orbR*.58,tt*10);
-    if(tt>.8){C.phase='aim';C.t0=T-.3;renderSpell();msg(orbsLeft()?(C.spell?'Your spell is still ready. Try again!':'Try again. Drag the orb up and let go.'):'You are out of orbs.')}}
+    if(tt>.8){C.phase='aim';C.t0=T-.3;C.aimT=T;renderSpell();if(!orbsLeft())msgW('noorbs','after');else{msgW(C.spell?'spellagain':'again',isYoung()?'after':false);if(isYoung())C.hintT=T}}}
   else if(C.phase==='absorb'){const tt=T-C.pt;orbK(cctx,C.hit.x,C.hit.y,g.orbR*.58,0,1-tt/.5);
     if(tt>.5){C.visible=false;C.phase='drop';C.pt=T;decideCatch()}}
   else if(C.phase==='drop'||C.phase==='shake'||C.phase==='result'){const tt=T-C.pt,fy=g.gy-g.orbR*.6;
@@ -938,7 +955,7 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
 function decideCatch(){const s=SP[C.wd.sp],avg=party().reduce((a,c)=>a+c.lvl,0)/Math.max(1,party().length)||5;
   const kb=({orb:0,great:.15,ultra:.3}[C.kind]||0)+(C.power?.15:0)+(C.spell===2?.15:C.spell?.08:0);C.power=false;C.rollSpell=C.spell||0;C.spell=0;C.spellCh=null;
   const chance=Math.max(s.leg?.1:.25,Math.min(.92,.66-(C.wd.lvl-avg)*.02-(s.stage-1)*.08+(C.bonus||0)+kb+(C.berry?.1:0)+(C.wd.raid?.1:0)+(isYoung()?.25:0)-(s.leg?.35:0)));C.berry=false;
-  C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2)}
+  C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2);renderSpell()}
 function finishCatch(){const wd=C.wd,s=SP[wd.sp];
   if(C.caught){sfx('catch');C.burstT=T;const c=mk(wd.sp,wd.lvl,wd.shiny);S.col.push(c);S.caught=[...new Set([...(S.caught||[]),wd.sp])];wild=wild.filter(x=>x!==wd);burst(C.hit.x,C.hit.y,'#ffd23f');burst(C.hit.x,C.hit.y,'#45dc9a');
     S.streak=(S.streak||0)+1;streakReward();q('catch');q('type',s.t);if(C.throws===1)q('first');
@@ -947,15 +964,15 @@ function finishCatch(){const wd=C.wd,s=SP[wd.sp];
     save();const cur=C;setTimeout(()=>{if(C===cur)endCatch()},1800)}
   else{sfx('breakfree');C.visible=true;burst(C.hit.x,C.hit.y,'#fff3c4');
     if(!wd.raid&&C.rollSpell!==2&&!isYoung()&&Math.random()<.18){LOG('flee',{sp:s.n});S.streak=0;msgW('fled',true);wild=wild.filter(x=>x!==wd);save();const cur=C;setTimeout(()=>{if(C===cur)C.visible=false},700);setTimeout(()=>{if(C===cur)endCatch()},1500)}
-    else{msgW('broke',true);C.phase='aim';C.t0=T;renderItemBar();renderSpell();autoSpell(1300)}}
+    else{C.phase='aim';C.t0=T;C.aimT=T;updOrbs();renderSpell();msgW('broke',true);if(orbsLeft())autoSpell(1300);else{const cur=C;setTimeout(()=>{if(C===cur&&C.phase==='aim')msgW('noorbs','after')},1600)}}}
   updateUI()}
 document.getElementById('bRun').onclick=endCatch;
-function renderSpell(){const b=document.getElementById('bSpell');if(!b||!C)return;b.classList.toggle('ready',!!C.spell);b.disabled=!C.spell&&(!!C.spelling||C.phase!=='aim'||S.trace===false||!window.traceChar);
+function renderSpell(){const b=document.getElementById('bSpell');if(!b||!C)return;b.classList.toggle('ready',!!C.spell);b.disabled=!C.spell&&(!!C.spelling||C.phase!=='aim'||!orbsLeft()||S.trace===false||!window.traceChar);
   b.innerHTML=C.spell?`✦ ${C.spellCh} ready`+zw('准备好了','zhǔnbèi hǎo le'):'✍ Spell'+zw('施法','shīfǎ')}
 document.getElementById('bSpell').onclick=()=>castSpell();
 // every catch starts with a spell (and a break-free recharges it), so tracing is part of the flow rather than a button to remember
 function autoSpell(ms){if(S.trace===false||!window.traceChar||!C)return;const me=C;setTimeout(()=>{if(C===me&&C.phase==='aim'&&!C.spell&&!C.spelling)castSpell()},ms)}
-function castSpell(o){o=o||{};if(!C||C.spell||C.spelling||C.phase!=='aim'||!window.traceChar){o.then&&o.then();return}const me=C,s=SP[C.wd.sp];C.spelling=true;C.quizzing=true;renderSpell();sfx('tap');
+function castSpell(o){o=o||{};if(!C||C.spell||C.spelling||C.phase!=='aim'||!orbsLeft()||!window.traceChar){o.then&&o.then();return}const me=C,s=SP[C.wd.sp];C.spelling=true;C.quizzing=true;renderSpell();sfx('tap');
   traceChar(s.t,{purpose:'spell',title:o.title,pic:o.pic}).then(r=>{if(C!==me)return;C.spelling=false;C.quizzing=false;if(o.then)o.then();
     if(!r.skipped){C.spell=r.perfect?2:1;C.spellCh=r.ch;C.spellT=T;LOG('spell',{ch:r.ch,mistakes:r.mistakes});
       const z=ZS(s.n);if(r.perfect)msg(`Perfect spell! ${s.n} is charmed. Throw now!`,`${z.zh}安静下来了！`,`${z.py} ānjìng xiàlái le!`,true);else msg('The spell is ready. Throw now!','准备好了！','zhǔnbèi hǎo le!',true)}
