@@ -13,8 +13,8 @@ async function fresh(){if(p)await p.close().catch(()=>{});
 const E=(f,a)=>p.evaluate(f,a);
 async function setup(){await E(()=>{window.speakAsync=()=>new Promise(r=>setTimeout(r,30))});await p.click('#starterList button');await p.waitForTimeout(300);
   await E(()=>{pendingTalks.length=0;document.querySelectorAll('.talkwrap').forEach(x=>x.hidden=true);S.col.push(mk(IDX.Barkpup,24,true),mk(IDX.Clovehop,19),mk(IDX.Bellmist,26));S.col[0].lvl=30;S.col[0].sp=IDX.Pyrothane;S.col[0].hp=stats(S.col[0]).maxhp;
-    S.items={orb:40,great:5,ultra:2,berry:4};S.talked={gym_backyard:1};S.tr={'火':3,'光':2,'红':1,'水':2,'木':2,'叶':1,'大':1,'云':2};updateUI()});await reset()}
-const reset=()=>E(()=>{document.querySelectorAll('.sheet').forEach(s=>s.hidden=true);if(window.Reader)try{stopSpeech()}catch(e){};document.querySelectorAll('.tracewrap,.saycard').forEach(x=>x.remove());
+    S.items={orb:40,great:5,ultra:2,berry:4};S.talked={gym_backyard:1,intro_neighbor:1};S.story={ch:9,t:{}};S.tr={'火':3,'光':2,'红':1,'水':2,'木':2,'叶':1,'大':1,'云':2};updateUI()});await reset()}
+const reset=()=>E(()=>{if(window.stopTalk)stopTalk();if(window.stopLesson)stopLesson();document.querySelectorAll('.sheet').forEach(s=>s.hidden=true);if(window.Reader)try{stopSpeech()}catch(e){};document.querySelectorAll('.tracewrap,.saycard').forEach(x=>x.remove());
   document.querySelectorAll('.talkwrap').forEach(x=>x.hidden=true);pendingTalks.length=0;evoQueue.length=0;if(C)endCatch();B=null;E=null;document.getElementById('quiz').hidden=true;if(window.stopSpeech)stopSpeech();S.mode=S.mode==='travel'?'arrived':S.mode;updateUI()});
 let n=0;
 const shot=async(name,wait=300)=>{await p.waitForTimeout(wait);await p.screenshot({path:path.join(out,String(++n).padStart(2,'0')+'-'+name+'.png'),timeout:8000})};
