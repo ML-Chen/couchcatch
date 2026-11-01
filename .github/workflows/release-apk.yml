@@ -1,0 +1,27 @@
+# Creates a GitHub Release for the Android app when a tag like android-v1.0 is pushed.
+# Tags can only be pushed by people with write access to this repository. The workflow attaches the APK that is
+# committed at android/release/couchcatch.apk, after checking it against the SHA-256 in android/release/CHECKSUMS.txt.
+name: Release Android APK
+on:
+  push:
+    tags: ['android-v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    if: github.repository == 'ML-Chen/couchcatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check the APK against its recorded checksum
+        run: |
+          sum="$(sha256sum android/release/couchcatch.apk | cut -d' ' -f1)"
+          grep -q "$sum" android/release/CHECKSUMS.txt || { echo "::error::couchcatch.apk does not match CHECKSUMS.txt"; exit 1; }
+      - name: Create the release with the APK attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" android/release/couchcatch.apk \
+            --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Couchcatch for Android ${GITHUB_REF_NAME#android-v}" \
+            --notes-file android/release/NOTES.md

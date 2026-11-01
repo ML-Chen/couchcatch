@@ -6,7 +6,7 @@ All creatures, names, art and text are original.
 
 ## Android app
 
-Download [couchcatch.apk](https://ml-chen.github.io/couchcatch/couchcatch.apk) (also in [android/release/](android/release/)) and open it on the phone. It plays offline, keeps saves on the phone, and updates itself from this repository, installing only builds signed with the project's update key, so a branch, fork or pull request can't push code to it. Details: [android/README.md](android/README.md).
+Download `couchcatch.apk` from the [latest release](https://github.com/ML-Chen/couchcatch/releases/latest) (also at [ml-chen.github.io/couchcatch/couchcatch.apk](https://ml-chen.github.io/couchcatch/couchcatch.apk)) and open it on the phone. It plays offline, keeps saves on the phone, and updates itself from this repository, installing only builds signed with the project's update key, so a branch, fork or pull request can't push code to it. Details: [android/README.md](android/README.md).
 
 ## Screenshots
 
