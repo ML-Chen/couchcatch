@@ -739,7 +739,8 @@ function startStay(){if(S.mode!=='arrived')return;
   if(!S.raid){S.staysNoRaid++;if(Math.random()<.35||S.staysNoRaid>=3){S.staysNoRaid=0;S.raid=pickBoss();raidAt=T+R(5,9)}}
   for(const c of S.col)c.hp=stats(c).maxhp;
   toast(`Staying at ${PLACES[S.place].n}. Your team rested.`);save();updateUI()}
-async function travel(i){close('sMap');if(i===S.place)return;{const from=PLACES[S.place],to=PLACES[i];if(!from.rift&&!to.rift&&from.region!==to.region){const ak=to.region==='California'?'airport_out':'airport_home';if(hasTalk(ak)){const ok=await runTalk(ak);if(!ok)return}}}LOG('travel',{from:PLACES[S.place].n,to:PLACES[i].n});if(S.rift&&S.rift.place===S.place)S.rift=null;if(S.raid){S.raid=null;toast('You left, so the raid ended.')}travelTo=i;travelT=0;S.mode='travel';wild=[];roadSpawns=(PLACES[i].rift||PLACES[S.place].rift)?[]:[{at:.3},{at:.65}];makeProps(i);save();updateUI()}
+async function travel(i){close('sMap');if(i===S.place)return;{const from=PLACES[S.place],to=PLACES[i];if(!from.rift&&!to.rift&&from.region!==to.region){const ak=to.region==='California'?'airport_out':'airport_home';if(hasTalk(ak)){const ok=await runTalk(ak);if(!ok)return}}}LOG('travel',{from:PLACES[S.place].n,to:PLACES[i].n});if(S.rift&&S.rift.place===S.place&&!S.rift.story)S.rift=null;if(S.raid){const was=raidHere();S.raid=null;if(was)toast('You left, so the raid ended.')}
+  {const kb=document.getElementById('knock');if(kb)kb.remove()}travelTo=i;travelT=0;S.mode='travel';wild=[];roadSpawns=(PLACES[i].rift||PLACES[S.place].rift)?[]:[{at:.3},{at:.65}];makeProps(i);save();updateUI()}
 function arrive(){S.place=travelTo;S.mode='arrived';S.spawned=0;wild=[];makeProps(S.place);
   // the place's welcome chat is owed until it has been played through (see owedTalks), so a reload never loses it
   const first=!S.visited.includes(S.place);if(first)S.visited.push(S.place);{const ak='arrive_'+PLACES[S.place].key;if(!(S.talked||{})[ak]&&hasTalk(ak))queueTalk(ak)}const rw=PLACES[S.place].rift?(first?{great:3,ultra:2}:{great:2,ultra:1}):first?{orb:8,great:1,berry:2}:Math.random()<.5?{orb:4,berry:1}:{orb:5};give(rw);sfx('item');
@@ -1155,7 +1156,8 @@ function askQuiz(ctx){return new Promise(res=>{try{
 
 // ---------- items, streaks, quests ----------
 function give(rw){for(const k in rw)S.items[k]=(S.items[k]||0)+rw[k]}
-function rwTxt(rw){return Object.entries(rw).map(([k,n])=>`${n} ${ITEMS[k].n}${n>1?'s':''}`).join(', ')}
+const plural=(n,w)=>n===1?w:/[^aeiou]y$/.test(w)?w.slice(0,-1)+'ies':w+'s';
+function rwTxt(rw){return Object.entries(rw).map(([k,n])=>`${n} ${plural(n,ITEMS[k].n)}`).join(', ')}
 function streakReward(){const s=S.streak;let rw=null;if(s===3)rw={orb:3};else if(s===5)rw={great:2};else if(s===10)rw={ultra:1,berry:2};else if(s>10&&s%5===0)rw={great:2,ultra:1};
   if(rw){give(rw);sfx('streak');setTimeout(()=>toast(`Streak ×${s}! Shiny odds are up. You got ${rwTxt(rw)}.`),900)}}
 const QPOOL=[
@@ -1271,13 +1273,15 @@ function renderContacts(){const L=document.getElementById('contactList');L.inner
 document.getElementById('bTalk').onclick=()=>{renderContacts();open('sContacts')};
 // ---------- who's playing ----------
 const PICS=['🦊','🐰','🐼','🐯','🐨','🐸'];
-function playerSummary(x){try{const d=x.id===PID?S:parse(localStorage.getItem(x.id==='p1'?'couchcatch2':'couchcatch2_'+x.id));if(!d)return'New';return `${d.col.length} creatures · ★ ${(d.badges||[]).length}`}catch(e){return''}}
-function renderWho(){const me=curPlayer(),i=PL.list.indexOf(me);document.getElementById('bWho').textContent=`${PICS[i%PICS.length]} ${me.name||'Player 1'}`;
+function playerSummary(x){try{const d=x.id===PID?S:parse(localStorage.getItem(x.id==='p1'?'couchcatch2':'couchcatch2_'+x.id));if(!d)return'New';return `${d.col.length} ${plural(d.col.length,'creature')} · ★ ${(d.badges||[]).length}`}catch(e){return''}}
+const escH=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function playerName(x){x=x||curPlayer();return x.name||'Player '+(Math.max(0,PL.list.indexOf(x))+1)}
+function renderWho(){const me=curPlayer(),i=PL.list.indexOf(me);document.getElementById('bWho').textContent=`${PICS[i%PICS.length]} ${playerName(me)}`;
   const L=document.getElementById('whoList');if(!L)return;L.innerHTML='';
   PL.list.forEach((x,j)=>{const d=document.createElement('div');d.className='card who'+(x.id===PID?' on':'');
-    d.innerHTML=`<div class="wpic">${PICS[j%PICS.length]}</div><div class="info"><div class="nm">${x.name||'Player '+(j+1)}</div><div class="sub">${x.young?'Little kid · 小孩子':'Big kid · 大孩子'} · ${playerSummary(x)}</div></div>`;
+    d.innerHTML=`<div class="wpic">${PICS[j%PICS.length]}</div><div class="info"><div class="nm">${escH(playerName(x))}</div><div class="sub">${x.young?'Little kid · 小孩子':'Big kid · 大孩子'} · ${playerSummary(x)}</div></div>`;
     const ed=document.createElement('button');ed.className='small';ed.textContent='✎';ed.title='Rename or change mode';
-    ed.onclick=()=>{const nm=d.querySelector('.nm');if(d.querySelector('input'))return;nm.innerHTML=`<input value="${(x.name||'').replace(/"/g,'')}" maxlength="16"> <button class="small" data-m="1">${x.young?'Big kid':'Little kid'}</button> <button class="small" data-m="ok">OK</button>`;
+    ed.onclick=()=>{const nm=d.querySelector('.nm');if(d.querySelector('input'))return;nm.innerHTML=`<input value="${escH(x.name||'')}" maxlength="16"> <button class="small" data-m="1">${x.young?'Big kid':'Little kid'}</button> <button class="small" data-m="ok">OK</button>`;
       nm.querySelector('[data-m="1"]').onclick=e=>{e.stopPropagation();x.young=!x.young;writePlayers();renderWho();if(x.id===PID)applyYoung()};
       nm.querySelector('[data-m="ok"]').onclick=e=>{e.stopPropagation();x.name=nm.querySelector('input').value.trim().slice(0,16);writePlayers();renderWho()}};
     const go=document.createElement('button');go.className='small'+(x.id===PID?'':' big');go.innerHTML=x.id===PID?'Playing':'Play'+zw('玩','wán');go.disabled=x.id===PID;go.onclick=()=>switchPlayer(x.id);
@@ -1288,7 +1292,7 @@ async function switchPlayer(id){if(id===PID)return;LOG('player_switch',{from:PID
   document.querySelectorAll('.sheet').forEach(x=>x.hidden=true);document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());try{stopSpeech()}catch(e){}
   C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;PID=id;writePlayers();
   S=readLocal()||fresh();migrate();restore();applyLevel();applyYoung();renderWho();updateUI();if(!S.col.length)starters();
-  toast(`${curPlayer().name||'Player'} is playing!`);
+  toast(`${playerName()} is playing!`);
   if(DB&&UID){try{const sn=await DB.doc('data/users/'+UID+'/'+rdoc()).get();const d=sn.exists?sn.data():null,remote=d&&parse(d.json);
     if(remote&&remote.savedAt>(S.savedAt||0)&&PID===id){S=remote;restore();close('sStart');applyLevel();updateUI();renderWho()}}catch(e){}}}
 document.getElementById('bWho').onclick=()=>{renderWho();open('sWho')};
