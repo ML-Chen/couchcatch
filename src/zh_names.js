@@ -119,6 +119,26 @@ const ZH_MOVES = {
   'Bonk':           {zh:'敲头',   py:'qiāo tóu'},
 };
 
+// What a move does, as a short natural sentence said after the creature's name in battle (潮獭 喷出了水！).
+// Keyed by the move's type (normal = Bonk). Each is recorded as its own whole clip, so the line plays as name + action.
+const ZH_ACTS = {
+  fire:   {zh:'吐出了火！',       py:'tǔ chū le huǒ!',           en:'spits fire'},
+  water:  {zh:'喷出了水！',       py:'pēn chū le shuǐ!',         en:'sprays water'},
+  leaf:   {zh:'甩出了叶子！',     py:'shuǎi chū le yèzi!',       en:'flings leaves'},
+  spark:  {zh:'放出了电！',       py:'fàng chū le diàn!',        en:'lets out a zap'},
+  stone:  {zh:'扔出了石头！',     py:'rēng chū le shítou!',      en:'throws rocks'},
+  frost:  {zh:'吹出了冷风！',     py:'chuī chū le lěng fēng!',   en:'blows icy wind'},
+  wind:   {zh:'刮起了大风！',     py:'guā qǐ le dà fēng!',       en:'whips up a gale'},
+  bug:    {zh:'咬了一口！',       py:'yǎo le yì kǒu!',           en:'takes a bite'},
+  mind:   {zh:'发出了心灵波！',   py:'fā chū le xīnlíng bō!',    en:'sends out a mind wave'},
+  shadow: {zh:'扑了过去！',       py:'pū le guòqu!',             en:'pounces'},
+  dragon: {zh:'大吼了一声！',     py:'dà hǒu le yì shēng!',      en:'gives a big roar'},
+  metal:  {zh:'用铁头撞了过去！', py:'yòng tiě tóu zhuàng le guòqu!', en:'rams with its iron head'},
+  fight:  {zh:'打出了一拳！',     py:'dǎ chū le yì quán!',       en:'throws a punch'},
+  star:   {zh:'放出了星光！',     py:'fàng chū le xīngguāng!',   en:'shines starlight'},
+  normal: {zh:'撞了过去！',       py:'zhuàng le guòqu!',         en:'charges in'},
+};
+
 const ZH_ITEMS = {
   orb:   {zh:'留球',   py:'liú qiú'},      // Stay Orb
   great: {zh:'大留球', py:'dà liú qiú'},   // Great Orb

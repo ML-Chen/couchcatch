@@ -52,12 +52,13 @@ canvas.avatar.person{width:64px;height:64px;border:none !important;background:no
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 
 // ---------- audio helpers ----------
-const norm=s=>String(s).replace(/[\s，。！？、…!?,.·:：；;"“”'‘’()（）「」\-—]/g,'');
+const norm=s=>String(s).replace(/[\s\u200b，。！？、…!?,.·:：；;"“”'‘’()（）「」\-—]/g,'');
 let NIDX=null;
 function nidx(){if(NIDX)return NIDX;NIDX={};if(typeof ZH_AUDIO!=='undefined')for(const k in ZH_AUDIO)NIDX[norm(k)]=k;return NIDX}
 function clip(s){if(typeof ZH_AUDIO==='undefined')return null;const k=nidx()[norm(s)];return k?ZH_AUDIO[k]:null}
-// the text's clauses, split at punctuation ("我很好！你呢？" -> ["我很好", "你呢"])
-const clauses=text=>String(text).split(/[，。！？、…!?,.·:：；;「」]+/).filter(x=>norm(x));
+// the text's clauses, split at punctuation ("我很好！你呢？" -> ["我很好", "你呢"]) and at an unseen zero-width space,
+// which battle lines put between a creature's name and its action ("潮獭\u200b喷出了水！" -> ["潮獭", "喷出了水"])
+const clauses=text=>String(text).split(/[\u200b，。！？、…!?,.·:：；;「」]+/).filter(x=>norm(x));
 // split text into the fewest known clips: the whole line if it was recorded as one clip, else clause by clause, else word by word
 function pieces(text){if(clip(text))return[String(text)];const out=[];for(const part of clauses(text)){
   if(clip(part)){out.push(part);continue}const p=norm(part);let i=0;

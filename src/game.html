@@ -478,6 +478,9 @@ const ZP=n=>(typeof ZH_PLACES!=='undefined'&&ZH_PLACES[n])||{zh:'',py:''};
 const ZT=k=>(typeof ZH_TYPES!=='undefined'&&ZH_TYPES[k])||{zh:'',py:''};
 const ZM=n=>(typeof ZH_MOVES!=='undefined'&&ZH_MOVES[n])||{zh:'',py:''};
 const ZI=k=>(typeof ZH_ITEMS!=='undefined'&&ZH_ITEMS[k])||{zh:'',py:''};
+const ZA=k=>(typeof ZH_ACTS!=='undefined'&&ZH_ACTS[k])||{zh:'',py:'',en:'attacks'};
+// an unseen clause break: "潮獭"+ZB+"喷出了水！" shows as 潮獭喷出了水！ but plays as two whole recordings (the name, then the action)
+const ZB='\u200b';
 const W={nice:['Nice!','不错！','bú cuò!'],great:['Great!','很好！','hěn hǎo!'],excellent:['Excellent!','太棒了！','tài bàng le!'],hit:['Hit!','打中了！','dǎ zhòng le!'],curve:['Curveball!','曲线球！','qūxiàn qiú!'],
  short:['Too soft! It fell short.','太轻了！没打到。','tài qīng le! méi dǎ dào.'],over:['Too hard! It flew over.','太重了！飞过头了。','tài zhòng le! fēi guòtóu le.'],wide:['Missed! It went wide.','偏了！没打中。','piān le! méi dǎ zhòng.'],
  broke:['It broke free! Throw again.','它挣脱了！再扔一次。','tā zhèngtuō le! zài rēng yí cì.'],fled:['It broke free and ran away.','它挣脱后逃走了。','tā zhèngtuō hòu táozǒu le.'],
@@ -498,7 +501,7 @@ let zhVoice=null;function pickVoice(){try{const vs=speechSynthesis.getVoices();z
 try{speechSynthesis.onvoiceschanged=pickVoice;pickVoice()}catch(e){}
 const hasClips=()=>typeof ZH_AUDIO!=='undefined';
 const clipFor=s=>hasClips()&&ZH_AUDIO[s];
-function segs(text){const parts=String(text).split(/[\s,.!?！？。，、·()（）:：…\-]+/).filter(Boolean),out=[];
+function segs(text){const parts=String(text).split(/[\s\u200b,.!?！？。，、·()（）:：…\-]+/).filter(Boolean),out=[];
   for(const p of parts){if(clipFor(p)){out.push(p);continue}let i=0;while(i<p.length){let f=null;for(let j=Math.min(p.length,i+6);j>i;j--){const s=p.slice(i,j);if(clipFor(s)){f=s;break}}if(f){out.push(f);i+=f.length}else i++}}return out}
 let spTok=0,curAudio=null;
 function playSeq(ss){const tok=++spTok;try{curAudio&&curAudio.pause()}catch(e){}let i=0;const next=()=>{if(tok!==spTok||i>=ss.length)return;const a=new Audio(ZH_AUDIO[ss[i++]]);curAudio=a;a.onended=()=>setTimeout(next,70);a.onerror=()=>next();const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{})};next()}
@@ -866,7 +869,7 @@ function gainXP(c,n){c.xp+=n;let up=false;while(c.xp>=c.lvl*15){c.xp-=c.lvl*15;c
   const s=SP[c.sp];if(s.next!=null&&c.lvl>=s.evoLv&&!evoQueue.includes(c.id))evoQueue.push(c.id);return up}
 const ecv=document.getElementById('ecv'),ectx=ecv.getContext('2d');let E=null;
 function runEvoQueue(){if(E||sheetOpen()||!evoQueue.length)return;const id=evoQueue.shift(),c=S.col.find(x=>x.id===id);if(!c||SP[c.sp].next==null){runEvoQueue();return}
-  E={c,from:c.sp,to:SP[c.sp].next,t0:T,done:false};LOG('evolve',{from:SP[c.sp].n,to:SP[SP[c.sp].next].n});sfx('evolve');{const z=ZS(SP[E.from].n);document.getElementById('eTitle').innerHTML=`${SP[E.from].n} is evolving!`+zw(z.zh+W.evolving[1],z.py+' '+W.evolving[2]);speak(z.zh+W.evolving[1])}
+  E={c,from:c.sp,to:SP[c.sp].next,t0:T,done:false};LOG('evolve',{from:SP[c.sp].n,to:SP[SP[c.sp].next].n});sfx('evolve');{const z=ZS(SP[E.from].n);document.getElementById('eTitle').innerHTML=`${SP[E.from].n} is evolving!`+zw(z.zh+ZB+W.evolving[1],z.py+' '+W.evolving[2]);speak(z.zh+ZB+W.evolving[1])}
   document.getElementById('elog').textContent=`${SP[E.from].n} is glowing…`;document.getElementById('bEvoOk').hidden=true;open('sEvo');requestAnimationFrame(evoLoop)}
 function evoLoop(){if(!E)return;requestAnimationFrame(evoLoop);try{evoFrame()}catch(e){console.error(e)}}
 function evoFrame(){if(!E)return;const {w,h,d}=sizeCanvas(ecv);ectx.setTransform(d,0,0,d,0,0);
@@ -878,7 +881,7 @@ function evoFrame(){if(!E)return;const {w,h,d}=sizeCanvas(ecv);ectx.setTransform
   else{if(!E.done){E.done=true;const c=E.c,old=stats(c);c.sp=E.to;S.caught=[...new Set([...(S.caught||[]),E.to])];const nw=stats(c);c.hp=c.hp>0?Math.max(1,Math.round(c.hp/old.maxhp*nw.maxhp)):0;
       // already past the next stage's level too (e.g. a Lv 40 first stage): evolve again right after this one
       {const ns=SP[c.sp];if(ns.next!=null&&c.lvl>=ns.evoLv&&!evoQueue.includes(c.id))evoQueue.unshift(c.id)}save();
-      document.getElementById('eTitle').textContent='Evolution complete';{const a=ZS(SP[E.from].n),b2=ZS(SP[E.to].n);document.getElementById('elog').innerHTML=`${SP[E.from].n} evolved into ${SP[E.to].n}!`+zw(`${a.zh}进化成了${b2.zh}！`,`${a.py} jìnhuà chéng le ${b2.py}!`);speak(`${a.zh}进化成了${b2.zh}！`)}document.getElementById('bEvoOk').hidden=false;document.getElementById('bEvoOk').focus()}
+      document.getElementById('eTitle').textContent='Evolution complete';{const a=ZS(SP[E.from].n),b2=ZS(SP[E.to].n);document.getElementById('elog').innerHTML=`${SP[E.from].n} evolved into ${SP[E.to].n}!`+zw(`${a.zh}${ZB}进化成了${ZB}${b2.zh}！`,`${a.py} jìnhuà chéng le ${b2.py}!`);speak(`${a.zh}${ZB}进化成了${ZB}${b2.zh}！`)}document.getElementById('bEvoOk').hidden=false;document.getElementById('bEvoOk').focus()}
     const k=Math.min(1,(el_-dur)*3);el(ectx,w/2,h*.55,w*.5*(1-k)+1,w*.5*(1-k)+1,`rgba(255,250,220,${1-k})`);
     dc(ectx,E.to,w/2,h*.9,fitS(w,h,E.to,.8),T,{awake:true,shiny:E.c.shiny})}
 }
@@ -1103,7 +1106,7 @@ function renderBattle(){if(!B)return;const foe=B.foes[Math.min(B.fi,2)],me=party
   else mv(`${gp}Bonk${zw(ZM('Bonk').zh,ZM('Bonk').py)}`,'',()=>turn(0));
   mv(B.pused?(B.pt?`Giant: ${B.pt} turns left`:'Giant used'):`Go Giant ${'●'.repeat(B.pm)}${'○'.repeat(3-B.pm)}`+zw('巨大化','jùdà huà'),'hot',goGiant,B.pused||B.pm<3);
   mv('Switch'+zw('换人','huàn rén'),'',openSwitch,party().filter(c=>c.hp>0).length<2)}
-function goGiant(){if(B.busy||B.pused||B.pm<3)return;B.busy=true;renderBattle();(async()=>{if(S.trace!==false&&window.traceChar){await traceChar('giant',{purpose:'giant'});if(!B)return}B.pused=true;B.pt=3;B.grow={side:'p',t0:T};sfx('giant');LOG('giant',{side:'player'});renderBattle();await sleep(1500);if(!B)return;{const z=ZS(SP[party()[B.pi].sp].n);await say(`${SP[party()[B.pi].sp].n} grew GIANT! Its moves hit much harder for 3 turns.`,z.zh+W.giant[1],z.py+' '+W.giant[2],true)}B.busy=false;renderBattle()})()}
+function goGiant(){if(B.busy||B.pused||B.pm<3)return;B.busy=true;renderBattle();(async()=>{if(S.trace!==false&&window.traceChar){await traceChar('giant',{purpose:'giant'});if(!B)return}B.pused=true;B.pt=3;B.grow={side:'p',t0:T};sfx('giant');LOG('giant',{side:'player'});renderBattle();await sleep(1500);if(!B)return;{const z=ZS(SP[party()[B.pi].sp].n);await say(`${SP[party()[B.pi].sp].n} grew GIANT! Its moves hit much harder for 3 turns.`,z.zh+ZB+W.giant[1],z.py+' '+W.giant[2],true)}B.busy=false;renderBattle()})()}
 async function attack(a,d,mi,side){const A=stats(a),D=stats(d),as=SP[a.sp],ds=SP[d.sp];
   const titanA=side==='p'?B.pt>0:B.ft>0,titanD=side==='p'?(B.ft>0&&!B.raid):B.pt>0;
   const mt=mi===2?as.t2:mi?as.t:null,pow=mi?62:40,e=mt?effOn(mt,d.sp):1;
@@ -1111,11 +1114,14 @@ async function attack(a,d,mi,side){const A=stats(a),D=stats(d),as=SP[a.sp],ds=SP
   const atype=mt||'normal';B.anim={type:atype,side,t0:T,dur:.42};
   if(side==='p'){B.lungeP=T;setTimeout(()=>B&&(B.hitF=T),420)}else{B.lungeF=T;setTimeout(()=>B&&(B.hitP=T),420)}
   sfx(e>1||titanA?'super':'attack');await sleep(430);if(!B)return;B.imp={type:atype,side,t0:T,crit};const hpB=d.hp;d.hp=Math.max(0,d.hp-dmg);LOG('attack',{side,att:as.n,def:ds.n,move:mt?MOVES[mt]:'Bonk',eff:e,dmg,defHp:`${hpB}->${d.hp}/${D.maxhp}`,atkHp:a.hp,giantA:titanA,giantD:titanD});B.fx=B.fx||[];B.fx.push({x:side==='p'?.72:.28,y:side==='p'?.25:.6,txt:'-'+dmg,t0:T,col:e>1?'#ffc93d':e<1?'#a7b0d6':'#ffffff',big:e>1||titanA});renderBattle();
-  {const mvn=mt?MOVES[mt]:'Bonk',zm=ZM(mvn),za=ZS(as.n);await say(`${crit?'Critical hit! ':''}${side==='f'?'Foe ':''}${as.n} used ${titanA?'Giant ':''}${mvn}!${e>1?' It hit super hard!':e<1?' It barely hurt.':''} (${dmg} damage)`,`${crit?'暴击！':''}${za.zh}使用了${zm.zh}！${e>1?W.super[1]:e<1?W.weak[1]:''}`,`${crit?'bàojī! ':''}${za.py} shǐyòng le ${zm.py}! ${e>1?W.super[2]:e<1?W.weak[2]:''}`,side==='p')}}
+  // said the way a child would: "潮獭喷出了水！" (the name and the action are two whole recordings)
+  {const ac=ZA(atype),ml=moveLine(a.sp,atype);await say(`${crit?'Critical hit! ':''}${side==='f'?'Foe ':''}${titanA?'Giant ':''}${as.n} ${ac.en}!${e>1?' It hit super hard!':e<1?' It barely hurt.':''} (${dmg} damage)`,`${crit?'暴击！':''}${ml[0]}${e>1?W.super[1]:e<1?W.weak[1]:''}`,`${crit?'bàojī! ':''}${ml[1]}${e>1?' '+W.super[2]:e<1?' '+W.weak[2]:''}`,side==='p')}}
+// the Chinese battle line for a creature using a move of a type ('normal' = Bonk): [Chinese, pinyin]
+function moveLine(spi,type){const za=ZS(SP[spi].n),ac=ZA(type);return[za.zh+ZB+ac.zh,za.py+' '+ac.py]}
 async function turn(mi){if(B.busy)return;B.busy=true;renderBattle();if(S.trace!==false&&window.traceChar){const ms=SP[party()[B.pi].sp],r=await traceChar(mi===2?ms.t2:mi?ms.t:'normal',{purpose:'move'});if(!B)return;B.crit=!r.skipped&&r.mistakes===0}else if(S.qBattle===true){B.crit=await askQuiz('battle');if(!B)return}const me=party()[B.pi],foe=B.foes[B.fi];
   if(!B.pused)B.pm=Math.min(3,B.pm+1);
   await attack(me,foe,mi,'p');
-  if(foe.hp<=0){sfx('faint');LOG('faint',{side:'foe',sp:SP[foe.sp].n});{const z=ZS(SP[foe.sp].n);await say(`Foe ${SP[foe.sp].n} fainted!`,z.zh+W.fainted[1],z.py+' '+W.fainted[2],true)}if(gainXP(me,foe.lvl*6))await say(`${SP[me.sp].n} grew to Lv ${me.lvl}!`);
+  if(foe.hp<=0){sfx('faint');LOG('faint',{side:'foe',sp:SP[foe.sp].n});{const z=ZS(SP[foe.sp].n);await say(`Foe ${SP[foe.sp].n} fainted!`,z.zh+ZB+W.fainted[1],z.py+' '+W.fainted[2],true)}if(gainXP(me,foe.lvl*6))await say(`${SP[me.sp].n} grew to Lv ${me.lvl}!`);
     B.fi++;B.ft=0;if(B.fi>=B.foes.length)return win();
     const nf=B.foes[B.fi];await say(`${PLACES[S.place].leader} sends out ${SP[nf.sp].n}!`);
     if(B.fi===B.foes.length-1){B.ft=3;B.grow={side:'f',t0:T};sfx('giant');renderBattle();await sleep(1500);if(!B)return;await say(`${PLACES[S.place].leader}'s last creature grew GIANT!`)}
