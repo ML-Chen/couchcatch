@@ -32,7 +32,7 @@ function loadGame(root) {
     try { vm.runInContext(fs.readFileSync(p, 'utf8'), ctx, { filename: f }); loaded.push(f); }
     catch (e) { errors.push(f + ': ' + e.message); }
   }
-  const names = ['VOCAB', 'PHRASES', 'PHRASEBOOK', 'MOMENTS', 'ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ITEMS', 'ZH_PLACES', 'DIALOGUES', 'READINGS'];
+  const names = ['VOCAB', 'PHRASES', 'PHRASEBOOK', 'MOMENTS', 'ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ACTS', 'ZH_ITEMS', 'ZH_PLACES', 'DIALOGUES', 'READINGS'];
   const g = vm.runInContext('({' + names.map(n => `${n}:typeof ${n}!=='undefined'?${n}:(typeof window!=='undefined'?window.${n}:undefined)`).join(',') + '})', ctx);
   return { g, loaded, errors };
 }
@@ -68,7 +68,8 @@ function collect(root) {
     (p.build || []).forEach(b => add(Array.isArray(b) ? b[0] : b && b.zh, 'PHRASEBOOK.build'));
   });
   Object.values(g.MOMENTS || {}).forEach(list => (Array.isArray(list) ? list : [list]).forEach(s => add(typeof s === 'string' ? s : s && s.zh, 'MOMENTS')));
-  for (const k of ['ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ITEMS', 'ZH_PLACES'])
+  // ZH_ACTS: what each move does in battle ("喷出了水！"), recorded alone and played after the creature's name
+  for (const k of ['ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ACTS', 'ZH_ITEMS', 'ZH_PLACES'])
     Object.values(g[k] || {}).forEach(e => add(e && e.zh, k));
   zhValues(g.DIALOGUES, []).forEach(s => add(s, 'DIALOGUES'));
   // graded readers: each sentence is spoken whole, plus titles and single words

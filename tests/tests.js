@@ -364,12 +364,13 @@ module.exports = [
   await T.stay();
   const v = await T.ev(() => {
     const p = PLACES[S.place], bad = [];
+    // raids sit 4 levels above the player's progress (plus the place's small nudge), no longer at the place's own level + 4
     for (let k = 0; k < 300; k++) { const b = pickBoss(), s = SP[b.sp];
-      if (b.place !== S.place || b.lvl !== p.lv + 4 || b.shown !== false) bad.push(JSON.stringify(b));
-      else if (!s.leg && !(s.next == null && s.stage >= 2 && p.types.includes(s.t))) bad.push(s.n); }
+      if (b.place !== S.place || b.lvl !== raidLv(S.place) || b.lvl !== Math.round(progress()) + nudge(S.place) + 4 || b.shown !== false) bad.push(JSON.stringify(b));
+      else if (s.leg ? s.next != null : !(s.next == null && s.stage >= 2 && s.ts.some(t => p.types.includes(t)))) bad.push(s.n); }
     return bad.slice(0, 5);
   });
-  T.ok(!v.length, 'pickBoss picks a final-stage boss of the place types (or a legendary) at place Lv+4: ' + v.join(', '));
+  T.ok(!v.length, 'pickBoss picks a final-stage boss with one of the place types (or a grown legendary) at progress Lv+4: ' + v.join(', '));
   const boss = await T.ev(() => { S.raid = pickBoss(); S.raid.shown = true; updateUI(); return {...S.raid}; });
   await T.until(() => __TT.vis('#bRaid'), null, 'raid button appears', 2000);
   await forceClick(T, '#bRaid');
@@ -1068,7 +1069,7 @@ module.exports = [
   T.ok(!dex.type && !dex.places && !dex.evo && /？？？/.test(dex.txt), 'an unfound creature shows only its silhouette: ' + JSON.stringify(dex));
 }},
 
-{name: '29 catch movement: a creature that darts or jumps is hit only where it is when the orb lands', timeout: 40000, fn: async T => {
+{name: '30 catch movement: a creature that darts or jumps is hit only where it is when the orb lands', timeout: 40000, fn: async T => {
   await T.start();
   await T.stay();
   await T.spawn(1);
@@ -1104,7 +1105,7 @@ module.exports = [
   T.ok(await T.ev(() => __TT.countLog('throw_hit') === 1), 'an orb aimed where it lands hits: ' + JSON.stringify(r));
 }},
 
-{name: '30 dodges: quick creatures dodge (躲开了！ shown and spoken), heavy ones rarely, little kids never', timeout: 60000, fn: async T => {
+{name: '31 dodges: quick creatures dodge (躲开了！ shown and spoken), heavy ones rarely, little kids never', timeout: 60000, fn: async T => {
   await T.start();
   await T.stay();
   await T.ev(() => { window.__said = []; window.speakAsync = z => { __said.push(z); return Promise.resolve(); }; });
@@ -1135,7 +1136,7 @@ module.exports = [
   T.eq(await T.ev(() => { const wd = {sp: IDX.Zipbeak, lvl: 40, x: .5, y: .7, vx: 0, ph: 0}; wild.push(wd); S.trace = false; openCatch(wd); const p = dodgeChance(); endCatch(); S.trace = true; return p; }), 0, 'dodge chance for a little kid even at Lv 40');
 }},
 
-{name: '31 the catch spell calms the creature: a perfect trace means fewer dodges and smaller hops; a berry calms it too', timeout: 60000, fn: async T => {
+{name: '32 the catch spell calms the creature: a perfect trace means fewer dodges and smaller hops; a berry calms it too', timeout: 60000, fn: async T => {
   await T.start();
   await T.stay();
   // the chances themselves: none > ok > perfect, and a berry lowers each
@@ -1154,7 +1155,7 @@ module.exports = [
   T.ok(none.hops.length > 10 && perfect.hops.length > 0 && mean(perfect.hops) < .8 * mean(none.hops), `smaller hops after a perfect spell (${mean(perfect.hops).toFixed(1)} vs ${mean(none.hops).toFixed(1)} px)`);
 }},
 
-{name: "32 the catch spell is cast once when the catch opens, lasts the whole catch and is never asked for again after a miss or a break-free; each catch starts fresh", timeout: 60000, fn: async T => {
+{name: "33 the catch spell is cast once when the catch opens, lasts the whole catch and is never asked for again after a miss or a break-free; each catch starts fresh", timeout: 60000, fn: async T => {
   await T.start();
   await T.still();
   await T.stay();
@@ -1202,6 +1203,180 @@ module.exports = [
   await T.page.click('#bSpell');
   await T.until(() => C && C.spell === 2, null, 'the Spell button casts it by hand', 3000);
   T.eq(await T.ev(() => __traces), 4, 'traces');
+}},
+
+{name: '34 wild levels follow progress, not the place: a new team at Yosemite meets creatures near its level; levels rise with the team, badges and story; raids and gyms follow; little kids get a gentler band; an old save migrates', timeout: 70000, fn: async T => {
+  await T.start();
+  const sampler = `(place, n, road) => { S.place = place; S.mode = 'arrived'; const ls = []; for (let k = 0; k < n; k++) ls.push(spawnWild(!!road).lvl); return {min: Math.min(...ls), max: Math.max(...ls), mean: ls.reduce((a, b) => a + b, 0) / n}; }`;
+  const r = await T.ev(src => {
+    const sample = eval(src), o = {};
+    o.team = teamLv(); o.prog = progress();
+    o.yos = sample(10, 3000); o.back = sample(0, 3000); o.rift = sample(6, 3000); o.road = sample(10, 600, true);
+    o.yosRange = wildRange(10); o.raid = (S.place = 10, pickBoss().lvl); o.gym = gymLv(false);
+    // progress rises with the team's levels, then with badges, then a little with the story
+    S.col.push(mk(IDX.Otterpip, 5), mk(IDX.Clovehop, 5), mk(IDX.Finnow, 5));
+    const at = (lv, badges, ch) => { S.col.forEach(c => { c.lvl = lv; }); S.badges = badges; S.story = {ch, t: {}}; return {p: +progress().toFixed(2), mean: +sample(10, 2000).mean.toFixed(2), gym: gymLv(false), raid: raidLv(10)}; };
+    o.steps = [at(5, [], 0), at(12, [], 0), at(12, [0, 1], 0), at(12, [0, 1], 3), at(20, [0, 1, 2, 3], 4), at(32, [0, 1, 2, 3, 4, 5, 7, 8], 6)];
+    // little kids: a lower, narrower band for the same team
+    S.col.forEach(c => { c.lvl = 12; }); S.badges = [0, 1]; S.story = {ch: 0, t: {}};
+    o.bigRange = wildRange(10); o.bigRaid = raidLv(10); PL.list[0].young = true; o.youngRange = wildRange(10); o.youngRaid = raidLv(10); o.youngMax = sample(10, 2000).max; PL.list[0].young = false;
+    S.col = S.col.slice(0, 1); S.col[0].lvl = 5; S.badges = []; S.story = {ch: 0, t: {}}; S.place = 0; S.mode = 'arrived'; updateUI();
+    return o;
+  }, sampler);
+  T.note(`fresh team (Lv ${r.team}, progress ${r.prog.toFixed(1)}): Yosemite ${r.yos.min}-${r.yos.max} (mean ${r.yos.mean.toFixed(1)}), Backyard ${r.back.min}-${r.back.max}, Rift ${r.rift.min}-${r.rift.max}; raid ${r.raid}, gym ${r.gym}`);
+  T.ok(r.yos.mean >= 4 && r.yos.mean <= 8, `a fresh Lv-5 team meets Lv ~5 creatures at Yosemite (mean ${r.yos.mean.toFixed(1)}; the place itself is Lv 34)`);
+  T.ok(r.yos.min >= 2 && r.yos.max <= 9, `Yosemite levels for a fresh team stay within 3 below to 4 above it: ${r.yos.min}-${r.yos.max}`);
+  T.ok(r.rift.max <= 9 && r.road.max <= 9, `the Rift and road trips follow progress too: ${r.rift.max}, ${r.road.max}`);
+  T.ok(r.back.mean <= r.yos.mean && r.yos.mean - r.back.mean <= 2.5, `a place only nudges levels (Backyard ${r.back.mean.toFixed(1)} vs Yosemite ${r.yos.mean.toFixed(1)})`);
+  T.ok(r.raid >= 9 && r.raid <= 12 && r.gym === 5, `raid a few above (${r.raid}), first gym at progress (${r.gym}) for a fresh team at Yosemite`);
+  const s = r.steps;
+  T.note('steps (team lv / badges / story -> progress, Yosemite mean, gym, raid): ' + s.map(x => `${x.p}/${x.mean}/${x.gym}/${x.raid}`).join('  '));
+  for (let i = 1; i < s.length; i++) T.ok(s[i].p > s[i - 1].p, `progress rises at step ${i}: ${s[i - 1].p} -> ${s[i].p}`);
+  for (const i of [1, 2, 4, 5]) T.ok(s[i].mean > s[i - 1].mean + .6, `wild levels rise at step ${i}: ${s[i - 1].mean} -> ${s[i].mean}`);
+  T.ok(s[3].mean >= s[2].mean - .3, 'story chapters never lower wild levels');
+  T.ok(s[2].gym > s[1].gym && s[5].gym > s[4].gym, 'the nth gym is harder than the one before');
+  T.ok(r.youngRange[1] < r.bigRange[1] && r.youngRange[1] - r.youngRange[0] <= r.bigRange[1] - r.bigRange[0] && r.youngRaid < r.bigRaid && r.youngMax <= r.bigRange[1],
+    `little kids get a gentler band: ${r.youngRange.join('-')} (max seen ${r.youngMax}, raid ${r.youngRaid}) vs ${r.bigRange.join('-')} (raid ${r.bigRaid})`);
+  // the map shows each place's level band from progress
+  await T.page.click('#bMove');
+  const map = await T.ev(() => [...document.querySelectorAll('#mapList .card .ten')].map(e => e.innerText).find(t => /Yosemite/.test(t)));
+  T.ok(new RegExp('Lv ' + r.yosRange[0] + '–' + r.yosRange[1]).test(map), 'map card shows the band for this team: ' + map);
+  await T.page.click('#sMap [data-close]');
+  // an old cloud save like a real player's (26 creatures, Lv 6-33, 4 badges, a Lv-31 Breezel that could not evolve before) migrates
+  const save = await T.ev(() => { const sp = [55, 2, 7, 13, 23, 41, 0, 5, 11, 16, 21, 26, 29, 34, 36, 38, 40, 42, 45, 47, 49, 51, 53, 57, 61, 64];
+    const lv = [31, 33, 28, 25, 22, 20, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 30, 26];
+    const col = sp.map((s, i) => ({id: i + 1, sp: s, lvl: lv[i], xp: 0, hp: 50}));
+    return {v: 2, items: {orb: 30, great: 4, ultra: 1, berry: 2}, col, badges: [0, 1, 2, 3], place: 10, stayed: [0, 1, 2, 3, 10], visited: [0, 1, 2, 3, 7, 10], mode: 'arrived', spawned: 0, nextId: 27, wild: [], travelTo: 0, travelT: 0, savedAt: Date.now(), caught: sp, story: {ch: 5, t: {}}, talked: {intro_neighbor: 1}, playMs: 71 * 60000}; });
+  await T.waitReload(() => T.ev(o => { importSave(o); }, save));
+  const m = await T.ev(src => { const sample = eval(src), o = {team: teamLv(), prog: progress(), range: wildRange(10), yos: sample(10, 2000), q: evoQueue.map(id => SP[S.col.find(c => c.id === id).sp].n), evolving: E ? SP[E.from].n : null};
+    S.mode = 'arrived'; S.place = 10; updateUI(); return o; }, sampler);
+  T.note(`old save: team ${m.team.toFixed(1)}, progress ${m.prog.toFixed(1)}, Yosemite ${m.yos.min}-${m.yos.max} (was 31-34)`);
+  T.ok(m.prog >= m.team - 5 && m.prog <= m.team + 3 && m.yos.max <= m.team + 6 && m.yos.min >= m.team - 9, `an old save gets levels near its team: team ${m.team}, Yosemite ${m.yos.min}-${m.yos.max}`);
+  // the idle loop may already have started the first queued evolution after the reload
+  T.ok(m.q.includes('Breezel') || m.evolving === 'Breezel', `a Lv-31 Breezel from an old save evolves (queue: ${m.q.join(',')}, evolving: ${m.evolving})`);
+  await T.ev(() => { if (E) return; const id = S.col[0].id, k = evoQueue.indexOf(id); if (k >= 0) evoQueue.splice(k, 1); evoQueue.unshift(id); runEvoQueue(); });
+  await T.until(() => E && E.from === IDX.Breezel && __TT.vis('#sEvo'), null, 'the old Breezel is evolving', 5000);
+  await T.ev(() => { E.t0 = T - 5; });
+  await T.until(() => !document.getElementById('bEvoOk').hidden, null, 'evolution finishes', 3000);
+  T.eq(await T.ev(() => SP[S.col[0].sp].n), 'Galewing', 'the old Breezel evolved into');
+  await T.page.click('#bEvoOk');
+}},
+
+{name: '35 dual types: effectiveness multiplies; a dual-type creature has a move of each type; spawning uses both types; chips show both types and fit at 360x629 and 336x560', timeout: 90000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  const r = await T.ev(() => { const e = (t, n) => effOn(t, IDX[n]), base = i => { while (SP[i].prev != null) i = SP[i].prev; return i; };
+    const N = 4000, freq = place => { S.place = place; S.mode = 'arrived'; let c = 0; for (let k = 0; k < N; k++) if (base(spawnWild(false).sp) === IDX.Glacimoth) c++; return c / N; };
+    const o = {dual: SP.filter(s => s.t2).length, n: SP.length, bad: SP.filter(s => s.t2 && (!TYPES[s.t2] || s.t2 === s.t || !MOVES[s.t2])).map(s => s.n),
+      x4: e('fire', 'Glacilune'), x4b: e('stone', 'Cindercrest'), x1: e('fire', 'Bastionox'), x025: e('leaf', 'Milkwick'), x2: e('water', 'Springbara'), single: e('water', 'Smoldy'),
+      backyardBug: PLACES[0].types.includes('bug'), atBackyard: freq(0), atQuarry: freq(2)};
+    S.place = 0; return o; });
+  T.ok(r.dual / r.n >= .3 && r.dual / r.n <= .5, `30-50% of species have a second type: ${r.dual}/${r.n}`);
+  T.ok(!r.bad.length, 'second types must be real, different and have a move: ' + r.bad.join(', '));
+  T.eq(r.x4, 4, 'fire on frost/bug Glacilune'); T.eq(r.x4b, 4, 'stone on fire/wind Cindercrest'); T.eq(r.x1, 1, 'fire on stone/metal Bastionox');
+  T.eq(r.x025, .25, 'leaf on fire/bug Milkwick'); T.eq(r.x2, 2, 'water on water/fire Springbara'); T.eq(r.single, 2, 'water on fire Smoldy');
+  T.ok(r.backyardBug && r.atBackyard > 2 * r.atQuarry && r.atBackyard > .01, `frost/bug Glacimoth spawns where bugs live (Backyard ${(r.atBackyard * 100).toFixed(1)}% vs Old Quarry ${(r.atQuarry * 100).toFixed(1)}%)`);
+  // a battle: the dual-type lead has a move of each type, and the second one traces from its own ladder
+  await T.ev(() => { S.col.unshift(mk(IDX.Glacilune, 20)); S.col[0].hpMul = 6; S.col[0].hp = stats(S.col[0]).maxhp; window.__kinds = []; const t = window.traceChar; window.traceChar = (k, o) => { __kinds.push(k); return t(k, o); }; save(); });
+  await T.stay();
+  await T.page.click('#bGym');
+  await T.until(() => B && !B.busy && __TT.vis('#sBattle'), null, 'battle ready', 8000);
+  const btn = await T.ev(() => [...document.querySelectorAll('#bBtns button')].map(b => b.innerText.replace(/\s+/g, ' ')));
+  T.ok(/Frost Breath/.test(btn[0]) && /Buzz Bite/.test(btn[1]) && !btn.some(b => /Bonk/.test(b)), 'frost/bug Glacilune has Frost Breath and Buzz Bite: ' + btn.join(' | '));
+  await T.ev(() => { const f = mk(IDX.Smoldy, 20); S.nextId--; f.hpMul = 6; f.hp = stats(f).maxhp; B.foes[B.fi] = f; renderBattle(); });
+  await T.page.click('#bBtns button >> nth=1');
+  await T.until(() => { const a = LOGBUF.filter(e => e.type === 'attack' && e.side === 'p').pop(); return !!a; }, null, 'the second move is used', 8000);
+  const a1 = await T.ev(() => ({a: LOGBUF.filter(e => e.type === 'attack' && e.side === 'p').pop(), k: [...__kinds]}));
+  T.ok(a1.a.move === 'Buzz Bite' && a1.a.eff === .5 && a1.k.includes('bug'), 'Buzz Bite on fire Smoldy is weak and traces the bug ladder: ' + JSON.stringify(a1));
+  await T.until(() => B && !B.busy, null, 'turn done', 10000);
+  const a2 = await T.ev(async () => { await attack(B.foes[B.fi], party()[B.pi], 1, 'f'); return {a: LOGBUF.filter(e => e.type === 'attack' && e.side === 'f').pop(), blog: document.getElementById('blog').innerText}; });
+  T.ok(a2.a.move === 'Cinder Spit' && a2.a.eff === 4 && /效果很好/.test(a2.blog), 'fire on frost/bug hits 4x: ' + JSON.stringify(a2));
+  // layout: team cards, book cards and the battle with two types, at both phone sizes
+  await T.ev(() => { for (const n of ['Nimbuswyrm', 'Mireluna', 'Boxaroo', 'Moonhopper', 'Shadowisp', 'Springbara']) S.col.splice(1, 0, mk(IDX[n], 30)); S.caught = SP.map((s, i) => i); });
+  const probe = () => T.ev(async () => { const bad = [], sleep = ms => new Promise(r => setTimeout(r, ms)), wraps = e => e.getBoundingClientRect().height > parseFloat(getComputedStyle(e).fontSize) * 2.2;
+    B && endBattle(); renderTeam(); await sleep(60);
+    for (const c of document.querySelectorAll('#teamList .card')) { const r = c.getBoundingClientRect(); for (const e of c.querySelectorAll('.type')) { const q = e.getBoundingClientRect(); if (q.right > r.right + .5 || q.left < r.left - .5) bad.push('chip outside its card: ' + e.innerText); if (wraps(e)) bad.push('chip text wraps: ' + e.innerText); } }
+    if (document.documentElement.scrollWidth > innerWidth) bad.push('page wider than the screen');
+    close('sTeam');
+    for (const n of ['Glacilune', 'Mireluna', 'Boxaroo', 'Nimbuswyrm']) { openDex(IDX[n], true); await sleep(40); const d = document.querySelector('.dexcard').getBoundingClientRect();
+      if (d.bottom > innerHeight + 1 || d.right > innerWidth + 1 || d.top < -1 || d.left < -1) bad.push('book card off screen: ' + n);
+      const ch = [...document.querySelectorAll('.dexcard .type')]; if (ch.length !== SP[IDX[n]].ts.length || ch.some(wraps)) bad.push('book card chips: ' + n);
+      document.querySelector('.dexwrap').remove(); }
+    return bad; });
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, async () => {
+    const bad = await probe(); T.ok(!bad.length, `${w}x${h}: ` + bad.slice(0, 6).join(' | '));
+    await T.ev(() => { S.place = 6; S.mode = 'arrived'; updateUI(); startGym(); });
+    await T.until(() => B && !B.busy, null, 'Rift battle ready', 8000);
+    await T.ev(() => { const f = mk(IDX.Mireluna, 40); S.nextId--; B.foes[B.fi] = f; B.ft = 3; renderBattle(); });
+    await T.sleep(120);
+    await T.layoutOk('#sBattle', `battle with a dual-type lead and foe at ${w}x${h}`);
+    const cut = await T.ev(() => { const nm = document.getElementById('fName'), z = nm.querySelector('.zh'), rg = document.createRange(); rg.selectNodeContents(z.firstChild); return rg.getBoundingClientRect().right > nm.parentElement.getBoundingClientRect().right + .5; });
+    T.ok(!cut, `the foe's Chinese name is fully visible at ${w}x${h}`);
+    T.ok(/dragon\/water/.test(await T.ev(() => document.getElementById('fLv').innerText)), 'the foe label shows both types');
+    await T.ev(() => { endBattle(); S.place = 0; updateUI(); });
+  });
+}},
+
+{name: '36 every creature is in an evolution line; the 17 new ones are complete (Chinese + pinyin, types, art, places); the first 70 keep their save indexes', fn: async T => {
+  await T.start();
+  const r = await T.ev(() => {
+    const OLD = 'Smoldy Smolderox Pyrothane Emberwren Cindercrest Otterpip Tidemink Tidewyrm Finnow Brinejaw Bubbloo Clovehop Thistlehare Briarbuck Burrbit Thornback Fizzbit Fizzlinx Voltalon Boltusk Tuskvolt Pebblin Bouldern Monolord Rollidil Bastionox Flurrle Frostlynx Aurorynx Glacimoth Glacilune Solvane Mireluna Stormlark Barkpup Bellowhaul Bellmist Moonveil Zipbeak Thrumwing Milkwick Regalflare Fernfawn Fernhart Redwoodhart Basklet Mesadome Rustkit Blazebrush Soakbara Springbara Screekid Talusram Hushflake Blizzowl Breezel Gemkit Drakit Drakonel Cloudrake Dartling Dotbug Flitbat Wispuff Pangolink Clankbeetle Joeyjab Dojocub Twinkfawn Glimmerbun'.split(' ');
+    const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), blank = [];
+    SP.forEach((s, i) => { x.clearRect(0, 0, 64, 64); drawCreature(x, s, 32, 60, fitS(64, 64, i, .9), 0, {awake: true}); const d = x.getImageData(0, 0, 64, 64).data; let n = 0; for (let k = 3; k < d.length; k += 4) if (d[k] > 20) n++; if (n < 150) blank.push(s.n + ':' + n); });
+    const line = i => { while (SP[i].prev != null) i = SP[i].prev; return i; };
+    return {n: SP.length, moved: OLD.filter((n, i) => !SP[i] || SP[i].n !== n),
+      single: SP.filter(s => s.prev == null && s.next == null).map(s => s.n),
+      names: SP.filter(s => { const z = ZS(s.n); return !z.zh || !/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/.test(z.py) || !z.mean; }).map(s => s.n),
+      dupZh: SP.map(s => ZS(s.n).zh).filter((z, i, a) => a.indexOf(z) !== i),
+      types: SP.filter(s => s.ts.some(t => !TYPES[t] || !MOVES[t] || !ZT(t).zh || !ZA(t).zh)).map(s => s.n),
+      stats: SP.filter(s => !(Array.isArray(s.st) && s.st.length === 3 && s.st.every(v => v > 30 && v < 90))).map(s => s.n),
+      blank, nowhere: BASES.filter(i => !PLACES.some(p => (SP[i].hab || []).includes(p.key) || SP[i].ts.some(t => p.types.includes(t)))).map(i => SP[i].n),
+      legs: LEGS.map(i => SP[i].n + (SP[i].next != null ? '>' + SP[SP[i].next].n : '')), legBases: LEG_BASES.map(i => SP[i].n), legTops: LEG_TOPS.map(i => SP[i].n),
+      newLines: SP.slice(70).map(s => { const b = line(IDX[s.n]); return SP[b].n + '>' + SP[SP[b].next].n + '@' + SP[b].evoLv; })};
+  });
+  T.eq(r.moved.length, 0, 'the first 70 species keep their index (saves store species by index); moved: ' + r.moved.join(', '));
+  T.eq(r.n, 87, 'species count');
+  T.eq(r.single.length, 0, 'species not in an evolution line: ' + r.single.join(', '));
+  T.ok(!r.names.length, 'species without a Chinese name, toned pinyin and meaning: ' + r.names.join(', '));
+  T.ok(!r.dupZh.length, 'two species share a Chinese name: ' + r.dupZh.join(', '));
+  T.ok(!r.types.length && !r.stats.length, 'types/moves/stats: ' + r.types.concat(r.stats).join(', '));
+  T.ok(!r.blank.length, 'species whose art draws (almost) nothing: ' + r.blank.join(', '));
+  T.ok(!r.nowhere.length, 'base forms that can spawn nowhere by habitat or type: ' + r.nowhere.join(', '));
+  T.eq(r.legBases.join(','), 'Solfawn,Mireling,Stormling', 'legendary babies spawn in the wild');
+  T.eq(r.legTops.join(','), 'Solvane,Mireluna,Stormlark', 'grown legendaries lead raids');
+  T.ok(r.newLines.every(x => /@28$/.test(x)), 'new 2-stage lines evolve at Lv 28: ' + r.newLines.join(' '));
+  T.note('new lines: ' + r.newLines.join(' '));
+}},
+
+{name: '37 battle lines are natural Chinese (潮獭喷出了水！) with pinyin and English, and play as recorded clips: the name, then the action', timeout: 60000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  const r = await T.ev(() => {
+    const types = [...Object.keys(TYPES), 'normal'], o = {stiff: [], noPy: [], missingAct: [], missingName: [], device: [], lines: 0};
+    for (const t of types) { const a = ZA(t); if (!a.zh || /使用|用了/.test(a.zh.replace('用铁头', ''))) o.stiff.push(t + ' ' + a.zh); if (!/[āáǎàēéěèīíǐìōóǒòūúǔù]/.test(a.py) || !a.en) o.noPy.push(t); if (zhPlan(a.zh) !== 'whole') o.missingAct.push(a.zh); }
+    for (let i = 0; i < SP.length; i++) { const z = ZS(SP[i].n); if (zhPlan(z.zh) !== 'whole') { o.missingName.push(z.zh); continue; }
+      for (const t of SP[i].ts.concat('normal')) { const [zh, py] = moveLine(i, t); o.lines++; if (!py.includes(z.py)) o.noPy.push(SP[i].n);
+        if (zhPlan(ZA(t).zh) === 'whole' && !['whole', 'clauses'].includes(zhPlan(zh))) o.device.push(SP[i].n + ' ' + t); } }
+    o.fullPlan = zhPlan('暴击！' + moveLine(IDX.Otterpip, 'water')[0] + W.super[1]);
+    o.waterRecorded = zhPlan(ZA('water').zh) === 'whole';
+    o.shown = moveLine(IDX.Otterpip, 'water')[0].replace(/​/g, '');
+    return o; });
+  T.eq(r.shown, '潮獭喷出了水！', 'the line reads as one natural sentence');
+  T.ok(!r.stiff.length, 'stiff "使用了" style actions: ' + r.stiff.join(', '));
+  T.ok(!r.noPy.length, 'actions or lines without pinyin/English: ' + r.noPy.join(', '));
+  T.ok(!r.device.length, 'battle lines that would fall back to the device voice although the name and the action are recorded: ' + r.device.slice(0, 6).join(', '));
+  if (r.waterRecorded) T.ok(['whole', 'clauses'].includes(r.fullPlan), 'a full line with 暴击 and 效果很好 plays clause by clause: ' + r.fullPlan);
+  if (r.missingAct.length) T.note(`${r.missingAct.length} action phrases still to record: ` + r.missingAct.join(' '));
+  if (r.missingName.length) T.note(`${r.missingName.length} species names still to record (their lines fall back until then): ` + r.missingName.join(' '));
+  T.note(`${r.lines} species x move lines checked`);
+  // in a real battle the line shows natural Chinese with pinyin and English
+  await T.stay();
+  await T.page.click('#bGym');
+  await T.until(() => B && !B.busy, null, 'battle ready', 8000);
+  await T.page.click('#bBtns button >> nth=0');
+  await T.until(() => /吐出了火/.test(document.getElementById('blog').innerText), null, 'the starter Smoldy 吐出了火', 8000);
+  const blog = await T.ev(() => document.getElementById('blog').innerText);
+  T.ok(!/使用了/.test(blog) && /tǔ chū le huǒ/.test(blog) && /Smoldy spits fire/.test(blog), 'battle line: ' + blog.replace(/\s+/g, ' '));
 }},
 
 ];

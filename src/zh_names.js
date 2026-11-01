@@ -80,6 +80,24 @@ const ZH_SPECIES = {
   'Dojocub':     {zh:'拳虎',   py:'quán hǔ',         mean:'fist + tiger'},
   'Twinkfawn':   {zh:'星鹿',   py:'xīng lù',         mean:'star + deer'},
   'Glimmerbun':  {zh:'星兔',   py:'xīng tù',         mean:'star + rabbit'},
+  // ---- wave 4: evolutions, and the legendaries' babies ----
+  'Billowisp':   {zh:'浪灵',   py:'làng líng',       mean:'wave + spirit'},
+  'Galewing':    {zh:'风暴鸥', py:'fēng bào ōu',     mean:'storm (wind + violent) + gull'},
+  'Gemvixen':    {zh:'星心狐', py:'xīng xīn hú',     mean:'star + heart + fox'},
+  'Nimbuswyrm':  {zh:'风云龙', py:'fēng yún lóng',   mean:'wind + cloud + dragon'},
+  'Skydarner':   {zh:'风蜓',   py:'fēng tíng',       mean:'wind + dragonfly'},
+  'Sevenspot':   {zh:'七星虫', py:'qī xīng chóng',   mean:'seven + star + bug (seven-spot ladybird)'},
+  'Moonflit':    {zh:'夜蝠',   py:'yè fú',           mean:'night + bat'},
+  'Shadowisp':   {zh:'影灵',   py:'yǐng líng',       mean:'shadow + spirit'},
+  'Rivetback':   {zh:'钢鳞王', py:'gāng lín wáng',   mean:'steel + scales + king'},
+  'Forgehorn':   {zh:'钢角虫', py:'gāng jiǎo chóng', mean:'steel + horn + bug'},
+  'Boxaroo':     {zh:'拳王袋鼠', py:'quán wáng dài shǔ', mean:'boxing champion (fist + king) + kangaroo (pouch + mouse)'},
+  'Dojoroar':    {zh:'拳虎王', py:'quán hǔ wáng',    mean:'fist + tiger + king'},
+  'Cometstag':   {zh:'流星鹿', py:'liú xīng lù',     mean:'shooting star (flowing + star) + deer'},
+  'Moonhopper':  {zh:'玉兔',   py:'yù tù',           mean:'jade + rabbit (the rabbit in the moon)'},
+  'Solfawn':     {zh:'小阳鹿', py:'xiǎo yáng lù',    mean:'little + sun + deer'},
+  'Mireling':    {zh:'小月龙', py:'xiǎo yuè lóng',   mean:'little + moon + dragon'},
+  'Stormling':   {zh:'小雷雀', py:'xiǎo léi què',    mean:'little + thunder + sparrow'},
 };
 
 const ZH_TYPES = {
@@ -99,6 +117,26 @@ const ZH_MOVES = {
   'Pebble Barrage': {zh:'碎石雨', py:'suì shí yǔ'},
   'Frost Breath':   {zh:'寒气',   py:'hán qì'},
   'Bonk':           {zh:'敲头',   py:'qiāo tóu'},
+};
+
+// What a move does, as a short natural sentence said after the creature's name in battle (潮獭 喷出了水！).
+// Keyed by the move's type (normal = Bonk). Each is recorded as its own whole clip, so the line plays as name + action.
+const ZH_ACTS = {
+  fire:   {zh:'吐出了火！',       py:'tǔ chū le huǒ!',           en:'spits fire'},
+  water:  {zh:'喷出了水！',       py:'pēn chū le shuǐ!',         en:'sprays water'},
+  leaf:   {zh:'甩出了叶子！',     py:'shuǎi chū le yèzi!',       en:'flings leaves'},
+  spark:  {zh:'放出了电！',       py:'fàng chū le diàn!',        en:'lets out a zap'},
+  stone:  {zh:'扔出了石头！',     py:'rēng chū le shítou!',      en:'throws rocks'},
+  frost:  {zh:'吹出了冷风！',     py:'chuī chū le lěng fēng!',   en:'blows icy wind'},
+  wind:   {zh:'刮起了大风！',     py:'guā qǐ le dà fēng!',       en:'whips up a gale'},
+  bug:    {zh:'咬了一口！',       py:'yǎo le yì kǒu!',           en:'takes a bite'},
+  mind:   {zh:'发出了心灵波！',   py:'fā chū le xīnlíng bō!',    en:'sends out a mind wave'},
+  shadow: {zh:'扑了过去！',       py:'pū le guòqu!',             en:'pounces'},
+  dragon: {zh:'大吼了一声！',     py:'dà hǒu le yì shēng!',      en:'gives a big roar'},
+  metal:  {zh:'用铁头撞了过去！', py:'yòng tiě tóu zhuàng le guòqu!', en:'rams with its iron head'},
+  fight:  {zh:'打出了一拳！',     py:'dǎ chū le yì quán!',       en:'throws a punch'},
+  star:   {zh:'放出了星光！',     py:'fàng chū le xīngguāng!',   en:'shines starlight'},
+  normal: {zh:'撞了过去！',       py:'zhuàng le guòqu!',         en:'charges in'},
 };
 
 const ZH_ITEMS = {
