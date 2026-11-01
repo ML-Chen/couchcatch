@@ -173,7 +173,7 @@ function mkHelpers(page, state) {
         const st = await T.ev(() => {
           const el = document.querySelector('.sheet.talk'); if (!el || el.hidden) return {closed: true};
           const lt = __TT.lastLog('talk_start');
-          return {key: lt && lt.key, opts: el.querySelectorAll('.talkopts button').length, cont: [...el.querySelectorAll('.talkpanel > button')].some(b => /Continue/.test(b.innerText))};
+          return {key: lt && lt.key, opts: el.querySelectorAll('.talkopts button:not(.mic)').length, cont: [...el.querySelectorAll('.talkpanel > button')].some(b => /Continue/.test(b.innerText))};
         });
         if (st.closed) return {answered, recast, key, closed: true};
         key = st.key;
@@ -182,16 +182,16 @@ function mkHelpers(page, state) {
         const ch = await T.ev(({key, wantWrong}) => {
           const D = DIALOGUES[key], right = [], wrong = [];
           for (const t of D.turns) for (const o of t.you || []) (o.ok ? right : wrong).push(o.zh);
-          const zs = [...document.querySelectorAll('.sheet.talk .talkopts button')].map(b => b.querySelector('.z').textContent);
+          const zs = [...document.querySelectorAll('.sheet.talk .talkopts button:not(.mic)')].map(b => b.querySelector('.z').textContent);
           let i = wantWrong ? zs.findIndex(z => wrong.includes(z) && !right.includes(z)) : -1;
           if (i < 0) i = zs.findIndex(z => right.includes(z)); if (i < 0) i = 0;
           return {i, wrong: wrong.includes(zs[i]) && !right.includes(zs[i]), you: document.querySelectorAll('.sheet.talk .bub.you').length, fix: document.querySelectorAll('.sheet.talk .bub.fix').length};
         }, {key, wantWrong: wrongFirst && !recast && answered === 0});
-        const btn = `.sheet.talk .talkopts button >> nth=${ch.i}`;
+        const btn = `.sheet.talk .talkopts button:not(.mic) >> nth=${ch.i}`;
         await page.click(btn);
         if (checkArm) {
           await T.sleep(150);
-          const a = await T.ev(() => ({you: document.querySelectorAll('.sheet.talk .bub.you').length, txt: [...document.querySelectorAll('.sheet.talk .talkopts button')].map(b => b.innerText).join(' | ')}));
+          const a = await T.ev(() => ({you: document.querySelectorAll('.sheet.talk .bub.you').length, txt: [...document.querySelectorAll('.sheet.talk .talkopts button:not(.mic)')].map(b => b.innerText).join(' | ')}));
           T.eq(a.you, ch.you, `answer ${answered + 1}: first tap only selects (answer bubbles)`);
           T.ok(/Tap again/.test(a.txt), `answer ${answered + 1}: selected option asks for a second tap: ` + a.txt);
         }
@@ -204,7 +204,7 @@ function mkHelpers(page, state) {
           recast = true;
         }
         answered++;
-        await T.until(n => document.querySelectorAll('.sheet.talk .talkopts button').length === 0 || document.querySelectorAll('.sheet.talk .bub.you').length > n + (ch.wrong ? 1 : 0), ch.you, 'answer accepted', 4000);
+        await T.until(n => document.querySelectorAll('.sheet.talk .talkopts button:not(.mic)').length === 0 || document.querySelectorAll('.sheet.talk .bub.you').length > n + (ch.wrong ? 1 : 0), ch.you, 'answer accepted', 4000);
       }
       throw new TestFail(`conversation ${key} did not finish within ${timeout} ms (answered ${answered})`);
     },

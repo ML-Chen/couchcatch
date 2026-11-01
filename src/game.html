@@ -435,6 +435,7 @@ async function pushRemote(){if(!DB||!UID)return;if(remoteBusy){remoteAgain=true;
 function flush(){clearTimeout(localTimer);writeLocal();clearTimeout(remoteTimer);pushRemote()}
 addEventListener('pagehide',()=>{LOG('page_hide');flush();flushLog()});document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
 setInterval(()=>{if(S.mode==='travel'||S.mode==='staying')writeLocal()},4000);
+setInterval(()=>{if(document.hidden||!S.col.length)return;S.playMs=(S.playMs||0)+15000;const d=new Date().toISOString().slice(0,10);S.days=S.days||{};S.days[d]=(S.days[d]||0)+15000},15000);
 async function connectCloud(){
   if(!window.claude||!window.claude.use)return;
   try{const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);if(!db||!user)return;
@@ -1149,7 +1150,13 @@ document.getElementById('bBag').onclick=()=>{const L=document.getElementById('ba
 // ---------- Learn screen ----------
 const GROUPS={number:'Numbers 数字 shùzì',color:'Colors 颜色 yánsè',nature:'Nature 自然 zìrán',animal:'Animals 动物 dòngwù',action:'Actions 动作 dòngzuò',thing:'Things 东西 dōngxi',describe:'Describing 形容 xíngróng',phrase:'Phrases 短语 duǎnyǔ',place:'Places 地方 dìfang',type:'Types 属性 shǔxìng',creature:'Your creatures 你的生物 nǐ de shēngwù'};
 const UNITS={1:'Hello 你好',2:'About me 我',3:'I want 我要',4:'I like 我喜欢',5:'Let’s play 一起玩',6:'What and where 什么·哪里',7:'Feelings 心情',8:'Everyday 每天'};
+// a small progress overview (what a parent wants to see at a glance)
+function progressHTML(){const tt=window.traceTotals?traceTotals():{learned:0,total:0},ph=Object.values(S.ph||{}).filter(v=>v.intro).length,talks=Object.values(S.talked||{}).reduce((a,b)=>a+b,0),
+  reads=Object.keys(S.read||{}).length,found=new Set([...(S.caught||[]),...S.col.map(c=>c.sp)]).size,mins=Math.round((S.playMs||0)/60000),days=Object.keys(S.days||{}).length;
+  const t=(n,en,zh,py)=>`<div class="pt"><b>${n}</b><span>${en}</span><i data-say="${zh}">${zh} ${py}</i></div>`;
+  return `<div class="ptiles">${t(tt.learned,'characters','汉字','hànzì')}${t(ph,'phrases said','句子','jùzi')}${t(talks,'conversations','对话','duìhuà')}${t(reads,'things read','读过','dú guò')}${t(found+'/'+SP.length,'creatures','生物','shēngwù')}${t(mins+' min','played · '+days+(days===1?' day':' days'),'玩了','wán le')}</div>`}
 function renderLearn(){const L=document.getElementById('learnList');L.innerHTML='';const pool=wordPool();let known=0;
+  {const pd=document.createElement('div');pd.style.gridColumn='1/-1';pd.innerHTML=progressHTML();L.appendChild(pd)}
   if(typeof PHRASEBOOK!=='undefined'){let said=0;const ph=S.ph||{};
     const hh=document.createElement('div');hh.className='reghead';hh.style.gridColumn='1/-1';L.appendChild(hh);
     let lastU=0;for(const p of PHRASEBOOK){const v=ph[p.zh];if(v&&v.intro)said++;
@@ -1181,6 +1188,7 @@ function renderSettings(){const seg=document.getElementById('lvlSeg');seg.innerH
   const L=document.getElementById('setList');L.innerHTML='';
   const tg=(en,zh,py,get,set)=>{const d=document.createElement('div');d.className='toggle';d.innerHTML=`<span>${en}${zw(zh,py)}</span>`;const b=document.createElement('button');b.className='small'+(get()?' big':'');b.textContent=get()?'On 开':'Off 关';b.onclick=()=>{set(!get());save();renderSettings()};d.appendChild(b);L.appendChild(d)};
   tg('Trace characters for moves and spells','写字出招','xiě zì chū zhāo',()=>S.trace!==false,v=>S.trace=v);
+  if(window.SpeechRecognition||window.webkitSpeechRecognition)tg('Check my speaking with the microphone','听我说','tīng wǒ shuō',()=>S.listen!==false,v=>S.listen=v);
   tg('Chinese voice','中文语音','Zhōngwén yǔyīn',()=>S.zhVoice!==false,v=>{S.zhVoice=v;if(v)speak('你好！我们一起学中文吧。')});
   tg('Sound effects','音效','yīnxiào',()=>!(window.SFX&&SFX.muted),v=>{if(window.SFX&&SFX.muted===v)SFX.toggle()});
   if(window.SFX&&SFX.toggleMusic)tg('Music','音乐','yīnyuè',()=>!SFX.musicMuted,v=>{if(SFX.musicMuted===v)SFX.toggleMusic();musicNow()});
@@ -1289,6 +1297,8 @@ connectCloud();
 //@@DEX@@
 </script>
 <style>/*@@THEME@@*/
+.ptiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px}.pt{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border-radius:14px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);text-align:center}
+.pt b{font-family:Sora,Manrope,sans-serif;font-size:1.05rem;line-height:1.15}.pt span{font-size:.66rem;color:var(--muted)}.pt i{font-style:normal;font-size:.62rem;opacity:.75;font-family:'Noto Sans SC',sans-serif}
 html,body{margin:0!important}
 header{position:relative}#bWho{position:absolute;right:0;top:2px;max-width:9.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .whol{display:flex;flex-direction:column;gap:8px}.card.who{display:flex;align-items:center;gap:10px}.card.who .wpic{font-size:1.8rem;width:44px;text-align:center}.card.who .info{flex:1;min-width:0}.card.who.on{outline:2px solid var(--accent)}

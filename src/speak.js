@@ -1,6 +1,8 @@
 // ---------- Speaking practice: audio-first moments, Pimsleur-style lessons, and conversations with gentle recasts ----------
 (function(){
-const css=`
+const css=`.talkopts .mic{grid-column:1/-1;border-style:dashed!important}.talkopts .mic.on{animation:micpulse 1s ease-in-out infinite}.talkopts .mic.good{border-style:solid!important;border-color:var(--moss,#6fae8a)!important}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(217,96,77,.35)}50%{box-shadow:0 0 0 10px rgba(217,96,77,0)}}
+
 .saycard{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100% - 24px));z-index:45;
   background:linear-gradient(180deg,rgba(38,51,95,.97),rgba(25,34,68,.97));border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:12px 14px;box-shadow:0 16px 40px rgba(0,0,0,.45);
   display:flex;gap:12px;align-items:center}
@@ -101,6 +103,21 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function ring(el,secs){return new Promise(res=>{const t0=performance.now(),D=secs*1000;let stop=false;el._skip=()=>{stop=true};
   const f=()=>{const k=Math.min(1,(performance.now()-t0)/D);el.style.setProperty('--p',(k*100)+'%');const s=el.querySelector('span');if(s)s.textContent=Math.ceil(secs*(1-k))||'';if(k>=1||stop){res();return}requestAnimationFrame(f)};f()})}
 const Z=(zh,py)=>zw(zh,py);
+// ---------- listening (browser speech recognition, where available) ----------
+const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;let srBroken=false;
+window.canListen=()=>!!SRC&&!srBroken&&S.listen!==false;
+const nz=t=>String(t||'').replace(/[\s，。！？、…!?,.·:：；;“”"'「」]/g,'');
+function lcs(a,b){const m=a.length,n=b.length;if(!m||!n)return 0;const d=new Array(n+1).fill(0);for(let i=1;i<=m;i++){let prev=0;for(let j=1;j<=n;j++){const t=d[j];d[j]=a[i-1]===b[j-1]?prev+1:Math.max(d[j],d[j-1]);prev=t}}return d[n]}
+// how well a heard sentence matches a target (0..1): shared characters in order, relative to the longer one
+window.zhMatch=(heard,target)=>{const a=nz(heard),b=nz(target);if(!a||!b)return 0;return lcs(a,b)/Math.max(a.length,b.length)};
+// listen once in Mandarin; resolves with the recognizer's alternatives ([] if nothing was heard, null if listening isn't possible)
+function listenZh(onStart){return new Promise(res=>{if(!SRC||srBroken){res(null);return}let done=false;const fin=v=>{if(done)return;done=true;try{r.abort()}catch(e){}res(v)};
+  let r;try{r=new SRC();r.lang='zh-CN';r.interimResults=false;r.maxAlternatives=5;r.continuous=false}catch(e){srBroken=true;res(null);return}
+  r.onstart=()=>{onStart&&onStart()};
+  r.onresult=e=>{const out=[];for(const res0 of e.results)for(let k=0;k<res0.length;k++)out.push(res0[k].transcript);fin(out)};
+  r.onerror=e=>{if(/not-allowed|service-not-allowed|audio-capture|network|language-not-supported/.test(e.error)){srBroken=true;fin(null)}else fin([])};
+  r.onend=()=>fin([]);try{stopSpeech()}catch(e){}try{r.start()}catch(e){srBroken=true;fin(null)}setTimeout(()=>fin([]),8000)})}
+window.listenZh=listenZh;
 
 // ---------- phrase memory (graduated interval recall) ----------
 const GAPS=[25e3,120e3,600e3,3600e3,5*3600e3,86400e3,5*86400e3];
@@ -286,7 +303,16 @@ window.runTalk=function(key){return new Promise(async res=>{try{
     if(young){try{await speakAsync(target.zh)}catch(e){}} // little kids hear the line first, then say it back
     await ring(panel.querySelector('.ring'),young?4:3);
     // 2) choose what you said (each option plays its audio)
-    const chosen=await new Promise(r=>{const box=panel.querySelector('.talkopts');[...opts].sort(()=>Math.random()-.5).forEach(o=>{const b=document.createElement('button');
+    const chosen=await new Promise(r=>{const box=panel.querySelector('.talkopts');
+      if(window.canListen()){const mic=document.createElement('button');mic.className='mic';mic.innerHTML=`🎤 <b>Say it</b>${zw('说出来','shuō chūlái')}`;box.appendChild(mic);
+        mic.onclick=async()=>{if(mic.disabled)return;mic.disabled=true;mic.classList.add('on');mic.innerHTML='🎤 …'+zw('我在听','wǒ zài tīng');
+          const alts=await listenZh();mic.disabled=false;mic.classList.remove('on');
+          if(alts===null){mic.remove();return}
+          let best=null,bs=0,heardTxt=alts[0]||'';for(const h of alts)for(const o of opts){const sc=zhMatch(h,o.zh);if(sc>bs){bs=sc;best=o;heardTxt=h}}
+          try{LOG('speech',{heard:heardTxt.slice(0,40),score:+bs.toFixed(2),ok:bs>=.6})}catch(e){}
+          if(best&&bs>=.6){mic.innerHTML=`✓ ${heardTxt}`+zw('太棒了！','tài bàng le!');mic.classList.add('good');sfx&&sfx('quest');setTimeout(()=>r(best),700)}
+          else{mic.innerHTML=(heardTxt?`🎤 “${heardTxt}” · again`:'🎤 Again')+zw('再说一次','zài shuō yí cì')}}}
+      [...opts].sort(()=>Math.random()-.5).forEach(o=>{const b=document.createElement('button');
       b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`;let armed=false;b.onclick=()=>{if(!armed){armed=true;[...box.children].forEach(x=>x!==b&&(x._armed=false));speakAsync(o.zh);b.style.outline='3px solid var(--accent)';
         [...box.children].forEach(x=>{if(x!==b)x.style.outline=''});b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div><div class="p" style="color:var(--accent)">Tap again to say this ${'· 再点一下'}</div>`;
         [...box.children].forEach(x=>{if(x!==b&&x._reset)x._reset()});return}r(o)};b._reset=()=>{armed=false;b.style.outline='';b.innerHTML=`<div class="z">${o.zh}</div><div class="p">${o.py}</div>`};box.appendChild(b)})});
