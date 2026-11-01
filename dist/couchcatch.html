@@ -58,6 +58,7 @@ button.small{font-size:.95rem;padding:8px 10px;border-radius:10px}
 .reghead{font-family:var(--display);font-weight:600;font-size:.8rem;letter-spacing:.04em;color:var(--muted);margin-top:8px}
 .sub{color:var(--muted);font-size:.85rem}
 .type{display:inline-block;border-radius:6px;padding:1px 7px;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#151515}
+.types{display:inline-flex;gap:3px;flex-wrap:wrap;vertical-align:middle}.types .type{margin:0;white-space:nowrap;letter-spacing:0 !important;padding-left:4px !important;padding-right:4px !important}
 .hp{height:7px;background:#0d1326;border-radius:6px;overflow:hidden;margin-top:4px}
 .hp i{display:block;height:100%;background:var(--good);transition:width .4s}
 canvas.mini{width:72px;height:72px;flex:none}
@@ -363,30 +364,33 @@ canvas.mini{border-radius:8px;background:radial-gradient(circle at 50% 70%,rgba(
 //   cloudpuffs, swirl, dragonfly, elytra, dots.
 // beak (bird only, optional): needle | hook. hab (base forms, optional): place keys where it prefers to spawn
 //   ('sandiego','losangeles','sanfrancisco','yosemite','backyard','lakeshore','quarry','pineridge','stormpier','ashhills').
+// t2 (optional): a second type. Damage taken multiplies across both types, the creature has a move of each type,
+//   and it spawns where either type lives. Lines gain it at a later stage or share it.
+// Every species is in an evolution line (wave 4 below completes the single ones; a legendary grows from its baby).
 const SPECIES_RAW=[
  // ---- fire ----
  {n:'Smoldy',t:'fire',body:'quad',sz:.7,c1:'#ff8a3d',c2:'#ffe0b8',c3:'#9c3a14',ears:'pointy',tail:'flame',head:[],extras:[],stage:1,evo:['Smolderox',10],st:[50,56,44]},
  {n:'Smolderox',t:'fire',body:'quad',sz:1.0,c1:'#f2632a',c2:'#ffd2a1',c3:'#8a2a0e',ears:'pointy',tail:'flame',head:[],extras:['flamemane'],stage:2,evo:['Pyrothane',20],st:[50,56,44]},
  {n:'Pyrothane',t:'fire',body:'quad',sz:1.4,c1:'#c9361f',c2:'#ffb36b',c3:'#5e160a',ears:'pointy',tail:'flame',head:['horns'],extras:['flamemane','fierce'],stage:3,st:[50,56,44]},
  {n:'Emberwren',t:'fire',body:'bird',sz:.55,c1:'#ffb03a',c2:'#fff0c4',c3:'#a1560c',ears:null,tail:'flame',head:['flamecrest'],extras:[],stage:1,evo:['Cindercrest',15],st:[42,60,38]},
- {n:'Cindercrest',t:'fire',body:'bird',sz:1.2,c1:'#e2512a',c2:'#ffd27a',c3:'#6e1f0c',ears:null,tail:'flame',head:['flamecrest'],extras:['wings','fierce'],stage:2,st:[42,60,38]},
+ {n:'Cindercrest',t:'fire',t2:'wind',body:'bird',sz:1.2,c1:'#e2512a',c2:'#ffd27a',c3:'#6e1f0c',ears:null,tail:'flame',head:['flamecrest'],extras:['wings','fierce'],stage:2,st:[42,60,38]},
  // ---- water ----
  {n:'Otterpip',t:'water',body:'quad',sz:.65,c1:'#5aa7e8',c2:'#e3f2ff',c3:'#1f5585',ears:'round',tail:'long',head:[],extras:[],stage:1,evo:['Tidemink',10],st:[54,50,48]},
  {n:'Tidemink',t:'water',body:'quad',sz:1.0,c1:'#3a8bd6',c2:'#cfe8ff',c3:'#123f6b',ears:'round',tail:'fin',head:['fin'],extras:[],stage:2,evo:['Tidewyrm',20],st:[54,50,48]},
- {n:'Tidewyrm',t:'water',body:'snake',sz:1.5,c1:'#2563b8',c2:'#a9d4ff',c3:'#0c2c5c',ears:null,tail:'fin',head:['crest'],extras:['fierce','spikes'],stage:3,st:[54,50,48]},
+ {n:'Tidewyrm',t:'water',t2:'dragon',body:'snake',sz:1.5,c1:'#2563b8',c2:'#a9d4ff',c3:'#0c2c5c',ears:null,tail:'fin',head:['crest'],extras:['fierce','spikes'],stage:3,st:[54,50,48]},
  {n:'Finnow',t:'water',body:'fish',sz:.55,c1:'#2fc4c9',c2:'#d6fffb',c3:'#106b6d',ears:null,tail:'fin',head:['fin'],extras:[],stage:1,float:true,evo:['Brinejaw',15],st:[46,56,44]},
  {n:'Brinejaw',t:'water',body:'fish',sz:1.25,c1:'#1f7f9e',c2:'#bff1ff',c3:'#073a4a',ears:null,tail:'fin',head:['fin'],extras:['tusks','spikes','fierce'],stage:2,float:true,st:[46,56,44]},
- {n:'Bubbloo',t:'water',body:'blob',sz:.5,c1:'#8fd3ff',c2:'#ffffff',c3:'#3c86b8',ears:null,tail:null,head:['antenna'],extras:['bubbles'],stage:1,float:true,st:[60,46,56]},
+ {n:'Bubbloo',t:'water',body:'blob',sz:.5,c1:'#8fd3ff',c2:'#ffffff',c3:'#3c86b8',ears:null,tail:null,head:['antenna'],extras:['bubbles'],stage:1,evo:['Billowisp',28],float:true,st:[60,46,56]},
  // ---- leaf ----
  {n:'Clovehop',t:'leaf',body:'biped',sz:.62,c1:'#9fdc7c',c2:'#f4ffe8',c3:'#3f7a2a',ears:'leaflong',tail:'fluffy',head:[],extras:[],stage:1,evo:['Thistlehare',10],st:[48,54,46]},
  {n:'Thistlehare',t:'leaf',body:'biped',sz:.95,c1:'#6cc25a',c2:'#eaffd9',c3:'#2b6420',ears:'leaflong',tail:'fluffy',head:[],extras:['flowers'],stage:2,evo:['Briarbuck',20],st:[48,54,46]},
- {n:'Briarbuck',t:'leaf',body:'biped',sz:1.35,c1:'#4c9c48',c2:'#d9f5c4',c3:'#1f4d1c',ears:'leaflong',tail:'fluffy',head:['branchantlers'],extras:['flowers','fierce'],stage:3,st:[48,54,46]},
+ {n:'Briarbuck',t:'leaf',t2:'fight',body:'biped',sz:1.35,c1:'#4c9c48',c2:'#d9f5c4',c3:'#1f4d1c',ears:'leaflong',tail:'fluffy',head:['branchantlers'],extras:['flowers','fierce'],stage:3,st:[48,54,46]},
  {n:'Burrbit',t:'leaf',body:'quad',sz:.55,c1:'#a5884f',c2:'#f1e4c4',c3:'#5a4420',ears:'round',tail:'stub',head:['leaf'],extras:['spikes'],stage:1,sc:'#4fae4a',evo:['Thornback',15],st:[56,48,58]},
  {n:'Thornback',t:'leaf',body:'quad',sz:1.15,c1:'#8a6d3a',c2:'#ecdcb4',c3:'#43300f',ears:'round',tail:'stub',head:['leaf'],extras:['spikes','flowers','fierce'],stage:2,sc:'#3d9a3a',st:[56,48,58]},
  // ---- spark ----
- {n:'Fizzbit',t:'spark',body:'bug',sz:.5,c1:'#ffe14d',c2:'#fffbe0',c3:'#8f7200',ears:null,tail:null,head:['antenna'],extras:['wings'],stage:1,float:true,evo:['Fizzlinx',10],st:[40,60,40]},
- {n:'Fizzlinx',t:'spark',body:'bug',sz:.85,c1:'#ffcf26',c2:'#fff4b0',c3:'#7a5c00',ears:null,tail:'bolt',head:['antenna'],extras:['wings','sparks'],stage:2,float:true,evo:['Voltalon',20],st:[40,60,40]},
- {n:'Voltalon',t:'spark',body:'bird',sz:1.4,c1:'#3c3f63',c2:'#ffe14d',c3:'#16182e',ears:null,tail:'bolt',head:['crest'],extras:['wings','sparks','fierce'],stage:3,sc:'#ffe14d',st:[40,60,40]},
+ {n:'Fizzbit',t:'spark',t2:'bug',body:'bug',sz:.5,c1:'#ffe14d',c2:'#fffbe0',c3:'#8f7200',ears:null,tail:null,head:['antenna'],extras:['wings'],stage:1,float:true,evo:['Fizzlinx',10],st:[40,60,40]},
+ {n:'Fizzlinx',t:'spark',t2:'bug',body:'bug',sz:.85,c1:'#ffcf26',c2:'#fff4b0',c3:'#7a5c00',ears:null,tail:'bolt',head:['antenna'],extras:['wings','sparks'],stage:2,float:true,evo:['Voltalon',20],st:[40,60,40]},
+ {n:'Voltalon',t:'spark',t2:'wind',body:'bird',sz:1.4,c1:'#3c3f63',c2:'#ffe14d',c3:'#16182e',ears:null,tail:'bolt',head:['crest'],extras:['wings','sparks','fierce'],stage:3,sc:'#ffe14d',st:[40,60,40]},
  {n:'Boltusk',t:'spark',body:'quad',sz:.75,c1:'#6b6f8c',c2:'#ffe98a',c3:'#2a2c3d',ears:'pointy',tail:'bolt',head:[],extras:['tusks','spikes'],stage:1,sc:'#ffe14d',evo:['Tuskvolt',15],st:[58,58,54]},
  {n:'Tuskvolt',t:'spark',body:'quad',sz:1.35,c1:'#4e5270',c2:'#ffe14d',c3:'#1c1e2c',ears:'pointy',tail:'bolt',head:[],extras:['tusks','spikes','sparks','fierce'],stage:2,sc:'#ffe14d',st:[58,58,54]},
  // ---- stone ----
@@ -394,26 +398,26 @@ const SPECIES_RAW=[
  {n:'Bouldern',t:'stone',body:'golem',sz:1.0,c1:'#8f8070',c2:'#d3c6b2',c3:'#463b2f',ears:null,tail:null,head:[],extras:['plates','spikes'],stage:2,evo:['Monolord',20],st:[56,48,66]},
  {n:'Monolord',t:'stone',body:'golem',sz:1.55,c1:'#6f6457',c2:'#c7b9a2',c3:'#2f2820',ears:null,tail:null,head:['horns','crystal'],extras:['plates','fierce'],stage:3,st:[56,48,66]},
  {n:'Rollidil',t:'stone',body:'quad',sz:.6,c1:'#c08a5a',c2:'#f0d2b0',c3:'#6b4424',ears:'round',tail:'stub',head:[],extras:['shell'],stage:1,evo:['Bastionox',15],st:[58,52,62]},
- {n:'Bastionox',t:'stone',body:'quad',sz:1.35,c1:'#9a6c44',c2:'#e3c19a',c3:'#4a2e14',ears:'round',tail:'stub',head:['horns'],extras:['shell','plates','fierce'],stage:2,st:[58,52,62]},
+ {n:'Bastionox',t:'stone',t2:'metal',body:'quad',sz:1.35,c1:'#9a6c44',c2:'#e3c19a',c3:'#4a2e14',ears:'round',tail:'stub',head:['horns'],extras:['shell','plates','fierce'],stage:2,st:[58,52,62]},
  // ---- frost ----
  {n:'Flurrle',t:'frost',body:'quad',sz:.55,c1:'#e6f7ff',c2:'#ffffff',c3:'#5d9fc4',ears:'pointy',tail:'fluffy',head:['crystal'],extras:[],stage:1,evo:['Frostlynx',10],st:[50,54,48]},
  {n:'Frostlynx',t:'frost',body:'quad',sz:.95,c1:'#bfe6fb',c2:'#f4fcff',c3:'#3b7ea8',ears:'pointy',tail:'fluffy',head:['crystal'],extras:['crystalmane'],stage:2,evo:['Aurorynx',20],st:[50,54,48]},
- {n:'Aurorynx',t:'frost',body:'quad',sz:1.4,c1:'#9fc9f5',c2:'#eef6ff',c3:'#2a4f8a',ears:'pointy',tail:'fluffy',head:['crystal','horns'],extras:['crystalmane','wings','fierce'],stage:3,st:[50,54,48]},
- {n:'Glacimoth',t:'frost',body:'bug',sz:.5,c1:'#c7c9ff',c2:'#f2f3ff',c3:'#5b5fb0',ears:null,tail:null,head:['antenna'],extras:['wings'],stage:1,float:true,evo:['Glacilune',15],st:[44,60,42]},
- {n:'Glacilune',t:'frost',body:'bug',sz:1.15,c1:'#a9adf7',c2:'#eef0ff',c3:'#3b3f94',ears:null,tail:null,head:['antenna','crystal'],extras:['wings','fierce'],stage:2,float:true,st:[44,60,42]},
+ {n:'Aurorynx',t:'frost',t2:'star',body:'quad',sz:1.4,c1:'#9fc9f5',c2:'#eef6ff',c3:'#2a4f8a',ears:'pointy',tail:'fluffy',head:['crystal','horns'],extras:['crystalmane','wings','fierce'],stage:3,st:[50,54,48]},
+ {n:'Glacimoth',t:'frost',t2:'bug',body:'bug',sz:.5,c1:'#c7c9ff',c2:'#f2f3ff',c3:'#5b5fb0',ears:null,tail:null,head:['antenna'],extras:['wings'],stage:1,float:true,evo:['Glacilune',15],st:[44,60,42]},
+ {n:'Glacilune',t:'frost',t2:'bug',body:'bug',sz:1.15,c1:'#a9adf7',c2:'#eef0ff',c3:'#3b3f94',ears:null,tail:null,head:['antenna','crystal'],extras:['wings','fierce'],stage:2,float:true,st:[44,60,42]},
  // ---- legendary ----
- {n:'Solvane',t:'fire',body:'quad',sz:1.6,c1:'#f5b041',c2:'#fff1cc',c3:'#7a3510',sc:'#ffcf3a',ears:'pointy',tail:'flame',head:['sunhalo','sunantlers'],extras:['flamemane'],stage:3,leg:true,st:[70,72,70]},
- {n:'Mireluna',t:'dragon',body:'snake',sz:1.7,c1:'#4a4fb0',c2:'#d9e4ff',c3:'#171a4f',sc:'#e3ebff',ears:null,tail:'fin',head:['crescent'],extras:['spikes','starspots'],stage:3,leg:true,st:[72,70,70]},
- {n:'Stormlark',t:'spark',body:'bird',sz:1.55,c1:'#6a7cab',c2:'#eaf5ff',c3:'#1f2647',sc:'#7df9ff',ears:null,tail:'bolt',head:['crowncrest'],extras:['stormwings','sparks'],stage:3,leg:true,st:[70,70,72]},
+ {n:'Solvane',t:'fire',t2:'star',body:'quad',sz:1.6,c1:'#f5b041',c2:'#fff1cc',c3:'#7a3510',sc:'#ffcf3a',ears:'pointy',tail:'flame',head:['sunhalo','sunantlers'],extras:['flamemane'],stage:3,leg:true,st:[70,72,70]},
+ {n:'Mireluna',t:'dragon',t2:'water',body:'snake',sz:1.7,c1:'#4a4fb0',c2:'#d9e4ff',c3:'#171a4f',sc:'#e3ebff',ears:null,tail:'fin',head:['crescent'],extras:['spikes','starspots'],stage:3,leg:true,st:[72,70,70]},
+ {n:'Stormlark',t:'spark',t2:'wind',body:'bird',sz:1.55,c1:'#6a7cab',c2:'#eaf5ff',c3:'#1f2647',sc:'#7df9ff',ears:null,tail:'bolt',head:['crowncrest'],extras:['stormwings','sparks'],stage:3,leg:true,st:[70,70,72]},
  // ---- wave 2: California trip (sea lion, moon jelly, hummingbird, monarch, fern deer, desert tortoise) + friends ----
  {n:'Barkpup',t:'water',body:'seal',sz:.62,c1:'#5f8aa3',c2:'#ead9bc',c3:'#22394a',ears:null,tail:null,head:[],extras:[],stage:1,evo:['Bellowhaul',16],hab:['sandiego','sanfrancisco'],st:[58,50,50]},
  {n:'Bellowhaul',t:'water',body:'seal',sz:1.3,c1:'#40677f',c2:'#dcc6a0',c3:'#142838',ears:null,tail:null,head:[],extras:['mane','fierce'],stage:2,st:[58,50,50]},
- {n:'Bellmist',t:'mind',body:'jelly',sz:.55,c1:'#cfe2ff',c2:'#f7fbff',c3:'#6a82c2',sc:'#e2b6ff',ears:null,tail:null,head:[],extras:[],stage:1,float:true,evo:['Moonveil',16],hab:['sandiego','losangeles','sanfrancisco'],st:[52,56,46]},
- {n:'Moonveil',t:'mind',body:'jelly',sz:1.15,c1:'#b7cdfc',c2:'#eef4ff',c3:'#4558a2',sc:'#d39cff',ears:null,tail:null,head:[],extras:[],stage:2,float:true,st:[52,56,46]},
+ {n:'Bellmist',t:'mind',t2:'water',body:'jelly',sz:.55,c1:'#cfe2ff',c2:'#f7fbff',c3:'#6a82c2',sc:'#e2b6ff',ears:null,tail:null,head:[],extras:[],stage:1,float:true,evo:['Moonveil',16],hab:['sandiego','losangeles','sanfrancisco'],st:[52,56,46]},
+ {n:'Moonveil',t:'mind',t2:'water',body:'jelly',sz:1.15,c1:'#b7cdfc',c2:'#eef4ff',c3:'#4558a2',sc:'#d39cff',ears:null,tail:null,head:[],extras:[],stage:2,float:true,st:[52,56,46]},
  {n:'Zipbeak',t:'wind',body:'bird',sz:.45,c1:'#3fbf86',c2:'#ecfbe9',c3:'#14583c',sc:'#ff3fa4',ears:null,tail:null,beak:'needle',head:[],extras:['wings','gorget'],stage:1,float:true,evo:['Thrumwing',16],hab:['losangeles','sandiego','sanfrancisco'],st:[40,62,38]},
- {n:'Thrumwing',t:'wind',body:'bird',sz:.85,c1:'#2aa874',c2:'#dff7e4',c3:'#0f4a33',sc:'#ff3fa4',ears:null,tail:null,beak:'needle',head:['crest'],extras:['wings','gorget','sparks','fierce'],stage:2,float:true,st:[40,62,38]},
- {n:'Milkwick',t:'fire',body:'larva',sz:.55,c1:'#ffb43a',c2:'#fff4dc',c3:'#2a1a14',ears:null,tail:null,head:[],extras:[],stage:1,evo:['Regalflare',16],hab:['losangeles','sanfrancisco'],st:[46,58,42]},
- {n:'Regalflare',t:'fire',body:'butterfly',sz:1.05,c1:'#ff7a1f',c2:'#fff6e6',c3:'#2a1410',sc:'#ffd23f',ears:null,tail:null,head:[],extras:[],stage:2,float:true,st:[46,58,42]},
+ {n:'Thrumwing',t:'wind',t2:'spark',body:'bird',sz:.85,c1:'#2aa874',c2:'#dff7e4',c3:'#0f4a33',sc:'#ff3fa4',ears:null,tail:null,beak:'needle',head:['crest'],extras:['wings','gorget','sparks','fierce'],stage:2,float:true,st:[40,62,38]},
+ {n:'Milkwick',t:'fire',t2:'bug',body:'larva',sz:.55,c1:'#ffb43a',c2:'#fff4dc',c3:'#2a1a14',ears:null,tail:null,head:[],extras:[],stage:1,evo:['Regalflare',16],hab:['losangeles','sanfrancisco'],st:[46,58,42]},
+ {n:'Regalflare',t:'fire',t2:'bug',body:'butterfly',sz:1.05,c1:'#ff7a1f',c2:'#fff6e6',c3:'#2a1410',sc:'#ffd23f',ears:null,tail:null,head:[],extras:[],stage:2,float:true,st:[46,58,42]},
  {n:'Fernfawn',t:'leaf',body:'quad',sz:.6,c1:'#b8744a',c2:'#f6e6cf',c3:'#5a3018',sc:'#6cc35a',ears:'deer',tail:'stub',head:['fernantlers'],extras:['hooves','spots'],stage:1,evo:['Fernhart',14],hab:['yosemite','sanfrancisco'],st:[50,52,48]},
  {n:'Fernhart',t:'leaf',body:'quad',sz:.98,c1:'#a5603a',c2:'#f0dcbf',c3:'#4a2512',sc:'#5fbf5a',ears:'deer',tail:'stub',head:['fernantlers'],extras:['hooves'],stage:2,evo:['Redwoodhart',30],st:[50,52,48]},
  {n:'Redwoodhart',t:'leaf',body:'quad',sz:1.42,c1:'#8e4a2c',c2:'#e9d0aa',c3:'#3a1a0c',sc:'#58b84f',ears:'deer',tail:'stub',head:['fernantlers'],extras:['hooves','fierce'],stage:3,st:[50,52,48]},
@@ -422,27 +426,45 @@ const SPECIES_RAW=[
  {n:'Rustkit',t:'fire',body:'quad',sz:.6,c1:'#c9532b',c2:'#fff1e2',c3:'#3a1a10',ears:'round',tail:'ringed',head:[],extras:['socks'],stage:1,evo:['Blazebrush',16],hab:['pineridge','ashhills'],st:[50,58,42]},
  {n:'Blazebrush',t:'fire',body:'quad',sz:1.08,c1:'#b8401f',c2:'#ffe6cc',c3:'#2e120a',ears:'round',tail:'ringed',head:[],extras:['socks','fierce'],stage:2,st:[50,58,42]},
  {n:'Soakbara',t:'water',body:'quad',sz:.72,c1:'#a27a52',c2:'#dcc4a4',c3:'#4a3220',ears:'round',tail:null,head:['yuzu'],extras:[],stage:1,evo:['Springbara',16],hab:['lakeshore','backyard'],st:[64,44,54]},
- {n:'Springbara',t:'water',body:'quad',sz:1.2,c1:'#8e6a46',c2:'#d4b690',c3:'#3d2816',ears:'round',tail:null,head:['yuzu'],extras:['steam'],stage:2,st:[64,44,54]},
+ {n:'Springbara',t:'water',t2:'fire',body:'quad',sz:1.2,c1:'#8e6a46',c2:'#d4b690',c3:'#3d2816',ears:'round',tail:null,head:['yuzu'],extras:['steam'],stage:2,st:[64,44,54]},
  {n:'Screekid',t:'stone',body:'quad',sz:.6,c1:'#8f877b',c2:'#e8dfcf',c3:'#3b352d',ears:'deer',tail:'stub',head:['horns'],extras:['hooves'],stage:1,evo:['Talusram',16],hab:['quarry','ashhills'],st:[56,54,58]},
- {n:'Talusram',t:'stone',body:'quad',sz:1.25,c1:'#757066',c2:'#ddd2bd',c3:'#2c2822',ears:'deer',tail:'stub',head:['horns'],extras:['hooves','plates','fierce'],stage:2,st:[56,54,58]},
+ {n:'Talusram',t:'stone',t2:'fight',body:'quad',sz:1.25,c1:'#757066',c2:'#ddd2bd',c3:'#2c2822',ears:'deer',tail:'stub',head:['horns'],extras:['hooves','plates','fierce'],stage:2,st:[56,54,58]},
  {n:'Hushflake',t:'frost',body:'bird',sz:.5,c1:'#f2f6ff',c2:'#ffffff',c3:'#6b7fa6',sc:'#46557a',ears:null,tail:null,beak:'hook',head:[],extras:['flecks'],stage:1,evo:['Blizzowl',16],hab:['pineridge','stormpier'],st:[50,52,50]},
- {n:'Blizzowl',t:'frost',body:'bird',sz:1.2,c1:'#e6eefc',c2:'#ffffff',c3:'#4d6390',sc:'#34405f',ears:null,tail:null,beak:'hook',head:['crystal'],extras:['flecks','wings','fierce'],stage:2,st:[50,52,50]},
+ {n:'Blizzowl',t:'frost',t2:'wind',body:'bird',sz:1.2,c1:'#e6eefc',c2:'#ffffff',c3:'#4d6390',sc:'#34405f',ears:null,tail:null,beak:'hook',head:['crystal'],extras:['flecks','wings','fierce'],stage:2,st:[50,52,50]},
  // ---- wave 3: new types (append only: saves store species by index) ----
- {n:'Breezel',t:'wind',body:'bird',sz:.6,c1:'#dbe7f0',c2:'#ffffff',c3:'#3f5a70',sc:'#5fd3b0',ears:null,tail:null,head:['crest'],extras:['wings','swirl'],stage:1,hab:['sandiego','stormpier','sanfrancisco'],st:[46,60,42]},
- {n:'Gemkit',t:'mind',body:'quad',sz:.6,c1:'#efe2ff',c2:'#ffffff',c3:'#6d48a8',sc:'#c77dff',ears:'pointy',tail:'fluffy',head:['gem'],extras:[],stage:1,hab:['lakeshore','starveil'],st:[48,58,50]},
+ {n:'Breezel',t:'wind',body:'bird',sz:.6,c1:'#dbe7f0',c2:'#ffffff',c3:'#3f5a70',sc:'#5fd3b0',ears:null,tail:null,head:['crest'],extras:['wings','swirl'],stage:1,evo:['Galewing',28],hab:['sandiego','stormpier','sanfrancisco'],st:[46,60,42]},
+ {n:'Gemkit',t:'mind',body:'quad',sz:.6,c1:'#efe2ff',c2:'#ffffff',c3:'#6d48a8',sc:'#c77dff',ears:'pointy',tail:'fluffy',head:['gem'],extras:[],stage:1,evo:['Gemvixen',28],hab:['lakeshore','starveil'],st:[48,58,50]},
  {n:'Drakit',t:'dragon',body:'quad',sz:.62,c1:'#7a8cf2',c2:'#ffe6b0',c3:'#262c78',sc:'#a9b8ff',ears:null,tail:'spade',head:['dhorns'],extras:['batwings','spikes'],stage:1,evo:['Drakonel',16],hab:['ashhills','yosemite'],st:[54,58,50]},
- {n:'Drakonel',t:'dragon',body:'quad',sz:1.3,c1:'#5b6fe2',c2:'#ffdc98',c3:'#1b2165',sc:'#8ea2ff',ears:null,tail:'spade',head:['dhorns'],extras:['batwings','spikes','fierce'],stage:2,st:[54,58,50]},
- {n:'Cloudrake',t:'dragon',body:'snake',sz:.75,c1:'#8fd3b4',c2:'#fff4dc',c3:'#2c6b55',sc:'#f0c75a',ears:null,tail:'fin',head:['dhorns','whiskers'],extras:['cloudpuffs'],stage:1,float:true,hab:['starveil','yosemite'],st:[56,56,52]},
- {n:'Dartling',t:'bug',body:'bug',sz:.55,c1:'#38bfa2',c2:'#e4fff8',c3:'#124f44',sc:'#9ff0dc',ears:null,tail:null,head:[],extras:['dragonfly'],stage:1,float:true,hab:['lakeshore','pineridge','yosemite'],st:[42,64,40]},
- {n:'Dotbug',t:'bug',body:'bug',sz:.45,c1:'#e8463f',c2:'#ffe9e2',c3:'#2a1416',sc:'#2a1416',ears:null,tail:null,head:['antenna'],extras:['elytra','dots'],stage:1,float:true,hab:['backyard','pineridge','yosemite'],st:[52,54,52]},
- {n:'Flitbat',t:'shadow',body:'blob',sz:.5,c1:'#6c5c92',c2:'#efe4ff',c3:'#271f40',sc:'#a493c4',ears:'bat',tail:null,head:[],extras:['batwings'],stage:1,float:true,hab:['ashhills','starveil','pineridge'],st:[46,62,44]},
- {n:'Wispuff',t:'shadow',body:'ghost',sz:.55,c1:'#d2c8f0',c2:'#ffffff',c3:'#4b3d7a',sc:'#8e7cc4',ears:null,tail:null,head:[],extras:[],stage:1,float:true,hab:['ashhills','starveil'],st:[50,60,48]},
- {n:'Pangolink',t:'metal',body:'quad',sz:.62,c1:'#98a5b5',c2:'#efe1cc',c3:'#36404e',sc:'#d3dce6',ears:'round',tail:'scaly',head:[],extras:['scales'],stage:1,hab:['losangeles','sanfrancisco','quarry'],st:[58,48,64]},
- {n:'Clankbeetle',t:'metal',body:'bug',sz:.6,c1:'#9fb1c6',c2:'#eaf0f6',c3:'#28323f',sc:'#e3eaf2',ears:null,tail:null,head:['beetlehorn'],extras:['elytra'],stage:1,float:true,hab:['sanfrancisco','quarry','losangeles'],st:[60,46,66]},
- {n:'Joeyjab',t:'fight',body:'biped',sz:.66,c1:'#d38b52',c2:'#f9e6cb',c3:'#5a3016',sc:'#ef5a64',ears:'long',tail:'roo',head:[],extras:['wraps'],stage:1,hab:['losangeles','quarry'],st:[58,62,46]},
- {n:'Dojocub',t:'fight',body:'quad',sz:.6,c1:'#f59a3a',c2:'#fff4e2',c3:'#3a1e0a',sc:'#ef5a64',ears:'round',tail:'long',head:['headband'],extras:['stripes'],stage:1,hab:['quarry','losangeles'],st:[56,60,48]},
- {n:'Twinkfawn',t:'star',body:'quad',sz:.6,c1:'#ffc4db',c2:'#fff6fa',c3:'#8a3d66',sc:'#ffd65a',ears:'deer',tail:'stub',head:['star'],extras:['hooves','starspots'],stage:1,hab:['starveil','losangeles'],st:[52,56,50]},
- {n:'Glimmerbun',t:'star',body:'biped',sz:.56,c1:'#fff0f7',c2:'#ffffff',c3:'#9a5a86',sc:'#ffd65a',ears:'long',tail:'fluffy',head:['star'],extras:['starsparkle'],stage:1,hab:['starveil','backyard'],st:[52,56,52]},
+ {n:'Drakonel',t:'dragon',t2:'wind',body:'quad',sz:1.3,c1:'#5b6fe2',c2:'#ffdc98',c3:'#1b2165',sc:'#8ea2ff',ears:null,tail:'spade',head:['dhorns'],extras:['batwings','spikes','fierce'],stage:2,st:[54,58,50]},
+ {n:'Cloudrake',t:'dragon',t2:'wind',body:'snake',sz:.75,c1:'#8fd3b4',c2:'#fff4dc',c3:'#2c6b55',sc:'#f0c75a',ears:null,tail:'fin',head:['dhorns','whiskers'],extras:['cloudpuffs'],stage:1,evo:['Nimbuswyrm',28],float:true,hab:['starveil','yosemite'],st:[56,56,52]},
+ {n:'Dartling',t:'bug',body:'bug',sz:.55,c1:'#38bfa2',c2:'#e4fff8',c3:'#124f44',sc:'#9ff0dc',ears:null,tail:null,head:[],extras:['dragonfly'],stage:1,evo:['Skydarner',28],float:true,hab:['lakeshore','pineridge','yosemite'],st:[42,64,40]},
+ {n:'Dotbug',t:'bug',body:'bug',sz:.45,c1:'#e8463f',c2:'#ffe9e2',c3:'#2a1416',sc:'#2a1416',ears:null,tail:null,head:['antenna'],extras:['elytra','dots'],stage:1,evo:['Sevenspot',28],float:true,hab:['backyard','pineridge','yosemite'],st:[52,54,52]},
+ {n:'Flitbat',t:'shadow',body:'blob',sz:.5,c1:'#6c5c92',c2:'#efe4ff',c3:'#271f40',sc:'#a493c4',ears:'bat',tail:null,head:[],extras:['batwings'],stage:1,evo:['Moonflit',28],float:true,hab:['ashhills','starveil','pineridge'],st:[46,62,44]},
+ {n:'Wispuff',t:'shadow',body:'ghost',sz:.55,c1:'#d2c8f0',c2:'#ffffff',c3:'#4b3d7a',sc:'#8e7cc4',ears:null,tail:null,head:[],extras:[],stage:1,evo:['Shadowisp',28],float:true,hab:['ashhills','starveil'],st:[50,60,48]},
+ {n:'Pangolink',t:'metal',body:'quad',sz:.62,c1:'#98a5b5',c2:'#efe1cc',c3:'#36404e',sc:'#d3dce6',ears:'round',tail:'scaly',head:[],extras:['scales'],stage:1,evo:['Rivetback',28],hab:['losangeles','sanfrancisco','quarry'],st:[58,48,64]},
+ {n:'Clankbeetle',t:'metal',t2:'bug',body:'bug',sz:.6,c1:'#9fb1c6',c2:'#eaf0f6',c3:'#28323f',sc:'#e3eaf2',ears:null,tail:null,head:['beetlehorn'],extras:['elytra'],stage:1,evo:['Forgehorn',28],float:true,hab:['sanfrancisco','quarry','losangeles'],st:[60,46,66]},
+ {n:'Joeyjab',t:'fight',body:'biped',sz:.66,c1:'#d38b52',c2:'#f9e6cb',c3:'#5a3016',sc:'#ef5a64',ears:'long',tail:'roo',head:[],extras:['wraps'],stage:1,evo:['Boxaroo',28],hab:['losangeles','quarry'],st:[58,62,46]},
+ {n:'Dojocub',t:'fight',body:'quad',sz:.6,c1:'#f59a3a',c2:'#fff4e2',c3:'#3a1e0a',sc:'#ef5a64',ears:'round',tail:'long',head:['headband'],extras:['stripes'],stage:1,evo:['Dojoroar',28],hab:['quarry','losangeles'],st:[56,60,48]},
+ {n:'Twinkfawn',t:'star',body:'quad',sz:.6,c1:'#ffc4db',c2:'#fff6fa',c3:'#8a3d66',sc:'#ffd65a',ears:'deer',tail:'stub',head:['star'],extras:['hooves','starspots'],stage:1,evo:['Cometstag',28],hab:['starveil','losangeles'],st:[52,56,50]},
+ {n:'Glimmerbun',t:'star',body:'biped',sz:.56,c1:'#fff0f7',c2:'#ffffff',c3:'#9a5a86',sc:'#ffd65a',ears:'long',tail:'fluffy',head:['star'],extras:['starsparkle'],stage:1,evo:['Moonhopper',28],hab:['starveil','backyard'],st:[52,56,52]},
+ // ---- wave 4: every creature evolves (append only). Evolutions of the single wave-3 creatures and Bubbloo, then the legendaries' babies ----
+ {n:'Billowisp',t:'water',t2:'mind',body:'blob',sz:.95,c1:'#62b6ee',c2:'#f2fbff',c3:'#1f5c92',sc:'#c9f3ff',ears:null,tail:null,head:['antenna','crest'],extras:['bubbles','fierce'],stage:2,float:true,st:[60,46,56]},
+ {n:'Galewing',t:'wind',t2:'water',body:'bird',sz:1.25,c1:'#c9dbea',c2:'#ffffff',c3:'#2b465f',sc:'#3fc49a',ears:null,tail:null,head:['crest'],extras:['wings','swirl','fierce'],stage:2,st:[46,60,42]},
+ {n:'Gemvixen',t:'mind',t2:'star',body:'quad',sz:1.12,c1:'#ddc8fb',c2:'#fdf9ff',c3:'#4e2f8a',sc:'#b65cff',ears:'pointy',tail:'fluffy',head:['gem'],extras:['starspots','fierce'],stage:2,st:[48,58,50]},
+ {n:'Nimbuswyrm',t:'dragon',t2:'wind',body:'snake',sz:1.5,c1:'#6ec4a0',c2:'#fff2d4',c3:'#1c5240',sc:'#f2bd3c',ears:null,tail:'fin',head:['dhorns','whiskers','crest'],extras:['cloudpuffs','fierce'],stage:2,float:true,st:[56,56,52]},
+ {n:'Skydarner',t:'bug',t2:'wind',body:'bug',sz:1.05,c1:'#2f8fd6',c2:'#dff4ff',c3:'#0c2f57',sc:'#7fe9cf',ears:null,tail:null,head:['antenna','crest'],extras:['dragonfly','fierce'],stage:2,float:true,st:[42,64,40]},
+ {n:'Sevenspot',t:'bug',t2:'star',body:'bug',sz:.95,c1:'#de3b34',c2:'#ffe5dc',c3:'#22100f',sc:'#ffd04a',ears:null,tail:null,head:['antenna','star'],extras:['elytra','dots','fierce'],stage:2,float:true,st:[52,54,52]},
+ {n:'Moonflit',t:'shadow',t2:'wind',body:'blob',sz:.95,c1:'#5a4a84',c2:'#f1e8ff',c3:'#1c1530',sc:'#ffe08a',ears:'bat',tail:null,head:['crescent'],extras:['batwings','fierce'],stage:2,float:true,st:[46,62,44]},
+ {n:'Shadowisp',t:'shadow',t2:'mind',body:'ghost',sz:1.05,c1:'#a998de',c2:'#f8f5ff',c3:'#2e2258',sc:'#c77dff',ears:null,tail:null,head:['gem','crest'],extras:['fierce'],stage:2,float:true,st:[50,60,48]},
+ {n:'Rivetback',t:'metal',t2:'stone',body:'quad',sz:1.25,c1:'#82909f',c2:'#e9d9c0',c3:'#262e3a',sc:'#c7d1dc',ears:'round',tail:'scaly',head:['horns'],extras:['scales','fierce'],stage:2,st:[58,48,64]},
+ {n:'Forgehorn',t:'metal',t2:'bug',body:'bug',sz:1.15,c1:'#5d6d85',c2:'#e3eaf3',c3:'#141b25',sc:'#ff9a3c',ears:null,tail:null,head:['beetlehorn','horns'],extras:['elytra','wings','fierce'],stage:2,float:true,st:[60,46,66]},
+ {n:'Boxaroo',t:'fight',body:'biped',sz:1.3,c1:'#c47b43',c2:'#f6ddbb',c3:'#4a250e',sc:'#e8414d',ears:'long',tail:'roo',head:['headband'],extras:['wraps','fierce'],stage:2,st:[58,62,46]},
+ {n:'Dojoroar',t:'fight',body:'quad',sz:1.3,c1:'#ee8a26',c2:'#fff0d8',c3:'#2e1606',sc:'#e23d4a',ears:'round',tail:'long',head:['headband'],extras:['stripes','fierce'],stage:2,st:[56,60,48]},
+ {n:'Cometstag',t:'star',body:'quad',sz:1.25,c1:'#f7a9ca',c2:'#fff2f8',c3:'#6e2a52',sc:'#ffcf3f',ears:'deer',tail:'stub',head:['star','fernantlers'],extras:['hooves','starspots','fierce'],stage:2,st:[52,56,50]},
+ {n:'Moonhopper',t:'star',t2:'shadow',body:'biped',sz:1.0,c1:'#f3eefc',c2:'#ffffff',c3:'#6b5a98',sc:'#ffe27a',ears:'long',tail:'fluffy',head:['crescent'],extras:['starsparkle'],stage:2,st:[52,56,52]},
+ {n:'Solfawn',t:'fire',body:'quad',sz:.66,c1:'#f8c25e',c2:'#fff6dc',c3:'#8a4214',sc:'#ffd84a',ears:'pointy',tail:'flame',head:['sunhalo'],extras:['hooves','spots'],stage:1,leg:true,evo:['Solvane',28],st:[70,72,70]},
+ {n:'Mireling',t:'dragon',body:'snake',sz:.72,c1:'#6a70d2',c2:'#e4ecff',c3:'#22266a',sc:'#eef3ff',ears:null,tail:'fin',head:['crescent'],extras:['starspots'],stage:1,leg:true,evo:['Mireluna',28],st:[72,70,70]},
+ {n:'Stormling',t:'spark',body:'bird',sz:.62,c1:'#8394c6',c2:'#f0f8ff',c3:'#28305a',sc:'#8ffaff',ears:null,tail:'bolt',head:['crowncrest'],extras:['wings','sparks'],stage:1,leg:true,evo:['Stormlark',28],st:[70,70,72]},
 ];
 
 </script>
@@ -1167,6 +1189,24 @@ const ZH_SPECIES = {
   'Dojocub':     {zh:'拳虎',   py:'quán hǔ',         mean:'fist + tiger'},
   'Twinkfawn':   {zh:'星鹿',   py:'xīng lù',         mean:'star + deer'},
   'Glimmerbun':  {zh:'星兔',   py:'xīng tù',         mean:'star + rabbit'},
+  // ---- wave 4: evolutions, and the legendaries' babies ----
+  'Billowisp':   {zh:'浪灵',   py:'làng líng',       mean:'wave + spirit'},
+  'Galewing':    {zh:'风暴鸥', py:'fēng bào ōu',     mean:'storm (wind + violent) + gull'},
+  'Gemvixen':    {zh:'星心狐', py:'xīng xīn hú',     mean:'star + heart + fox'},
+  'Nimbuswyrm':  {zh:'风云龙', py:'fēng yún lóng',   mean:'wind + cloud + dragon'},
+  'Skydarner':   {zh:'风蜓',   py:'fēng tíng',       mean:'wind + dragonfly'},
+  'Sevenspot':   {zh:'七星虫', py:'qī xīng chóng',   mean:'seven + star + bug (seven-spot ladybird)'},
+  'Moonflit':    {zh:'夜蝠',   py:'yè fú',           mean:'night + bat'},
+  'Shadowisp':   {zh:'影灵',   py:'yǐng líng',       mean:'shadow + spirit'},
+  'Rivetback':   {zh:'钢鳞王', py:'gāng lín wáng',   mean:'steel + scales + king'},
+  'Forgehorn':   {zh:'钢角虫', py:'gāng jiǎo chóng', mean:'steel + horn + bug'},
+  'Boxaroo':     {zh:'拳王袋鼠', py:'quán wáng dài shǔ', mean:'boxing champion (fist + king) + kangaroo (pouch + mouse)'},
+  'Dojoroar':    {zh:'拳虎王', py:'quán hǔ wáng',    mean:'fist + tiger + king'},
+  'Cometstag':   {zh:'流星鹿', py:'liú xīng lù',     mean:'shooting star (flowing + star) + deer'},
+  'Moonhopper':  {zh:'玉兔',   py:'yù tù',           mean:'jade + rabbit (the rabbit in the moon)'},
+  'Solfawn':     {zh:'小阳鹿', py:'xiǎo yáng lù',    mean:'little + sun + deer'},
+  'Mireling':    {zh:'小月龙', py:'xiǎo yuè lóng',   mean:'little + moon + dragon'},
+  'Stormling':   {zh:'小雷雀', py:'xiǎo léi què',    mean:'little + thunder + sparrow'},
 };
 
 const ZH_TYPES = {
@@ -1186,6 +1226,26 @@ const ZH_MOVES = {
   'Pebble Barrage': {zh:'碎石雨', py:'suì shí yǔ'},
   'Frost Breath':   {zh:'寒气',   py:'hán qì'},
   'Bonk':           {zh:'敲头',   py:'qiāo tóu'},
+};
+
+// What a move does, as a short natural sentence said after the creature's name in battle (潮獭 喷出了水！).
+// Keyed by the move's type (normal = Bonk). Each is recorded as its own whole clip, so the line plays as name + action.
+const ZH_ACTS = {
+  fire:   {zh:'吐出了火！',       py:'tǔ chū le huǒ!',           en:'spits fire'},
+  water:  {zh:'喷出了水！',       py:'pēn chū le shuǐ!',         en:'sprays water'},
+  leaf:   {zh:'甩出了叶子！',     py:'shuǎi chū le yèzi!',       en:'flings leaves'},
+  spark:  {zh:'放出了电！',       py:'fàng chū le diàn!',        en:'lets out a zap'},
+  stone:  {zh:'扔出了石头！',     py:'rēng chū le shítou!',      en:'throws rocks'},
+  frost:  {zh:'吹出了冷风！',     py:'chuī chū le lěng fēng!',   en:'blows icy wind'},
+  wind:   {zh:'刮起了大风！',     py:'guā qǐ le dà fēng!',       en:'whips up a gale'},
+  bug:    {zh:'咬了一口！',       py:'yǎo le yì kǒu!',           en:'takes a bite'},
+  mind:   {zh:'发出了心灵波！',   py:'fā chū le xīnlíng bō!',    en:'sends out a mind wave'},
+  shadow: {zh:'扑了过去！',       py:'pū le guòqu!',             en:'pounces'},
+  dragon: {zh:'大吼了一声！',     py:'dà hǒu le yì shēng!',      en:'gives a big roar'},
+  metal:  {zh:'用铁头撞了过去！', py:'yòng tiě tóu zhuàng le guòqu!', en:'rams with its iron head'},
+  fight:  {zh:'打出了一拳！',     py:'dǎ chū le yì quán!',       en:'throws a punch'},
+  star:   {zh:'放出了星光！',     py:'fàng chū le xīngguāng!',   en:'shines starlight'},
+  normal: {zh:'撞了过去！',       py:'zhuàng le guòqu!',         en:'charges in'},
 };
 
 const ZH_ITEMS = {
@@ -10320,6 +10380,11 @@ SP.forEach((s,i)=>{if(s.next!=null)SP[s.next].prev=i});
 SP.forEach(s=>{if(s.next!=null)s.evoLv=s.stage===2?36:(SP[s.next].next!=null?18:28)});
 const BASES=SP.map((s,i)=>s.stage===1&&!s.leg?i:-1).filter(i=>i>=0);
 const LEGS=SP.map((s,i)=>s.leg?i:-1).filter(i=>i>=0);
+// up to two types per creature (types come from the species data, never from a save)
+SP.forEach(s=>{s.ts=s.t2?[s.t,s.t2]:[s.t]});
+const hasT=(i,t)=>SP[i].ts.includes(t),inTypes=(i,list)=>SP[i].ts.some(t=>list.includes(t));
+// legendaries grow up from a baby: babies come out in the wild, the grown ones lead raids
+const LEG_BASES=LEGS.filter(i=>SP[i].prev==null),LEG_TOPS=LEGS.filter(i=>SP[i].next==null);
 const ITEMS={orb:{n:'Stay Orb',d:'A basic orb for catching creatures.'},great:{n:'Great Orb',d:'Better catch chance (+15%).'},ultra:{n:'Ultra Orb',d:'Much better catch chance (+30%).'},berry:{n:'Calm Berry',d:'Feed one to a creature before a throw. It moves much less and is easier to catch.'}};
 const PLACES=[
  {n:'Backyard',key:'backyard',region:'Home',sky:['#7cc8ff','#d8f1ff'],ground:'#5fbf5f',hill:'#3f9a55',amb:'leaves',prop:'tree',types:['leaf','spark','water'],leader:'Coach Mira',lv:5},
@@ -10377,7 +10442,9 @@ async function connectCloud(){
     const snap=await Promise.race([db.doc('data/users/'+id+'/'+rdoc()).get(),new Promise((_,r)=>setTimeout(()=>r('timeout'),10000))]);
     DB=db;UID=id;LOG('cloud_connected',{hadRemote:!!(snap.exists),player:PID});setTimeout(flushLog,3000);if(PL.list.length>1||curPlayer().name)writePlayers();renderWho();
     const d=snap.exists?snap.data():null,remote=d&&parse(d.json);
-    if(remote&&remote.savedAt>(S.savedAt||0)&&!C&&!B){LOG('load_remote_save');S=remote;restore();close('sStart');updateUI();toast('Your saved game is back')}
+    // the cloud copy wins when it is newer, and also when this device only has a brand-new game (a cleared browser where the child picked a starter before the cloud answered): a fresh start must never overwrite real progress
+    const freshHere=(S.col||[]).length<=2&&remote&&(remote.col||[]).length>(S.col||[]).length;
+    if(remote&&(remote.savedAt>(S.savedAt||0)||freshHere)&&!C&&!B){LOG('load_remote_save',{fresh:freshHere});S=remote;restore();close('sStart');updateUI();toast('Your saved game is back')}
     else if(S.col.length)pushRemote();
     setSave('Saved');
   }catch(e){}
@@ -10400,6 +10467,9 @@ const ZP=n=>(typeof ZH_PLACES!=='undefined'&&ZH_PLACES[n])||{zh:'',py:''};
 const ZT=k=>(typeof ZH_TYPES!=='undefined'&&ZH_TYPES[k])||{zh:'',py:''};
 const ZM=n=>(typeof ZH_MOVES!=='undefined'&&ZH_MOVES[n])||{zh:'',py:''};
 const ZI=k=>(typeof ZH_ITEMS!=='undefined'&&ZH_ITEMS[k])||{zh:'',py:''};
+const ZA=k=>(typeof ZH_ACTS!=='undefined'&&ZH_ACTS[k])||{zh:'',py:'',en:'attacks'};
+// an unseen clause break: "潮獭"+ZB+"喷出了水！" shows as 潮獭喷出了水！ but plays as two whole recordings (the name, then the action)
+const ZB='\u200b';
 const W={nice:['Nice!','不错！','bú cuò!'],great:['Great!','很好！','hěn hǎo!'],excellent:['Excellent!','太棒了！','tài bàng le!'],hit:['Hit!','打中了！','dǎ zhòng le!'],curve:['Curveball!','曲线球！','qūxiàn qiú!'],
  short:['Too soft! It fell short.','太轻了！没打到。','tài qīng le! méi dǎ dào.'],over:['Too hard! It flew over.','太重了！飞过头了。','tài zhòng le! fēi guòtóu le.'],wide:['Missed! It went wide.','偏了！没打中。','piān le! méi dǎ zhòng.'],
  broke:['It broke free! Throw again.','它挣脱了！再扔一次。','tā zhèngtuō le! zài rēng yí cì.'],fled:['It broke free and ran away.','它挣脱后逃走了。','tā zhèngtuō hòu táozǒu le.'],
@@ -10413,11 +10483,14 @@ function bw(k,inl){const w=W[k];return w[0]+zw(w[1],w[2],inl)}
 function nmB(spi,inl){const s=SP[spi],z=ZS(s.n);return s.n+zw(z.zh,z.py,inl)}
 function plB(i,inl){const p=PLACES[i],z=ZP(p.n);return p.n+zw(z.zh,z.py,inl)}
 function tyB(k){const z=ZT(k);return `${k} ${z.zh} ${z.py}`}
+// a creature's type chips (two for a dual type, kept together so they wrap as one piece)
+function tyChips(spi){const ts=SP[spi].ts,ch=t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`;return ts.length>1?`<span class="types">${ts.map(ch).join('')}</span>`:ch(ts[0])}
+const tyEn=spi=>SP[spi].ts.join('/');
 let zhVoice=null;function pickVoice(){try{const vs=speechSynthesis.getVoices();zhVoice=vs.find(v=>/zh[-_]CN/i.test(v.lang))||vs.find(v=>/^zh/i.test(v.lang))||vs.find(v=>/^cmn/i.test(v.lang))||null}catch(e){}}
 try{speechSynthesis.onvoiceschanged=pickVoice;pickVoice()}catch(e){}
 const hasClips=()=>typeof ZH_AUDIO!=='undefined';
 const clipFor=s=>hasClips()&&ZH_AUDIO[s];
-function segs(text){const parts=String(text).split(/[\s,.!?！？。，、·()（）:：…\-]+/).filter(Boolean),out=[];
+function segs(text){const parts=String(text).split(/[\s\u200b,.!?！？。，、·()（）:：…\-]+/).filter(Boolean),out=[];
   for(const p of parts){if(clipFor(p)){out.push(p);continue}let i=0;while(i<p.length){let f=null;for(let j=Math.min(p.length,i+6);j>i;j--){const s=p.slice(i,j);if(clipFor(s)){f=s;break}}if(f){out.push(f);i+=f.length}else i++}}return out}
 let spTok=0,curAudio=null;
 function playSeq(ss){const tok=++spTok;try{curAudio&&curAudio.pause()}catch(e){}let i=0;const next=()=>{if(tok!==spTok||i>=ss.length)return;const a=new Audio(ZH_AUDIO[ss[i++]]);curAudio=a;a.onended=()=>setTimeout(next,70);a.onerror=()=>next();const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{})};next()}
@@ -10439,7 +10512,23 @@ const party=()=>S.col.slice(0,6);
 function stats(c){const s=SP[c.sp];return{maxhp:Math.round((s.hp*.5+c.lvl*4+10)*(c.hpMul||1)),atk:s.atk*.3+c.lvl*2+5,def:s.def*.3+c.lvl*2+5}}
 function mk(sp,lvl,shiny){const c={id:S.nextId++,sp,lvl,xp:0};if(shiny)c.shiny=true;c.hp=stats(c).maxhp;return c}
 function quota(){return Math.min(15,5+2*Math.max(0,S.stayed.length-1))}
+// ---------- progress: wild creatures, raids and gyms follow the player's progress, not the place ----------
+// team = the average of the party's 4 best levels; milestones = 5 + 3 per gym badge + ½ per story chapter;
+// progress = 60% team + 40% milestones, kept from 5 below to 3 above the team (little kids: 6 below to 1 above).
+// Wild levels fall from 3 below to 1 above it (1 in 10 is 2 above, up to 4 once badges are won); a place only nudges them (0 to +2), so a new team
+// that flies to Yosemite meets creatures near its own level. Raids are 4 above. Gyms follow progress too (so the nth gym is
+// harder than the first wherever it is): the first gym's team is at it, later ones 1 above, rematches 3 more.
+function teamLv(){const ls=party().map(c=>c.lvl).sort((a,b)=>b-a).slice(0,4);return ls.length?ls.reduce((a,b)=>a+b,0)/ls.length:5}
+function progress(){const t=teamLv(),y=isYoung(),m=5+3*Math.min(11,(S.badges||[]).length)+.5*Math.min(8,(S.story&&S.story.ch)||0);
+  return Math.max(t-(y?6:5),Math.min(t+(y?1:3),.6*t+.4*m))}
+const LVMAX=99,nudge=pi=>Math.min(isYoung()?1:2,Math.max(0,Math.round((PLACES[pi].lv-5)/14)));
+function wildRange(pi){const c=Math.round(progress())+nudge(pi),y=isYoung();return[Math.max(2,c-(y?4:3)),Math.max(3,Math.min(LVMAX,c+(y?0:1)))]}
+function wildLv(pi){const [a,b]=wildRange(pi),y=isYoung(),up=y?1:1+Math.min(2,(S.badges||[]).length);return Math.min(LVMAX,Math.random()<(y?.04:.1)?b+RI(1,up):RI(a,b))}
+const raidLv=pi=>Math.min(LVMAX,Math.round(progress())+nudge(pi)+(isYoung()?2:4));
+const gymLv=rematch=>Math.max(3,Math.min(LVMAX,Math.round(progress())+((S.badges||[]).length&&!isYoung()?1:0)+(rematch?3:0)));
 function eff(a,d){return STRONG[a].includes(d)?2:STRONG[d].includes(a)?.5:1}
+// a move against a creature: the effect multiplies across both of its types (2 x 2 = 4, 2 x 0.5 = 1)
+function effOn(a,spi){return SP[spi].ts.reduce((e,d)=>e*eff(a,d),1)}
 function grown(sp,lvl,chance){while(SP[sp].next!=null&&lvl>=SP[sp].evoLv&&Math.random()<chance)sp=SP[sp].next;return sp}
 function hueRot(hex,deg){if(!hex)return hex;const n=parseInt(hex.slice(1),16);let r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;
   if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60}
@@ -10516,12 +10605,13 @@ function drawProp(ctx,pr,w,h,dx=0){const x=((pr.x*w+dx)%(w+80)+w+80)%(w+80)-40,y
   else if(pr.kind==='rock'){el(ctx,x,y-s*.25,s*.55,s*.35,'#7d6e60');el(ctx,x-s*.15,y-s*.35,s*.25,s*.15,'#9a8b7c')}
   else{el(ctx,x,y+s*.1,s*1.1,s*.25,'#4aa3e0');el(ctx,x-s*.2,y+s*.05,s*.4,s*.06,'#bfe6ff')}}
 function spawnWild(road){const p=PLACES[S.place];
-  const lvl=Math.max(2,p.lv-3+RI(0,3));let spi;
+  const lvl=wildLv(S.place);let spi;
   const local=BASES.filter(i=>SP[i].hab&&SP[i].hab.includes(p.key));
-  if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const nat=t=>BASES.filter(i=>SP[i].t===t&&(!SP[i].hab||SP[i].hab.includes(p.key)));let t=pick(p.types);if(!nat(t).length){const ok=p.types.filter(x=>nat(x).length);if(ok.length&&Math.random()<.8)t=pick(ok)}
-    spi=pick(BASES.filter(i=>SP[i].t===t&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.2)))??pick(BASES.filter(i=>SP[i].t===t))}
+  if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const nat=t=>BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)));let t=pick(p.types);if(!nat(t).length){const ok=p.types.filter(x=>nat(x).length);if(ok.length&&Math.random()<.8)t=pick(ok)}
+    spi=pick(BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.2)))??pick(BASES.filter(i=>hasT(i,t)))}
   spi=grown(spi,lvl,.35);
-  if(!road&&LEGS.length&&Math.random()<(inRift()?1/25:1/250)){spi=pick(LEGS)}
+  // a legendary comes as its baby, grown up only when the level allows
+  if(!road&&LEG_BASES.length&&Math.random()<(inRift()?1/25:1/250)){spi=grown(pick(LEG_BASES),lvl,.5)}
   let bx=R(.12,.88),by=R(.6,.9);if(!road){let best=-1;for(let k=0;k<14;k++){const cx=R(.12,.88),cy=R(.6,.9);let md=9;for(const o of wild)md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6));if(md>best){best=md;bx=cx;by=cy}}}
   return{shiny:Math.random()<shinyRate(),sp:spi,lvl,x:bx,y:road?R(.66,.7):by,vx:R(-.03,.03),ph:R(0,6),born:T,road}}
 function riftHere(){return!!(S.rift&&S.rift.shown&&S.rift.place===S.place&&S.mode!=='travel')}
@@ -10669,7 +10759,7 @@ function drawRoad(ctx,w,h,T,pl){const hy=h*.47,vx=w*.5,speed=7;
 // ---------- actions ----------
 function startStay(){if(S.mode!=='arrived')return;
   if(!S.stayed.includes(S.place))S.stayed.push(S.place);
-  S.mode='staying';S.spawned=0;lastSpawn=T-1;LOG('stay',{place:PLACES[S.place].n});q('stay');
+  S.mode='staying';S.spawned=0;lastSpawn=T-1;LOG('stay',{place:PLACES[S.place].n,prog:+progress().toFixed(1)});q('stay');
   if(!PLACES[S.place].rift&&!S.rift){S.staysNoRift=(S.staysNoRift||0)+1;if(Math.random()<.3||S.staysNoRift>=4){S.staysNoRift=0;S.rift={place:S.place,shown:false};riftAt=T+R(9,14)}}
   if(!S.raid){S.staysNoRaid++;if(Math.random()<.35||S.staysNoRaid>=3){S.staysNoRaid=0;S.raid=pickBoss();raidAt=T+R(5,9)}}
   for(const c of S.col)c.hp=stats(c).maxhp;
@@ -10741,7 +10831,7 @@ document.getElementById('bMove').onclick=()=>{const L=document.getElementById('m
   let lastReg=null;PLACES.forEach((p,i)=>{if(p.rift&&i!==S.place)return;if(p.region!==lastReg){lastReg=p.region;const hh=document.createElement('div');hh.className='reghead';const fl=p.region!==PLACES[S.place].region&&!PLACES[S.place].rift?' · flight 飞行 fēixíng':''; // leaving the Rift is a warp, not a flight
       hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+fl:'Home · 家乡 jiāxiāng'+fl;L.appendChild(hh)}const c=document.createElement('div');c.className='card';
     // name in Chinese with pinyin, English and levels under it, then the creature types (no awkward wrapping on narrow phones)
-    const z=ZP(p.n);c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||p.n}</b><span class="tpy">${z.py}</span>${S.badges.includes(i)?'<span class="mbadge">★</span>':''}</div><div class="ten">${p.n} · Lv ${Math.max(2,p.lv-3)}–${p.lv}</div><div class="tmeta">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join('')}</div></div>`;
+    const z=ZP(p.n);c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||p.n}</b><span class="tpy">${z.py}</span>${S.badges.includes(i)?'<span class="mbadge">★</span>':''}</div><div class="ten">${p.n} · Lv ${wildRange(i).join('–')}</div><div class="tmeta">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join('')}</div></div>`;
     const b=document.createElement('button');b.className='small'+(i===S.place?'':' big');b.textContent=i===S.place?'Here':'Go';b.disabled=i===S.place;b.onclick=()=>travel(i);c.appendChild(b);L.appendChild(c)});L.querySelectorAll('canvas.mapthumb').forEach(cv=>{try{const pl=PLACES[+cv.dataset.place],d=devicePixelRatio||1;cv.width=92*d;cv.height=62*d;const cx=cv.getContext('2d');cx.setTransform(d,0,0,d,0,0);if(hasScene(pl))cx.drawImage(painted(pl.key,160,108),0,0,160,108,0,0,92,62);else bgOld(cx,92,62,pl)}catch(e){}});open('sMap')};
 document.getElementById('bTeam').onclick=renderTeam;
 function renderTeam(){const L=document.getElementById('teamList');L.innerHTML='';
@@ -10750,7 +10840,7 @@ function renderTeam(){const L=document.getElementById('teamList');L.innerHTML=''
     if(i===6){const h=document.createElement('div');h.className='sub';h.style.marginTop='6px';h.textContent='In storage (not used in battles)';L.appendChild(h)}
     const d=document.createElement('div');d.className='card';
     const evo=s.next!=null?`Evolves into ${SP[s.next].n} at Lv ${s.evoLv}`:(s.stage>1?'Fully evolved':'Does not evolve');
-    const z=ZS(s.n);d.classList.add('team');d.innerHTML=`<canvas class="mini"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||s.n}</b><span class="tpy">${z.py}</span>${tags(c)}</div><div class="ten">${s.n}${z.mean?' · '+z.mean:''}</div><div class="tmeta"><span class="type" style="background:${TYPES[s.t]}">${tyB(s.t)}</span><span>Lv ${c.lvl}</span><span>HP ${c.hp}/${st.maxhp}</span></div><div class="hp"><i style="width:${c.hp/st.maxhp*100}%"></i></div><div class="tevo">${evo}</div></div>`;
+    const z=ZS(s.n);d.classList.add('team');d.innerHTML=`<canvas class="mini"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||s.n}</b><span class="tpy">${z.py}</span>${tags(c)}</div><div class="ten">${s.n}${z.mean?' · '+z.mean:''}</div><div class="tmeta">${tyChips(c.sp)}<span>Lv ${c.lvl}</span><span>HP ${c.hp}/${st.maxhp}</span></div><div class="hp"><i style="width:${c.hp/st.maxhp*100}%"></i></div><div class="tevo">${evo}</div></div>`;
     if(i>0){const b=document.createElement('button');b.className='small lead';b.innerHTML='Lead'+zw('领队','lǐngduì');b.onclick=()=>{S.col.splice(i,1);S.col.unshift(c);save();renderTeam()};d.appendChild(b)}
     L.appendChild(d);drawMini(d.querySelector('canvas'),c.sp,c.shiny)});
   const seen=new Set([...(S.caught||[]),...S.col.map(c=>c.sp)]);
@@ -10768,7 +10858,7 @@ function gainXP(c,n){c.xp+=n;let up=false;while(c.xp>=c.lvl*15){c.xp-=c.lvl*15;c
   const s=SP[c.sp];if(s.next!=null&&c.lvl>=s.evoLv&&!evoQueue.includes(c.id))evoQueue.push(c.id);return up}
 const ecv=document.getElementById('ecv'),ectx=ecv.getContext('2d');let E=null;
 function runEvoQueue(){if(E||sheetOpen()||!evoQueue.length)return;const id=evoQueue.shift(),c=S.col.find(x=>x.id===id);if(!c||SP[c.sp].next==null){runEvoQueue();return}
-  E={c,from:c.sp,to:SP[c.sp].next,t0:T,done:false};LOG('evolve',{from:SP[c.sp].n,to:SP[SP[c.sp].next].n});sfx('evolve');{const z=ZS(SP[E.from].n);document.getElementById('eTitle').innerHTML=`${SP[E.from].n} is evolving!`+zw(z.zh+W.evolving[1],z.py+' '+W.evolving[2]);speak(z.zh+W.evolving[1])}
+  E={c,from:c.sp,to:SP[c.sp].next,t0:T,done:false};LOG('evolve',{from:SP[c.sp].n,to:SP[SP[c.sp].next].n});sfx('evolve');{const z=ZS(SP[E.from].n);document.getElementById('eTitle').innerHTML=`${SP[E.from].n} is evolving!`+zw(z.zh+ZB+W.evolving[1],z.py+' '+W.evolving[2]);speak(z.zh+ZB+W.evolving[1])}
   document.getElementById('elog').textContent=`${SP[E.from].n} is glowing…`;document.getElementById('bEvoOk').hidden=true;open('sEvo');requestAnimationFrame(evoLoop)}
 function evoLoop(){if(!E)return;requestAnimationFrame(evoLoop);try{evoFrame()}catch(e){console.error(e)}}
 function evoFrame(){if(!E)return;const {w,h,d}=sizeCanvas(ecv);ectx.setTransform(d,0,0,d,0,0);
@@ -10780,7 +10870,7 @@ function evoFrame(){if(!E)return;const {w,h,d}=sizeCanvas(ecv);ectx.setTransform
   else{if(!E.done){E.done=true;const c=E.c,old=stats(c);c.sp=E.to;S.caught=[...new Set([...(S.caught||[]),E.to])];const nw=stats(c);c.hp=c.hp>0?Math.max(1,Math.round(c.hp/old.maxhp*nw.maxhp)):0;
       // already past the next stage's level too (e.g. a Lv 40 first stage): evolve again right after this one
       {const ns=SP[c.sp];if(ns.next!=null&&c.lvl>=ns.evoLv&&!evoQueue.includes(c.id))evoQueue.unshift(c.id)}save();
-      document.getElementById('eTitle').textContent='Evolution complete';{const a=ZS(SP[E.from].n),b2=ZS(SP[E.to].n);document.getElementById('elog').innerHTML=`${SP[E.from].n} evolved into ${SP[E.to].n}!`+zw(`${a.zh}进化成了${b2.zh}！`,`${a.py} jìnhuà chéng le ${b2.py}!`);speak(`${a.zh}进化成了${b2.zh}！`)}document.getElementById('bEvoOk').hidden=false;document.getElementById('bEvoOk').focus()}
+      document.getElementById('eTitle').textContent='Evolution complete';{const a=ZS(SP[E.from].n),b2=ZS(SP[E.to].n);document.getElementById('elog').innerHTML=`${SP[E.from].n} evolved into ${SP[E.to].n}!`+zw(`${a.zh}${ZB}进化成了${ZB}${b2.zh}！`,`${a.py} jìnhuà chéng le ${b2.py}!`);speak(`${a.zh}${ZB}进化成了${ZB}${b2.zh}！`)}document.getElementById('bEvoOk').hidden=false;document.getElementById('bEvoOk').focus()}
     const k=Math.min(1,(el_-dur)*3);el(ectx,w/2,h*.55,w*.5*(1-k)+1,w*.5*(1-k)+1,`rgba(255,250,220,${1-k})`);
     dc(ectx,E.to,w/2,h*.9,fitS(w,h,E.to,.8),T,{awake:true,shiny:E.c.shiny})}
 }
@@ -10905,7 +10995,7 @@ function decideCatch(){const s=SP[C.wd.sp],avg=party().reduce((a,c)=>a+c.lvl,0)/
   C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2);renderSpell()}
 function finishCatch(){const wd=C.wd,s=SP[wd.sp];
   if(C.caught){sfx('catch');C.burstT=T;const c=mk(wd.sp,wd.lvl,wd.shiny);S.col.push(c);S.caught=[...new Set([...(S.caught||[]),wd.sp])];wild=wild.filter(x=>x!==wd);burst(C.hit.x,C.hit.y,'#ffd23f');burst(C.hit.x,C.hit.y,'#45dc9a');
-    S.streak=(S.streak||0)+1;streakReward();q('catch');q('type',s.t);if(C.throws===1)q('first');
+    S.streak=(S.streak||0)+1;streakReward();q('catch');for(const t of s.ts)q('type',t);if(C.throws===1)q('first');
     const mult=1+.05*Math.min(S.streak,10)+(C.throws===1?.25:0);let ups=[];for(const p of party())if(p!==c&&p.hp>0&&gainXP(p,Math.round(wd.lvl*2*mult)))ups.push(SP[p.sp].n);
     {const z=ZS(s.n);msg(`Caught ${s.n}!${S.col.length>6?' It went to storage.':' It joined your team.'}${ups.length?' '+ups.join(', ')+' leveled up!':''}`,`抓到了${z.zh}！`,`zhuā dào le ${z.py}!`,true)}
     save();const cur=C;setTimeout(()=>{if(C===cur)endCatch()},1800)}
@@ -10938,12 +11028,15 @@ document.getElementById('bGym').onclick=async()=>{const gk='gym_'+PLACES[S.place
 function startGym(){
   if(!party().some(c=>c.hp>0)){toast('Your team is worn out. Stay somewhere to heal.');return}
   const p=PLACES[S.place],had=S.badges.includes(S.place);
-  const pool=BASES.filter(i=>p.types.includes(SP[i].t));const lv=p.lv+(had?4:0);
+  const pool=BASES.filter(i=>inTypes(i,p.types));const lv=gymLv(had);
   const f=l=>{const c=mk(grown(pick(pool),l,1),l);S.nextId--;return c};
   LOG('battle_start',{kind:'gym',place:p.n,party:snap().party});
   B={foes:[f(lv-1),f(lv),f(lv+1)],fi:0,pi:party().findIndex(c=>c.hp>0),pm:0,pt:0,pused:false,ft:0,busy:true,hitP:-9,hitF:-9,lungeP:-9,lungeF:-9};
   document.getElementById('bTitle').textContent=`${p.leader} · ${p.n} Gym${had?' (rematch)':''}`;open('sBattle');fitText(document.getElementById('bTitle'),11);requestAnimationFrame(battleLoop);
   (async()=>{renderBattle();await say(`${p.leader} wants to battle! They have 3 creatures.`);await say(`${p.leader} sends out ${SP[B.foes[0].sp].n}!`);B.busy=false;renderBattle()})()};
+// a long name and two types on a narrow phone: the level label shrinks a little before the name's pinyin gets cut
+function fitLv(id){const lv=document.getElementById(id),nm=lv&&lv.previousElementSibling;if(!nm)return;biWrap(nm);lv.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(lv).fontSize)||11;
+  while(nm.scrollWidth>nm.clientWidth+1&&fs>8.5){fs-=.5;lv.style.setProperty('font-size',fs+'px','important')}}
 // shrink a one-line title until it fits its box (long gym names on a narrow phone)
 function fitText(el,min){if(!el)return;el.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(el).fontSize)||16;
   while(el.scrollWidth>el.clientWidth+1&&fs>min){fs-=.5;el.style.setProperty('font-size',fs+'px','important')}}
@@ -10989,37 +11082,42 @@ function battleFrame(){if(!B)return;const {w,h,d}=sizeCanvas(bcv);const sa=giant
 }
 function renderBattle(){if(!B)return;const foe=B.foes[Math.min(B.fi,2)],me=party()[B.pi];
   const fs=stats(foe),ms=me?stats(me):{maxhp:1};
-  document.getElementById('fName').innerHTML=nmB(foe.sp,true);document.getElementById('fLv').textContent=B.raid?`Lv ${foe.lvl} · ${SP[foe.sp].t} · raid boss`:`Lv ${foe.lvl} · ${SP[foe.sp].t} · ${B.foes.length-B.fi} left`;
-  document.getElementById('fBar').style.width=(foe.hp/fs.maxhp*100)+'%';document.getElementById('fTitan').textContent=B.ft?'GIANT':'';
+  document.getElementById('fName').innerHTML=nmB(foe.sp,true);document.getElementById('fLv').textContent=B.raid?`Lv ${foe.lvl} · ${tyEn(foe.sp)} · raid boss`:`Lv ${foe.lvl} · ${tyEn(foe.sp)} · ${'●'.repeat(B.foes.length-B.fi)}${'○'.repeat(B.fi)}`;
+  fitLv('fLv');document.getElementById('fBar').style.width=(foe.hp/fs.maxhp*100)+'%';document.getElementById('fTitan').textContent=B.ft?'GIANT':'';
   if(me){document.getElementById('pName').innerHTML=nmB(me.sp,true);document.getElementById('pHp').textContent=`Lv ${me.lvl} · HP ${me.hp}/${ms.maxhp}`;document.getElementById('pBar').style.width=(me.hp/ms.maxhp*100)+'%'}
   document.getElementById('pTitan').textContent=B.pt?'GIANT':'';
   const bb=document.getElementById('bBtns');bb.innerHTML='';
   const mv=(label,cls,fn,dis)=>{const b=document.createElement('button');b.className=cls;b.innerHTML=label;b.disabled=B.busy||dis;b.onclick=fn;bb.appendChild(b)};
   const sp=SP[me.sp],gp=B.pt?'Giant ':'';
+  // one move per type; a single-type creature has Bonk as its second button
   mv(`${gp}${MOVES[sp.t]}${zw(ZM(MOVES[sp.t]).zh,ZM(MOVES[sp.t]).py)}`,'big',()=>turn(1));
-  mv(`${gp}Bonk${zw(ZM('Bonk').zh,ZM('Bonk').py)}`,'',()=>turn(0));
+  if(sp.t2)mv(`${gp}${MOVES[sp.t2]}${zw(ZM(MOVES[sp.t2]).zh,ZM(MOVES[sp.t2]).py)}`,'big',()=>turn(2));
+  else mv(`${gp}Bonk${zw(ZM('Bonk').zh,ZM('Bonk').py)}`,'',()=>turn(0));
   mv(B.pused?(B.pt?`Giant: ${B.pt} turns left`:'Giant used'):`Go Giant ${'●'.repeat(B.pm)}${'○'.repeat(3-B.pm)}`+zw('巨大化','jùdà huà'),'hot',goGiant,B.pused||B.pm<3);
   mv('Switch'+zw('换人','huàn rén'),'',openSwitch,party().filter(c=>c.hp>0).length<2)}
-function goGiant(){if(B.busy||B.pused||B.pm<3)return;B.busy=true;renderBattle();(async()=>{if(S.trace!==false&&window.traceChar){await traceChar('giant',{purpose:'giant'});if(!B)return}B.pused=true;B.pt=3;B.grow={side:'p',t0:T};sfx('giant');LOG('giant',{side:'player'});renderBattle();await sleep(1500);if(!B)return;{const z=ZS(SP[party()[B.pi].sp].n);await say(`${SP[party()[B.pi].sp].n} grew GIANT! Its moves hit much harder for 3 turns.`,z.zh+W.giant[1],z.py+' '+W.giant[2],true)}B.busy=false;renderBattle()})()}
+function goGiant(){if(B.busy||B.pused||B.pm<3)return;B.busy=true;renderBattle();(async()=>{if(S.trace!==false&&window.traceChar){await traceChar('giant',{purpose:'giant'});if(!B)return}B.pused=true;B.pt=3;B.grow={side:'p',t0:T};sfx('giant');LOG('giant',{side:'player'});renderBattle();await sleep(1500);if(!B)return;{const z=ZS(SP[party()[B.pi].sp].n);await say(`${SP[party()[B.pi].sp].n} grew GIANT! Its moves hit much harder for 3 turns.`,z.zh+ZB+W.giant[1],z.py+' '+W.giant[2],true)}B.busy=false;renderBattle()})()}
 async function attack(a,d,mi,side){const A=stats(a),D=stats(d),as=SP[a.sp],ds=SP[d.sp];
   const titanA=side==='p'?B.pt>0:B.ft>0,titanD=side==='p'?(B.ft>0&&!B.raid):B.pt>0;
-  const mt=mi?as.t:null,pow=mi?62:40,e=mt?eff(mt,ds.t):1;
+  const mt=mi===2?as.t2:mi?as.t:null,pow=mi?62:40,e=mt?effOn(mt,d.sp):1;
   const crit=side==='p'&&B.crit;if(side==='p')B.crit=false;const dmg=Math.max(1,Math.round((crit?1.5:1)*pow*(A.atk/D.def)*(.3+a.lvl*.05)*e*R(.85,1)*(titanA?(side==='f'&&B.raid?1.2:1.7):1)*(titanD?.6:1)*(side==='f'&&isYoung()?.5:1)));
-  const atype=mi?as.t:'normal';B.anim={type:atype,side,t0:T,dur:.42};
+  const atype=mt||'normal';B.anim={type:atype,side,t0:T,dur:.42};
   if(side==='p'){B.lungeP=T;setTimeout(()=>B&&(B.hitF=T),420)}else{B.lungeF=T;setTimeout(()=>B&&(B.hitP=T),420)}
-  sfx(e>1||titanA?'super':'attack');await sleep(430);if(!B)return;B.imp={type:atype,side,t0:T,crit};const hpB=d.hp;d.hp=Math.max(0,d.hp-dmg);LOG('attack',{side,att:as.n,def:ds.n,move:mi?MOVES[as.t]:'Bonk',dmg,defHp:`${hpB}->${d.hp}/${D.maxhp}`,atkHp:a.hp,giantA:titanA,giantD:titanD});B.fx=B.fx||[];B.fx.push({x:side==='p'?.72:.28,y:side==='p'?.25:.6,txt:'-'+dmg,t0:T,col:e>1?'#ffc93d':e<1?'#a7b0d6':'#ffffff',big:e>1||titanA});renderBattle();
-  {const mvn=mi?MOVES[as.t]:'Bonk',zm=ZM(mvn),za=ZS(as.n);await say(`${crit?'Critical hit! ':''}${side==='f'?'Foe ':''}${as.n} used ${titanA?'Giant ':''}${mvn}!${e>1?' It hit super hard!':e<1?' It barely hurt.':''} (${dmg} damage)`,`${crit?'暴击！':''}${za.zh}使用了${zm.zh}！${e>1?W.super[1]:e<1?W.weak[1]:''}`,`${crit?'bàojī! ':''}${za.py} shǐyòng le ${zm.py}! ${e>1?W.super[2]:e<1?W.weak[2]:''}`,side==='p')}}
-async function turn(mi){if(B.busy)return;B.busy=true;renderBattle();if(S.trace!==false&&window.traceChar){const r=await traceChar(mi?SP[party()[B.pi].sp].t:'normal',{purpose:'move'});if(!B)return;B.crit=!r.skipped&&r.mistakes===0}else if(S.qBattle===true){B.crit=await askQuiz('battle');if(!B)return}const me=party()[B.pi],foe=B.foes[B.fi];
+  sfx(e>1||titanA?'super':'attack');await sleep(430);if(!B)return;B.imp={type:atype,side,t0:T,crit};const hpB=d.hp;d.hp=Math.max(0,d.hp-dmg);LOG('attack',{side,att:as.n,def:ds.n,move:mt?MOVES[mt]:'Bonk',eff:e,dmg,defHp:`${hpB}->${d.hp}/${D.maxhp}`,atkHp:a.hp,giantA:titanA,giantD:titanD});B.fx=B.fx||[];B.fx.push({x:side==='p'?.72:.28,y:side==='p'?.25:.6,txt:'-'+dmg,t0:T,col:e>1?'#ffc93d':e<1?'#a7b0d6':'#ffffff',big:e>1||titanA});renderBattle();
+  // said the way a child would: "潮獭喷出了水！" (the name and the action are two whole recordings)
+  {const ac=ZA(atype),ml=moveLine(a.sp,atype);await say(`${crit?'Critical hit! ':''}${side==='f'?'Foe ':''}${titanA?'Giant ':''}${as.n} ${ac.en}!${e>1?' It hit super hard!':e<1?' It barely hurt.':''} (${dmg} damage)`,`${crit?'暴击！':''}${ml[0]}${e>1?W.super[1]:e<1?W.weak[1]:''}`,`${crit?'bàojī! ':''}${ml[1]}${e>1?' '+W.super[2]:e<1?' '+W.weak[2]:''}`,side==='p')}}
+// the Chinese battle line for a creature using a move of a type ('normal' = Bonk): [Chinese, pinyin]
+function moveLine(spi,type){const za=ZS(SP[spi].n),ac=ZA(type);return[za.zh+ZB+ac.zh,za.py+' '+ac.py]}
+async function turn(mi){if(B.busy)return;B.busy=true;renderBattle();if(S.trace!==false&&window.traceChar){const ms=SP[party()[B.pi].sp],r=await traceChar(mi===2?ms.t2:mi?ms.t:'normal',{purpose:'move'});if(!B)return;B.crit=!r.skipped&&r.mistakes===0}else if(S.qBattle===true){B.crit=await askQuiz('battle');if(!B)return}const me=party()[B.pi],foe=B.foes[B.fi];
   if(!B.pused)B.pm=Math.min(3,B.pm+1);
   await attack(me,foe,mi,'p');
-  if(foe.hp<=0){sfx('faint');LOG('faint',{side:'foe',sp:SP[foe.sp].n});{const z=ZS(SP[foe.sp].n);await say(`Foe ${SP[foe.sp].n} fainted!`,z.zh+W.fainted[1],z.py+' '+W.fainted[2],true)}if(gainXP(me,foe.lvl*6))await say(`${SP[me.sp].n} grew to Lv ${me.lvl}!`);
+  if(foe.hp<=0){sfx('faint');LOG('faint',{side:'foe',sp:SP[foe.sp].n});{const z=ZS(SP[foe.sp].n);await say(`Foe ${SP[foe.sp].n} fainted!`,z.zh+ZB+W.fainted[1],z.py+' '+W.fainted[2],true)}if(gainXP(me,foe.lvl*6))await say(`${SP[me.sp].n} grew to Lv ${me.lvl}!`);
     B.fi++;B.ft=0;if(B.fi>=B.foes.length)return win();
     const nf=B.foes[B.fi];await say(`${PLACES[S.place].leader} sends out ${SP[nf.sp].n}!`);
     if(B.fi===B.foes.length-1){B.ft=3;B.grow={side:'f',t0:T};sfx('giant');renderBattle();await sleep(1500);if(!B)return;await say(`${PLACES[S.place].leader}'s last creature grew GIANT!`)}
     if(B.pt)B.pt--;B.busy=false;renderBattle();save();return}
   await foeTurn();if(B){B.busy=false;renderBattle()}save()}
 async function foeTurn(){const me=party()[B.pi],foe=B.foes[B.fi];
-  await attack(foe,me,Math.random()<.65?1:0,'f');
+  await attack(foe,me,Math.random()<.65?(SP[foe.sp].t2&&Math.random()<.5?2:1):0,'f');
   if(B.ft&&!B.raid)B.ft--;if(B.pt)B.pt--;renderBattle();
   if(me.hp<=0){B.pt=0;sfx('faint');LOG('faint',{side:'player',sp:SP[me.sp].n,party:snap().party});await say(`${SP[me.sp].n} fainted!`);const nx=party().findIndex(c=>c.hp>0);if(nx<0)return lose();B.pi=nx;await say(`Go, ${SP[party()[nx].sp].n}!`)}}
 function openSwitch(){const bb=document.getElementById('bBtns');bb.innerHTML='';
@@ -11031,8 +11129,8 @@ async function win(){sfx('win');if(!B.raid&&!S.badges.includes(S.place))S.pendin
   if(first&&!PLACES[S.place].rift){const reg=PLACES[S.place].region,inReg=NORMAL.filter(i=>PLACES[i].region===reg);if(inReg.every(i=>S.badges.includes(i)))await say(`You have every ${reg} badge. You are the ${reg} Champion!`)}
   endBattle()}
 async function lose(){LOG('battle_end',{result:'lose',raid:!!B.raid,party:snap().party});if(B.raid){S.raid=null;await say('Your whole team fainted, and the giant boss left. Move somewhere and stay there to heal your team.')}else await say('Your whole team fainted. Move somewhere and stay there to heal your team, then try again.');endBattle()}
-function pickBoss(){const p=PLACES[S.place];let pool=SP.map((s,i)=>!s.leg&&s.next==null&&s.stage>=2&&p.types.includes(s.t)?i:-1).filter(i=>i>=0);
-  if(LEGS.length&&Math.random()<(p.rift?.35:.12))pool=LEGS;return{place:S.place,sp:pick(pool),lvl:p.lv+4,shiny:Math.random()<shinyRate(),shown:false}}
+function pickBoss(){const p=PLACES[S.place];let pool=SP.map((s,i)=>!s.leg&&s.next==null&&s.stage>=2&&inTypes(i,p.types)?i:-1).filter(i=>i>=0);
+  if(LEG_TOPS.length&&Math.random()<(p.rift?.35:.12))pool=LEG_TOPS;return{place:S.place,sp:pick(pool),lvl:raidLv(S.place),shiny:Math.random()<shinyRate(),shown:false}}
 function startRaid(){if(!raidHere()||B)return;if(!party().some(c=>c.hp>0)){toast('Your team is worn out. Stay a little longer to heal.');return}
   const r=S.raid,boss=mk(r.sp,r.lvl,r.shiny);S.nextId--;boss.hpMul=4;boss.hp=stats(boss).maxhp;
   LOG('battle_start',{kind:'raid',boss:SP[r.sp].n,lvl:r.lvl,party:snap().party});
@@ -11268,7 +11366,7 @@ function restore(){migrate();wild=(S.wild||[]).map(w=>({...w,born:-10}));travelT
   if(S.rift&&!S.rift.shown)riftAt=T+6;
   for(const c of S.col){const s=SP[c.sp];if(s.next!=null&&c.lvl>=s.evoLv&&!evoQueue.includes(c.id))evoQueue.push(c.id)}}
 function starters(){const L=document.getElementById('starterList');L.innerHTML='';[IDX.Smoldy,IDX.Otterpip,IDX.Clovehop].forEach(i=>{const b=document.createElement('button');
-  b.innerHTML=`<canvas></canvas><span>${nmB(i)}</span><span class="type" style="background:${TYPES[SP[i].t]}">${tyB(SP[i].t)}</span>`;
+  b.innerHTML=`<canvas></canvas><span>${nmB(i)}</span>${tyChips(i)}`;
   b.onclick=()=>{LOG('starter',{sp:SP[i].n});S.col.push(mk(i,5));save();close('sStart');updateUI();toast(`${SP[i].n} joined you! Now tap “Stay here”.`);queueTalk('intro_neighbor')};L.appendChild(b);
   requestAnimationFrame(()=>drawMini(b.querySelector('canvas'),i))});open('sStart')}
 const muteBtn=document.getElementById('cMute');const showMute=()=>muteBtn.textContent=window.SFX&&SFX.muted?'Sound off':'Sound on';
@@ -11316,7 +11414,7 @@ connectCloud();
       sanfrancisco:['wind','metal'],yosemite:['bug','wind','dragon']};
     for(const p of PLACES){const a=ADD[p.key];if(!a)continue;for(const t of a)if(!p.types.includes(t))p.types.push(t)}
     // never leave a place type without a spawnable base form
-    if(typeof BASES!=='undefined'&&typeof SP!=='undefined')for(const p of PLACES)p.types=p.types.filter(t=>BASES.some(i=>SP[i].t===t));
+    if(typeof BASES!=='undefined'&&typeof SP!=='undefined')for(const p of PLACES)p.types=p.types.filter(t=>BASES.some(i=>SP[i].t===t||SP[i].t2===t));
   }catch(e){if(typeof console!=='undefined')console.warn('types_ext',e)}
   // character-tracing ladders: [character, pinyin, English, example word, word pinyin, word English], simplest first
   window.EXTRA_TRACE_SETS={
@@ -11395,12 +11493,13 @@ canvas.avatar.person{width:64px;height:64px;border:none !important;background:no
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 
 // ---------- audio helpers ----------
-const norm=s=>String(s).replace(/[\s，。！？、…!?,.·:：；;"“”'‘’()（）「」\-—]/g,'');
+const norm=s=>String(s).replace(/[\s\u200b，。！？、…!?,.·:：；;"“”'‘’()（）「」\-—]/g,'');
 let NIDX=null;
 function nidx(){if(NIDX)return NIDX;NIDX={};if(typeof ZH_AUDIO!=='undefined')for(const k in ZH_AUDIO)NIDX[norm(k)]=k;return NIDX}
 function clip(s){if(typeof ZH_AUDIO==='undefined')return null;const k=nidx()[norm(s)];return k?ZH_AUDIO[k]:null}
-// the text's clauses, split at punctuation ("我很好！你呢？" -> ["我很好", "你呢"])
-const clauses=text=>String(text).split(/[，。！？、…!?,.·:：；;「」]+/).filter(x=>norm(x));
+// the text's clauses, split at punctuation ("我很好！你呢？" -> ["我很好", "你呢"]) and at an unseen zero-width space,
+// which battle lines put between a creature's name and its action ("潮獭\u200b喷出了水！" -> ["潮獭", "喷出了水"])
+const clauses=text=>String(text).split(/[\u200b，。！？、…!?,.·:：；;「」]+/).filter(x=>norm(x));
 // split text into the fewest known clips: the whole line if it was recorded as one clip, else clause by clause, else word by word
 function pieces(text){if(clip(text))return[String(text)];const out=[];for(const part of clauses(text)){
   if(clip(part)){out.push(part);continue}const p=norm(part);let i=0;
@@ -13664,7 +13763,7 @@ const css=`.dexwrap{position:fixed;inset:0;z-index:58;display:flex;align-items:c
 .dexcard button{margin-top:2px}`;
 const st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 function placesFor(i){const s=SP[i];let b=i;while(SP[b].prev!=null)b=SP[b].prev;const out=[];
-  PLACES.forEach((p,k)=>{const hab=SP[b].hab&&SP[b].hab.includes(p.key),typ=p.types.includes(SP[b].t);if(hab||(typ&&!SP[b].hab))out.push({k,hab})});
+  PLACES.forEach((p,k)=>{const hab=SP[b].hab&&SP[b].hab.includes(p.key),typ=SP[b].ts.some(t=>p.types.includes(t));if(hab||(typ&&!SP[b].hab))out.push({k,hab})});
   if(SP[b].leg)return[{k:PLACES.findIndex(p=>p.rift),hab:true}];return out.sort((a,b)=>(b.hab-a.hab))}
 function mini(cv,i,got,w,h){const d=Math.min(3,devicePixelRatio||1);cv.width=w*d;cv.height=h*d;const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);dc(x,i,w/2,h*.94,fitS(w,h,i,.9),0,got?{awake:true}:{silhouette:'#4a5578'})}
 // a creature not found yet keeps its mystery: only its silhouette, no type, evolutions or places
@@ -13674,7 +13773,7 @@ window.openDex=function(i,got){const s=SP[i],z=ZS(s.n);const wrap=document.creat
   const pl=placesFor(i).slice(0,5).map(o=>`<span class="dplace">${o.hab?'★ ':''}${ZP(PLACES[o.k].n).zh||''} ${PLACES[o.k].n}</span>`).join('');
   wrap.innerHTML=`<div class="dexcard"><canvas class="dbig"></canvas>
     ${got?`<div class="dzh" data-say="${z.zh}">${z.zh}</div><div class="dpy">${z.py}</div><div class="den">${s.n}${s.leg?' · Legendary':''}</div>
-    <div class="drow"><span class="type" style="background:${TYPES[s.t]}">${tyB(s.t)}</span></div>
+    <div class="drow">${tyChips(i)}</div>
     ${chain.length>1?`<div class="devo">${chain.map((k,j)=>`${j?'<span>›</span>':''}<canvas data-k="${k}"></canvas>`).join('')}</div>`:''}
     <div class="drow">${pl}</div>`:`<div class="dzh">？？？</div><div class="den">Not found yet${zw('还没找到','hái méi zhǎo dào')}</div>`}
     <button class="small">OK${zw('好的','hǎo de')}</button></div>`;
