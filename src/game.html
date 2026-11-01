@@ -162,6 +162,7 @@ h1{font-size:1.25rem!important}
 #blog{flex:none;height:4.4em;overflow:hidden}
 #bBtns{flex:none;height:136px;overflow-y:auto;align-content:start}
 #bBtns button{height:64px;overflow:hidden;padding:4px 6px !important}
+#bBtns button.swb{display:flex;align-items:center;gap:6px;text-align:left;padding:3px 6px 3px 3px !important}#bBtns .swart{width:52px;height:52px;flex:none;border-radius:12px}#bBtns .swi{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;line-height:1.1}#bBtns .swn{font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bBtns .swl{font-size:.68rem;opacity:.75;font-weight:600}#bBtns .swpy{font-size:.6rem;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bBtns .swi .type{font-size:.56rem !important;padding:0 4px !important;margin:0;align-self:flex-start}#bBtns .swi .types{gap:2px}#bBtns button.swb{position:relative}#bBtns .swi{gap:1px}#bBtns .swi .hp{position:absolute;left:12px;width:44px;bottom:5px;height:4px;margin:0}#bBtns .swart{margin-top:-6px}#bBtns .swi .types{flex-wrap:wrap;gap:2px}#bBtns .swi .types .type{flex:none}
 .hpbox .row{flex-wrap:nowrap}.hpbox .row>span:first-child{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #fLv,#pHp{white-space:nowrap;font-size:.72rem !important;flex:none}
 .hpbox .bi.inl .en{display:none}
@@ -1165,12 +1166,12 @@ function giantFX(ctx,w,h,stage){const g=B.grow;if(!g||!B.pos)return;const k=(T-g
 function giantShake(){const g=B&&B.grow;if(!g)return 0;const k=(T-g.t0)/1.5;return k>.38&&k<.75?(1-(k-.38)/.37)*6:0}
 function battleFrame(){if(!B)return;const {w,h,d}=sizeCanvas(bcv);const sa=giantShake();
   if(sa){const z=1.03;bctx.setTransform(d*z,0,0,d*z,d*(w*(1-z)/2+(Math.random()-.5)*sa),d*(h*(1-z)/2+(Math.random()-.5)*sa))}else bctx.setTransform(d,0,0,d,0,0);bg(bctx,w,h,PLACES[S.place]);
-  if((window.FX&&FX.attack)){try{FX.platform(bctx,w*.72,h*.52,w*.22,h*.07,PLACES[S.place].ground);FX.platform(bctx,w*.28,h*.92,w*.24,h*.08,PLACES[S.place].ground)}catch(e){}}else{el(bctx,w*.72,h*.52,w*.22,h*.07,'rgba(255,255,255,.18)','rgba(255,255,255,.35)',2);el(bctx,w*.28,h*.92,w*.24,h*.08,'rgba(255,255,255,.18)','rgba(255,255,255,.35)',2)}
+  for(const [sx,sy,sr] of [[w*.72,h*.665,w*.12],[w*.28,h*.92,w*.15]]){const g=bctx.createRadialGradient(sx,sy,0,sx,sy,sr);g.addColorStop(0,'rgba(0,0,0,.32)');g.addColorStop(1,'rgba(0,0,0,0)');bctx.save();bctx.translate(sx,sy);bctx.scale(1,.28);bctx.translate(-sx,-sy);bctx.fillStyle=g;bctx.beginPath();bctx.arc(sx,sy,sr,0,7);bctx.fill();bctx.restore()}
   const foe=B.foes[Math.min(B.fi,B.foes.length-1)],me=party()[B.pi];
   const shk=t0=>T-t0<.35?Math.sin((T-t0)*60)*8:0,lun=t0=>T-t0<.3?Math.sin((T-t0)/.3*Math.PI)*30:0;
   const fs=Math.min(h*.15,h*.44/(2.6*SP[foe.sp].sz))*giantScale('f');
-  const fz=SP[foe.sp].sz;B.pos=Object.assign(B.pos||{},{fx:w*.72,fy:h*.52-fs*fz,fs:fs*fz});giantFX(bctx,w,h,'back');if(B.ft&&(window.FX&&FX.attack))try{FX.giantAura(bctx,w*.72,h*.52,fs*fz*1.1,T)}catch(e){}
-  if(B.fi<B.foes.length)dc(bctx,foe.sp,w*.72+shk(B.hitF)-lun(B.lungeF),h*.52+lun(B.lungeF)*.4,fs,T,{flip:true,titan:B.ft>0,awake:true,shiny:foe.shiny});
+  const fz=SP[foe.sp].sz;B.pos=Object.assign(B.pos||{},{fx:w*.72,fy:h*.665-fs*fz,fs:fs*fz});giantFX(bctx,w,h,'back');if(B.ft&&(window.FX&&FX.attack))try{FX.giantAura(bctx,w*.72,h*.665,fs*fz*1.1,T)}catch(e){}
+  if(B.fi<B.foes.length)dc(bctx,foe.sp,w*.72+shk(B.hitF)-lun(B.lungeF),h*.665+lun(B.lungeF)*.4,fs,T,{flip:true,titan:B.ft>0,awake:true,shiny:foe.shiny});
   if(me){const ms=Math.min(h*.18,h*.58/(2.6*SP[me.sp].sz))*giantScale('p'),mz=SP[me.sp].sz;B.pos.mx=w*.28;B.pos.my=h*.92-ms*mz;B.pos.ms=ms*mz;if(B.pt&&(window.FX&&FX.attack))try{FX.giantAura(bctx,w*.28,h*.92,ms*mz*1.1,T)}catch(e){}dc(bctx,me.sp,w*.28+shk(B.hitP)+lun(B.lungeP),h*.92-lun(B.lungeP)*.4,ms,T,{titan:B.pt>0,awake:true,shiny:me.shiny})}
   giantFX(bctx,w,h,'front');
   if((window.FX&&FX.attack)&&B.pos&&B.pos.mx!=null){const P=B.pos;try{
@@ -1224,8 +1225,8 @@ async function foeTurn(){const me=party()[B.pi],foe=B.foes[B.fi];
   if(B.ft&&!B.raid)B.ft--;if(B.pt)B.pt--;renderBattle();
   if(me.hp<=0){B.pt=0;sfx('faint');LOG('faint',{side:'player',sp:SP[me.sp].n,party:snap().party});await say(`${SP[me.sp].n} fainted!`);const nx=party().findIndex(c=>c.hp>0);if(nx<0)return lose();B.pi=nx;await say(`Go, ${SP[party()[nx].sp].n}!`)}}
 function openSwitch(){const bb=document.getElementById('bBtns');bb.innerHTML='';
-  party().forEach((c,i)=>{if(i===B.pi||c.hp<=0)return;const b=document.createElement('button');b.className='small';b.textContent=`${SP[c.sp].n} Lv${c.lvl} · ${c.hp}hp`;
-    b.onclick=async()=>{LOG('switch',{to:SP[c.sp].n,hp:c.hp});B.busy=true;B.pi=i;B.pt=0;renderBattle();await say(`Go, ${SP[c.sp].n}!`);await foeTurn();if(B){B.busy=false;renderBattle()}};bb.appendChild(b)});
+  party().forEach((c,i)=>{if(i===B.pi||c.hp<=0)return;const b=document.createElement('button');b.className='small swb';const z=ZS(SP[c.sp].n),mh=stats(c).maxhp;b.innerHTML=`<canvas class="swart"></canvas><span class="swi"><span class="swn"><b>${z.zh||SP[c.sp].n}</b> <span class="swl">Lv ${c.lvl}</span></span><span class="swpy">${z.py}</span>${tyChips(c.sp)}<span class="hp"><i style="width:${c.hp/mh*100}%"></i></span></span>`;
+    b.onclick=async()=>{LOG('switch',{to:SP[c.sp].n,hp:c.hp});B.busy=true;B.pi=i;B.pt=0;renderBattle();await say(`Go, ${SP[c.sp].n}!`);await foeTurn();if(B){B.busy=false;renderBattle()}};bb.appendChild(b);drawMini(b.querySelector('canvas'),c.sp,c.shiny)});
   const back=document.createElement('button');back.className='small';back.textContent='Back';back.onclick=renderBattle;bb.appendChild(back)}
 async function win(){sfx('win');if(!B.raid&&!S.badges.includes(S.place))S.pendingInterview=true;LOG('battle_end',{result:'win',raid:!!B.raid,party:snap().party});q('win');if(B.raid)return raidWin();const p=PLACES[S.place],first=!S.badges.includes(S.place);if(first)S.badges.push(S.place);const rw=first?{orb:10,great:3,ultra:1}:{orb:10,great:1};give(rw);
   renderBattle();await say(`You beat ${p.leader}!${first?` You earned the ${p.n} badge!`:''} You got ${rwTxt(rw)}.`);
