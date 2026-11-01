@@ -20,7 +20,7 @@ const TRACE_SETS={
          ['走','zǒu','to walk','走路','zǒulù','to walk'],['跑','pǎo','to run','跑步','pǎobù','running'],['跳','tiào','to jump','跳舞','tiàowǔ','to dance']],
  giant: [['大','dà','big','大象','dàxiàng','elephant'],['巨','jù','huge','巨人','jùrén','a giant'],['高','gāo','tall','高楼','gāo lóu','a tall building'],['强','qiáng','strong','很强','hěn qiáng','very strong']],
 };
-const TYPE_ZH={fire:['火','huǒ'],water:['水','shuǐ'],leaf:['叶','yè'],spark:['电','diàn'],stone:['石','shí'],frost:['冰','bīng'],normal:['打','dǎ'],giant:['大','dà']};
+const TYPE_ZH={fire:['火','huǒ'],water:['水','shuǐ'],leaf:['叶','yè'],spark:['电','diàn'],stone:['石','shí'],frost:['冰','bīng'],normal:['打','dǎ'],giant:['大','dà'],wind:['风','fēng'],bug:['虫','chóng'],mind:['心','xīn'],shadow:['影','yǐng'],dragon:['龙','lóng'],metal:['钢','gāng'],fight:['拳','quán'],star:['星','xīng']};
 if(window.EXTRA_TRACE_SETS)for(const k in EXTRA_TRACE_SETS)if(!TRACE_SETS[k])TRACE_SETS[k]=EXTRA_TRACE_SETS[k]; // ladders for added creature types (types_ext.js)
 window.TRACE_SETS=TRACE_SETS;
 function st(){if(typeof S==='undefined')return{};if(!S.tr||typeof S.tr!=='object')S.tr={};return S.tr}

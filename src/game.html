@@ -583,7 +583,8 @@ function drawProp(ctx,pr,w,h,dx=0){const x=((pr.x*w+dx)%(w+80)+w+80)%(w+80)-40,y
 function spawnWild(road){const p=PLACES[S.place];
   const lvl=Math.max(2,p.lv-3+RI(0,3));let spi;
   const local=BASES.filter(i=>SP[i].hab&&SP[i].hab.includes(p.key));
-  if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const t=pick(p.types);spi=pick(BASES.filter(i=>SP[i].t===t&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.35)))??pick(BASES.filter(i=>SP[i].t===t))}
+  if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const nat=t=>BASES.filter(i=>SP[i].t===t&&(!SP[i].hab||SP[i].hab.includes(p.key)));let t=pick(p.types);if(!nat(t).length){const ok=p.types.filter(x=>nat(x).length);if(ok.length&&Math.random()<.8)t=pick(ok)}
+    spi=pick(BASES.filter(i=>SP[i].t===t&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.2)))??pick(BASES.filter(i=>SP[i].t===t))}
   spi=grown(spi,lvl,.35);
   if(!road&&LEGS.length&&Math.random()<(inRift()?1/25:1/250)){spi=pick(LEGS)}
   let bx=R(.12,.88),by=R(.6,.9);if(!road){let best=-1;for(let k=0;k<14;k++){const cx=R(.12,.88),cy=R(.6,.9);let md=9;for(const o of wild)md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6));if(md>best){best=md;bx=cx;by=cy}}}
@@ -1157,7 +1158,7 @@ function renderLearn(){const L=document.getElementById('learnList');L.innerHTML=
       d.innerHTML=`<div class="ppic">${p.pic||''}</div><div style="min-width:0"><b>${p.zh}</b><div class="py">${p.py}</div><div class="en2">${p.en}</div></div><div class="stars">${'★'.repeat(lv)}<span style="opacity:.3">${'★'.repeat(5-lv)}</span></div>`;L.appendChild(d)}
     hh.textContent=`说过的句子 · ${said} / ${PHRASEBOOK.length}`;
     if(window.traceProgress){const tp=traceProgress(),lrn=tp.filter(x=>x.learned).length;const ch=document.createElement('div');ch.className='reghead';ch.style.gridColumn='1/-1';ch.style.marginTop='14px';{const tt=window.traceTotals?traceTotals():{learned:lrn,total:tp.length};ch.textContent=`Characters I can write · 我会写的字 · ${tt.learned} / ${tt.total}`}L.appendChild(ch);
-      const TN={fire:'Fire 火',water:'Water 水',leaf:'Leaf 叶',spark:'Spark 电',stone:'Stone 石',frost:'Frost 冰',normal:'Moves 打',giant:'Giant 大',general:'More 字'};
+      const TN={fire:'Fire 火',water:'Water 水',leaf:'Leaf 叶',spark:'Spark 电',stone:'Stone 石',frost:'Frost 冰',normal:'Moves 打',giant:'Giant 大',wind:'Wind 风',bug:'Bug 虫',mind:'Mind 心',shadow:'Shadow 影',dragon:'Dragon 龙',metal:'Metal 钢',fight:'Fight 拳',star:'Star 星',general:'More 字'};
       for(const k of [...Object.keys(TRACE_SETS),...(tp.some(x=>x.kind==='general')?['general']:[])]){const row=tp.filter(x=>x.kind===k);const r=document.createElement('div');r.className='charrow';
         let open=true;r.innerHTML=`<span class="charlbl">${TN[k]||k}</span>`+row.map(x=>{const st=x.learned?'on':open?'next':'lock';if(!x.learned)open=false;
           return st==='lock'?`<span class="chartile lock">?</span>`:`<span class="chartile ${st}" data-say="${x.ch}，${x.word}" title="${x.py} · ${x.en} · ${x.word} ${x.wpy}"><b>${x.ch}</b><i>${x.py}</i></span>`}).join('');L.appendChild(r)}}

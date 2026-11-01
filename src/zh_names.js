@@ -64,6 +64,22 @@ const ZH_SPECIES = {
   'Talusram':    {zh:'石角羊', py:'shí jiǎo yáng',   mean:'stone + horn + goat'},
   'Hushflake':   {zh:'雪鸟',   py:'xuě niǎo',        mean:'snow + bird'},
   'Blizzowl':    {zh:'风雪鸮', py:'fēng xuě xiāo',   mean:'wind + snow (blizzard) + owl'},
+  // ---- wave 3: new types ----
+  'Breezel':     {zh:'风鸥',   py:'fēng ōu',         mean:'wind + gull'},
+  'Gemkit':      {zh:'心狐',   py:'xīn hú',          mean:'heart/mind + fox'},
+  'Drakit':      {zh:'小龙',   py:'xiǎo lóng',       mean:'little + dragon'},
+  'Drakonel':    {zh:'飞龙',   py:'fēi lóng',        mean:'flying + dragon'},
+  'Cloudrake':   {zh:'云龙',   py:'yún lóng',        mean:'cloud + dragon'},
+  'Dartling':    {zh:'闪蜓',   py:'shǎn tíng',       mean:'flash + dragonfly'},
+  'Dotbug':      {zh:'点点虫', py:'diǎn diǎn chóng', mean:'dot + dot + bug'},
+  'Flitbat':     {zh:'小蝠',   py:'xiǎo fú',         mean:'little + bat'},
+  'Wispuff':     {zh:'影团',   py:'yǐng tuán',       mean:'shadow + puff (ball)'},
+  'Pangolink':   {zh:'钢鳞',   py:'gāng lín',        mean:'steel + scales'},
+  'Clankbeetle': {zh:'铁甲虫', py:'tiě jiǎ chóng',   mean:'iron + armour + bug'},
+  'Joeyjab':     {zh:'拳袋鼠', py:'quán dài shǔ',    mean:'fist + kangaroo (pouch + mouse)'},
+  'Dojocub':     {zh:'拳虎',   py:'quán hǔ',         mean:'fist + tiger'},
+  'Twinkfawn':   {zh:'星鹿',   py:'xīng lù',         mean:'star + deer'},
+  'Glimmerbun':  {zh:'星兔',   py:'xīng tù',         mean:'star + rabbit'},
 };
 
 const ZH_TYPES = {

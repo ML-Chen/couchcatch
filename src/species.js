@@ -7,6 +7,9 @@
 // leg: true marks a legendary (rotating rune halo). Legendary head features: sunhalo, sunantlers, crescent, crowncrest; extras: stormwings, starspots
 // Wave 2 additions: bodies seal | jelly | larva | butterfly | tortoise. ears: deer. tail: ringed. head: fernantlers, yuzu.
 // extras: hooves (quad hoof feet), spots (fawn spots), socks (dark legs), steam (rising wisps), mane (seal neck ruff), gorget, flecks (bird).
+// Wave 3 (types wind bug mind shadow dragon metal fight star): body ghost; ears bat; tail spade | scaly | roo;
+//   head gem, dhorns, whiskers, headband, beetlehorn, star; extras batwings, scales, stripes, wraps, starspots, starsparkle,
+//   cloudpuffs, swirl, dragonfly, elytra, dots.
 // beak (bird only, optional): needle | hook. hab (base forms, optional): place keys where it prefers to spawn
 //   ('sandiego','losangeles','sanfrancisco','yosemite','backyard','lakeshore','quarry','pineridge','stormpier','ashhills').
 const SPECIES_RAW=[
@@ -49,15 +52,15 @@ const SPECIES_RAW=[
  {n:'Glacilune',t:'frost',body:'bug',sz:1.15,c1:'#a9adf7',c2:'#eef0ff',c3:'#3b3f94',ears:null,tail:null,head:['antenna','crystal'],extras:['wings','fierce'],stage:2,float:true,st:[44,60,42]},
  // ---- legendary ----
  {n:'Solvane',t:'fire',body:'quad',sz:1.6,c1:'#f5b041',c2:'#fff1cc',c3:'#7a3510',sc:'#ffcf3a',ears:'pointy',tail:'flame',head:['sunhalo','sunantlers'],extras:['flamemane'],stage:3,leg:true,st:[70,72,70]},
- {n:'Mireluna',t:'water',body:'snake',sz:1.7,c1:'#4a4fb0',c2:'#d9e4ff',c3:'#171a4f',sc:'#e3ebff',ears:null,tail:'fin',head:['crescent'],extras:['spikes','starspots'],stage:3,leg:true,st:[72,70,70]},
+ {n:'Mireluna',t:'dragon',body:'snake',sz:1.7,c1:'#4a4fb0',c2:'#d9e4ff',c3:'#171a4f',sc:'#e3ebff',ears:null,tail:'fin',head:['crescent'],extras:['spikes','starspots'],stage:3,leg:true,st:[72,70,70]},
  {n:'Stormlark',t:'spark',body:'bird',sz:1.55,c1:'#6a7cab',c2:'#eaf5ff',c3:'#1f2647',sc:'#7df9ff',ears:null,tail:'bolt',head:['crowncrest'],extras:['stormwings','sparks'],stage:3,leg:true,st:[70,70,72]},
  // ---- wave 2: California trip (sea lion, moon jelly, hummingbird, monarch, fern deer, desert tortoise) + friends ----
  {n:'Barkpup',t:'water',body:'seal',sz:.62,c1:'#5f8aa3',c2:'#ead9bc',c3:'#22394a',ears:null,tail:null,head:[],extras:[],stage:1,evo:['Bellowhaul',16],hab:['sandiego','sanfrancisco'],st:[58,50,50]},
  {n:'Bellowhaul',t:'water',body:'seal',sz:1.3,c1:'#40677f',c2:'#dcc6a0',c3:'#142838',ears:null,tail:null,head:[],extras:['mane','fierce'],stage:2,st:[58,50,50]},
- {n:'Bellmist',t:'frost',body:'jelly',sz:.55,c1:'#cfe2ff',c2:'#f7fbff',c3:'#6a82c2',sc:'#e2b6ff',ears:null,tail:null,head:[],extras:[],stage:1,float:true,evo:['Moonveil',16],hab:['sandiego','losangeles','sanfrancisco'],st:[52,56,46]},
- {n:'Moonveil',t:'frost',body:'jelly',sz:1.15,c1:'#b7cdfc',c2:'#eef4ff',c3:'#4558a2',sc:'#d39cff',ears:null,tail:null,head:[],extras:[],stage:2,float:true,st:[52,56,46]},
- {n:'Zipbeak',t:'spark',body:'bird',sz:.45,c1:'#3fbf86',c2:'#ecfbe9',c3:'#14583c',sc:'#ff3fa4',ears:null,tail:null,beak:'needle',head:[],extras:['wings','gorget'],stage:1,float:true,evo:['Thrumwing',16],hab:['losangeles','sandiego','sanfrancisco'],st:[40,62,38]},
- {n:'Thrumwing',t:'spark',body:'bird',sz:.85,c1:'#2aa874',c2:'#dff7e4',c3:'#0f4a33',sc:'#ff3fa4',ears:null,tail:null,beak:'needle',head:['crest'],extras:['wings','gorget','sparks','fierce'],stage:2,float:true,st:[40,62,38]},
+ {n:'Bellmist',t:'mind',body:'jelly',sz:.55,c1:'#cfe2ff',c2:'#f7fbff',c3:'#6a82c2',sc:'#e2b6ff',ears:null,tail:null,head:[],extras:[],stage:1,float:true,evo:['Moonveil',16],hab:['sandiego','losangeles','sanfrancisco'],st:[52,56,46]},
+ {n:'Moonveil',t:'mind',body:'jelly',sz:1.15,c1:'#b7cdfc',c2:'#eef4ff',c3:'#4558a2',sc:'#d39cff',ears:null,tail:null,head:[],extras:[],stage:2,float:true,st:[52,56,46]},
+ {n:'Zipbeak',t:'wind',body:'bird',sz:.45,c1:'#3fbf86',c2:'#ecfbe9',c3:'#14583c',sc:'#ff3fa4',ears:null,tail:null,beak:'needle',head:[],extras:['wings','gorget'],stage:1,float:true,evo:['Thrumwing',16],hab:['losangeles','sandiego','sanfrancisco'],st:[40,62,38]},
+ {n:'Thrumwing',t:'wind',body:'bird',sz:.85,c1:'#2aa874',c2:'#dff7e4',c3:'#0f4a33',sc:'#ff3fa4',ears:null,tail:null,beak:'needle',head:['crest'],extras:['wings','gorget','sparks','fierce'],stage:2,float:true,st:[40,62,38]},
  {n:'Milkwick',t:'fire',body:'larva',sz:.55,c1:'#ffb43a',c2:'#fff4dc',c3:'#2a1a14',ears:null,tail:null,head:[],extras:[],stage:1,evo:['Regalflare',16],hab:['losangeles','sanfrancisco'],st:[46,58,42]},
  {n:'Regalflare',t:'fire',body:'butterfly',sz:1.05,c1:'#ff7a1f',c2:'#fff6e6',c3:'#2a1410',sc:'#ffd23f',ears:null,tail:null,head:[],extras:[],stage:2,float:true,st:[46,58,42]},
  {n:'Fernfawn',t:'leaf',body:'quad',sz:.6,c1:'#b8744a',c2:'#f6e6cf',c3:'#5a3018',sc:'#6cc35a',ears:'deer',tail:'stub',head:['fernantlers'],extras:['hooves','spots'],stage:1,evo:['Fernhart',14],hab:['yosemite','sanfrancisco'],st:[50,52,48]},
@@ -73,4 +76,20 @@ const SPECIES_RAW=[
  {n:'Talusram',t:'stone',body:'quad',sz:1.25,c1:'#757066',c2:'#ddd2bd',c3:'#2c2822',ears:'deer',tail:'stub',head:['horns'],extras:['hooves','plates','fierce'],stage:2,st:[56,54,58]},
  {n:'Hushflake',t:'frost',body:'bird',sz:.5,c1:'#f2f6ff',c2:'#ffffff',c3:'#6b7fa6',sc:'#46557a',ears:null,tail:null,beak:'hook',head:[],extras:['flecks'],stage:1,evo:['Blizzowl',16],hab:['pineridge','stormpier'],st:[50,52,50]},
  {n:'Blizzowl',t:'frost',body:'bird',sz:1.2,c1:'#e6eefc',c2:'#ffffff',c3:'#4d6390',sc:'#34405f',ears:null,tail:null,beak:'hook',head:['crystal'],extras:['flecks','wings','fierce'],stage:2,st:[50,52,50]},
+ // ---- wave 3: new types (append only: saves store species by index) ----
+ {n:'Breezel',t:'wind',body:'bird',sz:.6,c1:'#dbe7f0',c2:'#ffffff',c3:'#3f5a70',sc:'#5fd3b0',ears:null,tail:null,head:['crest'],extras:['wings','swirl'],stage:1,hab:['sandiego','stormpier','sanfrancisco'],st:[46,60,42]},
+ {n:'Gemkit',t:'mind',body:'quad',sz:.6,c1:'#efe2ff',c2:'#ffffff',c3:'#6d48a8',sc:'#c77dff',ears:'pointy',tail:'fluffy',head:['gem'],extras:[],stage:1,hab:['lakeshore','starveil'],st:[48,58,50]},
+ {n:'Drakit',t:'dragon',body:'quad',sz:.62,c1:'#7a8cf2',c2:'#ffe6b0',c3:'#262c78',sc:'#a9b8ff',ears:null,tail:'spade',head:['dhorns'],extras:['batwings','spikes'],stage:1,evo:['Drakonel',16],hab:['ashhills','yosemite'],st:[54,58,50]},
+ {n:'Drakonel',t:'dragon',body:'quad',sz:1.3,c1:'#5b6fe2',c2:'#ffdc98',c3:'#1b2165',sc:'#8ea2ff',ears:null,tail:'spade',head:['dhorns'],extras:['batwings','spikes','fierce'],stage:2,st:[54,58,50]},
+ {n:'Cloudrake',t:'dragon',body:'snake',sz:.75,c1:'#8fd3b4',c2:'#fff4dc',c3:'#2c6b55',sc:'#f0c75a',ears:null,tail:'fin',head:['dhorns','whiskers'],extras:['cloudpuffs'],stage:1,float:true,hab:['starveil','yosemite'],st:[56,56,52]},
+ {n:'Dartling',t:'bug',body:'bug',sz:.55,c1:'#38bfa2',c2:'#e4fff8',c3:'#124f44',sc:'#9ff0dc',ears:null,tail:null,head:[],extras:['dragonfly'],stage:1,float:true,hab:['lakeshore','pineridge','yosemite'],st:[42,64,40]},
+ {n:'Dotbug',t:'bug',body:'bug',sz:.45,c1:'#e8463f',c2:'#ffe9e2',c3:'#2a1416',sc:'#2a1416',ears:null,tail:null,head:['antenna'],extras:['elytra','dots'],stage:1,float:true,hab:['backyard','pineridge','yosemite'],st:[52,54,52]},
+ {n:'Flitbat',t:'shadow',body:'blob',sz:.5,c1:'#6c5c92',c2:'#efe4ff',c3:'#271f40',sc:'#a493c4',ears:'bat',tail:null,head:[],extras:['batwings'],stage:1,float:true,hab:['ashhills','starveil','pineridge'],st:[46,62,44]},
+ {n:'Wispuff',t:'shadow',body:'ghost',sz:.55,c1:'#d2c8f0',c2:'#ffffff',c3:'#4b3d7a',sc:'#8e7cc4',ears:null,tail:null,head:[],extras:[],stage:1,float:true,hab:['ashhills','starveil'],st:[50,60,48]},
+ {n:'Pangolink',t:'metal',body:'quad',sz:.62,c1:'#98a5b5',c2:'#efe1cc',c3:'#36404e',sc:'#d3dce6',ears:'round',tail:'scaly',head:[],extras:['scales'],stage:1,hab:['losangeles','sanfrancisco','quarry'],st:[58,48,64]},
+ {n:'Clankbeetle',t:'metal',body:'bug',sz:.6,c1:'#9fb1c6',c2:'#eaf0f6',c3:'#28323f',sc:'#e3eaf2',ears:null,tail:null,head:['beetlehorn'],extras:['elytra'],stage:1,float:true,hab:['sanfrancisco','quarry','losangeles'],st:[60,46,66]},
+ {n:'Joeyjab',t:'fight',body:'biped',sz:.66,c1:'#d38b52',c2:'#f9e6cb',c3:'#5a3016',sc:'#ef5a64',ears:'long',tail:'roo',head:[],extras:['wraps'],stage:1,hab:['losangeles','quarry'],st:[58,62,46]},
+ {n:'Dojocub',t:'fight',body:'quad',sz:.6,c1:'#f59a3a',c2:'#fff4e2',c3:'#3a1e0a',sc:'#ef5a64',ears:'round',tail:'long',head:['headband'],extras:['stripes'],stage:1,hab:['quarry','losangeles'],st:[56,60,48]},
+ {n:'Twinkfawn',t:'star',body:'quad',sz:.6,c1:'#ffc4db',c2:'#fff6fa',c3:'#8a3d66',sc:'#ffd65a',ears:'deer',tail:'stub',head:['star'],extras:['hooves','starspots'],stage:1,hab:['starveil','losangeles'],st:[52,56,50]},
+ {n:'Glimmerbun',t:'star',body:'biped',sz:.56,c1:'#fff0f7',c2:'#ffffff',c3:'#9a5a86',sc:'#ffd65a',ears:'long',tail:'fluffy',head:['star'],extras:['starsparkle'],stage:1,hab:['starveil','backyard'],st:[52,56,52]},
 ];

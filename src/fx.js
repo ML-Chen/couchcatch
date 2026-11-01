@@ -4,7 +4,7 @@
    Expensive static art (glows, rocks, leaves, shards, stars, icons, platforms,
    portal swirls, beacon beams) is rendered once into offscreen canvases keyed by size.
 
-   FX.attack(ctx, type, x0, y0, x1, y1, p, s)  in-flight attack, type in fire|water|leaf|spark|stone|frost|normal
+   FX.attack(ctx, type, x0, y0, x1, y1, p, s)  in-flight attack, type in fire|water|leaf|spark|stone|frost|wind|bug|mind|shadow|dragon|metal|fight|star|normal (unknown -> normal)
    FX.impact(ctx, type, x, y, p, s)            hit burst on the defender (~0.4 s)
    FX.crit(ctx, x, y, p, s)                    critical-hit starburst
    FX.giantAura(ctx, x, y, s, t)               giant-form aura, (x,y) = feet, s ~ creature half-height
@@ -43,7 +43,15 @@
     spark:  { core: [255, 255, 240], hi: [255, 242, 124], mid: [255, 204, 44],  lo: [140, 104, 255] },
     stone:  { core: [255, 242, 218], hi: [228, 198, 152], mid: [172, 132, 92],  lo: [98, 74, 52] },
     frost:  { core: [255, 255, 255], hi: [214, 246, 255], mid: [130, 212, 255], lo: [62, 140, 232] },
-    normal: { core: [255, 255, 255], hi: [255, 250, 234], mid: [255, 222, 172], lo: [150, 164, 205] }
+    normal: { core: [255, 255, 255], hi: [255, 250, 234], mid: [255, 222, 172], lo: [150, 164, 205] },
+    wind:   { core: [255, 255, 255], hi: [214, 255, 240], mid: [110, 222, 190], lo: [36, 140, 120] },
+    bug:    { core: [250, 255, 220], hi: [222, 240, 120], mid: [160, 196, 46],  lo: [80, 110, 20] },
+    mind:   { core: [255, 242, 255], hi: [242, 196, 255], mid: [204, 132, 255], lo: [120, 56, 196] },
+    shadow: { core: [236, 226, 255], hi: [172, 150, 224], mid: [96, 76, 146],   lo: [38, 26, 66] },
+    dragon: { core: [240, 245, 255], hi: [172, 186, 255], mid: [106, 116, 250], lo: [58, 38, 168] },
+    metal:  { core: [255, 255, 255], hi: [226, 233, 243], mid: [166, 178, 196], lo: [76, 88, 106] },
+    fight:  { core: [255, 246, 232], hi: [255, 192, 152], mid: [238, 92, 98],   lo: [150, 28, 48] },
+    star:   { core: [255, 255, 240], hi: [255, 236, 150], mid: [255, 168, 212], lo: [206, 96, 166] }
   };
   function pal(type) { return PAL[type] || PAL.normal; }
 
@@ -600,8 +608,132 @@
     sparkle(ctx, h.x, h.y, s * 0.32, PAL.normal.hi, 0.9, a + p * 3);
   }
 
-  var ATK = { fire: atkFire, water: atkWater, leaf: atkLeaf, spark: atkSpark, stone: atkStone, frost: atkFrost, normal: atkNormal };
-  var ARC = { fire: 0.12, water: 0.07, leaf: 0.1, spark: 0, stone: 0.3, frost: 0.05, normal: 0.03 };
+  /* ---- wave 3 types: wind, bug, mind, shadow, dragon, metal, fight, star ---- */
+  function atkWind(ctx, P, p, s) { // Gust Dash: three crescent air blades with mint streaks
+    var C = PAL.wind, o = { x: 0, y: 0 }, j, m;
+    for (j = 0; j < 3; j++) {
+      var d = j * 0.09; if (p < d) continue;
+      var q = clamp((p - d) / (1 - 0.18), 0, 1), a = ang(P, q), R = s * (0.27 - j * 0.04), lat = (j - 1) * s * 0.2 * bell(q);
+      ctx.globalCompositeOperation = 'source-over';
+      for (m = 1; m <= 3; m++) { at(P, Math.max(0, q - m * 0.05), o); glow(ctx, o.x - P.uy * lat, o.y + P.ux * lat, R * (1 - m * 0.2), C.mid, 0.2); }
+      at(P, q, o);
+      ctx.save(); ctx.translate(o.x - P.uy * lat, o.y + P.ux * lat); ctx.rotate(a);
+      ctx.globalAlpha = 0.85; ctx.fillStyle = rgba(C.mid, 1);
+      ctx.beginPath(); ctx.arc(-R * 0.35, 0, R, -1.15, 1.15); ctx.arc(-R * 0.78, 0, R * 0.95, 1.0, -1.0, true); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = rgba(C.lo, 1); ctx.globalAlpha = 0.5; ctx.lineWidth = Math.max(0.6, s * 0.012); ctx.stroke();
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.95; ctx.strokeStyle = rgba(C.core, 1); ctx.lineWidth = Math.max(0.8, s * 0.035);
+      ctx.beginPath(); ctx.arc(-R * 0.35, 0, R * 0.9, -0.85, 0.85); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  function atkBug(ctx, P, p, s) { // Buzz Bite: a zig-zagging swarm, then chomping fangs
+    var C = PAL.bug, o = { x: 0, y: 0 }, i;
+    for (i = 0; i < 9; i++) {
+      var d = hash(i, 201) * 0.25; if (p < d) continue;
+      var q = clamp((p - d) / (1 - 0.25), 0, 1); at(P, q, o);
+      var lat = (hash(i, 202) - 0.5) * s * 0.5 * bell(q) + Math.sin(q * 18 + i * 2) * s * 0.16 * bell(q);
+      var bx = o.x - P.uy * lat, by = o.y + P.ux * lat, r = s * (0.045 + 0.03 * hash(i, 203)), fl = Math.abs(Math.sin(p * 60 + i));
+      ctx.globalCompositeOperation = 'source-over'; glow(ctx, bx, by, r * 3, C.mid, 0.3);
+      ctx.globalAlpha = 0.65; ctx.fillStyle = 'rgba(240,255,250,1)'; ctx.beginPath(); ctx.ellipse(bx - r * 0.3, by - r * 0.9, r * 0.9, r * 0.45 * (0.4 + fl), -0.4, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1; ctx.fillStyle = rgba(C.lo, 1); ctx.beginPath(); ctx.arc(bx, by, r, 0, TAU); ctx.fill();
+      ctx.fillStyle = rgba(C.hi, 1); ctx.beginPath(); ctx.arc(bx - r * 0.3, by - r * 0.3, r * 0.45, 0, TAU); ctx.fill();
+    }
+    if (p > 0.68) {
+      var k = (p - 0.68) / 0.32, h = at(P, 1, { x: 0, y: 0 }), jw = s * 0.32, op = Math.abs(Math.cos(k * PI * 2)) * 0.5, sg;
+      ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(ang(P, 1)); ctx.globalAlpha = bell(k);
+      ctx.fillStyle = 'rgba(255,255,255,1)'; ctx.strokeStyle = rgba(C.lo, 1); ctx.lineWidth = Math.max(1, s * 0.02);
+      for (sg = -1; sg <= 1; sg += 2) { var yy = sg * jw * (0.12 + op); ctx.beginPath(); ctx.moveTo(-jw * 0.45, yy); ctx.lineTo(jw * 0.45, yy); ctx.lineTo(jw * 0.05, yy - sg * jw * 0.5); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+      ctx.restore();
+    }
+  }
+  function atkMind(ctx, P, p, s) { // Mind Wave: ripples of violet light, sparkles
+    var C = PAL.mind, o = { x: 0, y: 0 }, j;
+    for (j = 0; j < 4; j++) {
+      var d = j * 0.12; if (p < d) continue;
+      var q = clamp((p - d) / (1 - 0.36), 0, 1), R = s * (0.12 + 0.3 * q), al = 1 - q * 0.5; at(P, q, o);
+      ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(ang(P, q));
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.5 * al; ctx.strokeStyle = rgba(C.lo, 1); ctx.lineWidth = Math.max(1, s * 0.07);
+      ctx.beginPath(); ctx.ellipse(0, 0, R * 0.45, R, 0, 0, TAU); ctx.stroke();
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.9 * al; ctx.strokeStyle = rgba(C.hi, 1); ctx.lineWidth = Math.max(0.8, s * 0.03); ctx.stroke();
+      ctx.restore();
+    }
+    var h = at(P, p, { x: 0, y: 0 }); ctx.globalCompositeOperation = 'lighter'; glow(ctx, h.x, h.y, s * 0.4, C.mid, 0.6, true);
+    for (j = 0; j < 5; j++) { var tq = hash(j, 301) * p; at(P, tq, o); sparkle(ctx, o.x + (hash(j, 302) - 0.5) * s * 0.6, o.y + (hash(j, 303) - 0.5) * s * 0.6, s * 0.08, C.hi, 0.8 * (1 - (p - tq)), p * 4); }
+  }
+  function atkShadow(ctx, P, p, s) { // Shade Pounce: a smoky dark orb that ends in three claw slashes
+    var C = PAL.shadow, o = { x: 0, y: 0 }, m, q = Math.min(1, p * 1.15), h = at(P, q, { x: 0, y: 0 });
+    ctx.globalCompositeOperation = 'source-over';
+    for (m = 8; m >= 0; m--) { var qq = q - m * 0.04; if (qq < 0) continue; at(P, qq, o); var w = Math.sin(m * 1.7 + p * 12) * s * 0.06;
+      glow(ctx, o.x - P.uy * w, o.y + P.ux * w, s * (0.32 - m * 0.022), m < 3 ? C.lo : C.mid, 0.55 * (1 - m / 9)); }
+    glow(ctx, h.x, h.y, s * 0.42, C.lo, 0.85);
+    ctx.globalCompositeOperation = 'lighter'; glow(ctx, h.x, h.y, s * 0.3, C.hi, 0.75, true);
+    for (m = 1; m <= 6; m += 2) { var q2 = q - m * 0.05; if (q2 < 0) continue; at(P, q2, o); glow(ctx, o.x, o.y, s * 0.16, C.hi, 0.3 * (1 - m / 7), true); }
+    if (p > 0.7) {
+      var k = (p - 0.7) / 0.3, e = at(P, 1, { x: 0, y: 0 }), i, L = s * 0.55 * Math.min(1, k * 2.2);
+      ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(ang(P, 1) + 0.9);
+      for (i = -1; i <= 1; i++) {
+        ctx.beginPath(); ctx.moveTo(i * s * 0.14 - L * 0.1, -L * 0.5); ctx.quadraticCurveTo(i * s * 0.14 + s * 0.08, 0, i * s * 0.14 - L * 0.1, L * 0.5);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (1 - k) * 0.8; ctx.strokeStyle = rgba(C.lo, 1); ctx.lineWidth = s * 0.07; ctx.stroke();
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1 - k; ctx.strokeStyle = rgba(C.core, 1); ctx.lineWidth = s * 0.025; ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  function atkDragon(ctx, P, p, s) { // Dragon Roar: roar rings at the mouth + a blue-violet dragonfire stream
+    var C = PAL.dragon, o = { x: 0, y: 0 }, i, q0 = Math.max(0, p - 0.45), w = s * 0.22;
+    for (i = 0; i < 2; i++) { var k = p * 1.6 - i * 0.25; if (k < 0 || k > 1) continue; at(P, 0.04, o);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (1 - k) * 0.6; ctx.strokeStyle = rgba(C.mid, 1); ctx.lineWidth = Math.max(1, s * 0.06 * (1 - k));
+      ctx.beginPath(); ctx.arc(o.x, o.y, s * (0.2 + 0.7 * k), 0, TAU); ctx.stroke(); }
+    ctx.globalCompositeOperation = 'source-over';
+    if (ribbon(ctx, P, q0, p, 14, function (k2) { return w * (0.25 + 0.9 * k2) * (0.85 + 0.15 * Math.sin(k2 * 20 + p * 30)); })) { ctx.globalAlpha = 0.75; ctx.fillStyle = rgba(C.lo, 1); ctx.fill(); }
+    ctx.globalCompositeOperation = 'lighter';
+    if (ribbon(ctx, P, q0, p, 14, function (k2) { return w * (0.12 + 0.55 * k2); })) { ctx.globalAlpha = 0.8; ctx.fillStyle = rgba(C.mid, 1); ctx.fill(); }
+    if (ribbon(ctx, P, q0 + (p - q0) * 0.3, p, 10, function (k2) { return w * 0.25 * k2; })) { ctx.globalAlpha = 0.9; ctx.fillStyle = rgba(C.core, 1); ctx.fill(); }
+    var h = at(P, p, { x: 0, y: 0 }); glow(ctx, h.x, h.y, s * 0.5, C.hi, 0.7, true);
+    for (i = 0; i < 6; i++) { var tq = p - hash(i, 401) * 0.4; if (tq < 0) continue; at(P, tq, o); glow(ctx, o.x + (hash(i, 402) - 0.5) * s * 0.4, o.y + (hash(i, 403) - 0.5) * s * 0.4 - (p - tq) * s * 0.6, s * 0.08, C.hi, 0.8, true); }
+  }
+  function atkMetal(ctx, P, p, s) { // Iron Bash: a spinning riveted steel ball with streaks and sparks
+    var C = PAL.metal, i, h = at(P, p, { x: 0, y: 0 }), a = ang(P, p), R = s * 0.2;
+    ctx.globalCompositeOperation = 'source-over';
+    for (i = 0; i < 5; i++) { var off = (i - 2) * R * 0.45, L = s * (0.4 + 0.3 * hash(i, 501)); ctx.globalAlpha = 0.55; ctx.strokeStyle = rgba(i % 2 ? C.mid : C.lo, 1); ctx.lineWidth = Math.max(0.8, s * 0.025);
+      ctx.beginPath(); ctx.moveTo(h.x - P.uy * off - P.ux * R, h.y + P.ux * off - P.uy * R); ctx.lineTo(h.x - P.uy * off - P.ux * (R + L), h.y + P.ux * off - P.uy * (R + L)); ctx.stroke(); }
+    var g = ctx.createRadialGradient(h.x - R * 0.35, h.y - R * 0.4, R * 0.1, h.x, h.y, R);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, rgba(C.hi, 1)); g.addColorStop(0.75, rgba(C.mid, 1)); g.addColorStop(1, rgba(C.lo, 1));
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(h.x, h.y, R, 0, TAU); ctx.fill(); ctx.strokeStyle = rgba(C.lo, 1); ctx.lineWidth = Math.max(0.8, s * 0.02); ctx.stroke();
+    ctx.fillStyle = rgba(C.lo, 0.8); for (i = 0; i < 6; i++) { var ra = i / 6 * TAU + p * 8; ctx.beginPath(); ctx.arc(h.x + Math.cos(ra) * R * 0.68, h.y + Math.sin(ra) * R * 0.68, R * 0.08, 0, TAU); ctx.fill(); }
+    ctx.globalCompositeOperation = 'lighter';
+    for (i = 0; i < 6; i++) { var sa = a + PI + (hash(i, 502) - 0.5) * 1.6, sl = s * (0.15 + 0.25 * hash(i, Math.floor(p * 20))); ctx.globalAlpha = 0.9; ctx.strokeStyle = 'rgba(255,230,160,1)'; ctx.lineWidth = Math.max(0.7, s * 0.015);
+      ctx.beginPath(); ctx.moveTo(h.x + Math.cos(sa) * R, h.y + Math.sin(sa) * R); ctx.lineTo(h.x + Math.cos(sa) * (R + sl), h.y + Math.sin(sa) * (R + sl)); ctx.stroke(); }
+  }
+  function atkFight(ctx, P, p, s) { // Power Punch: a glowing wrapped fist with speed lines
+    var C = PAL.fight, h = at(P, p, { x: 0, y: 0 }), a = ang(P, p), R = s * 0.2 * (0.7 + 0.5 * Math.min(1, p * 2)), i;
+    ctx.globalCompositeOperation = 'source-over';
+    for (i = 0; i < 5; i++) { var off = (i - 2) * R * 0.5, L = s * (0.35 + 0.35 * hash(i, 601)); ctx.globalAlpha = 0.6; ctx.strokeStyle = i % 2 ? 'rgba(255,255,255,1)' : rgba(C.mid, 1); ctx.lineWidth = Math.max(0.8, s * 0.03);
+      ctx.beginPath(); ctx.moveTo(h.x - P.uy * off - P.ux * R * 1.2, h.y + P.ux * off - P.uy * R * 1.2); ctx.lineTo(h.x - P.uy * off - P.ux * (R * 1.2 + L), h.y + P.ux * off - P.uy * (R * 1.2 + L)); ctx.stroke(); }
+    glow(ctx, h.x, h.y, R * 2.2, C.mid, 0.4);
+    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(a);
+    var g = ctx.createLinearGradient(0, -R, 0, R); g.addColorStop(0, rgba(C.hi, 1)); g.addColorStop(1, rgba(C.mid, 1));
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.strokeStyle = rgba(C.lo, 1); ctx.lineWidth = Math.max(1, s * 0.022);
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-R, -R * 0.75, R * 1.5, R * 1.5, R * 0.45); else ctx.rect(-R, -R * 0.75, R * 1.5, R * 1.5); ctx.fill(); ctx.stroke();
+    for (i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(R * 0.52, -R * 0.56 + i * R * 0.37, R * 0.26, R * 0.2, 0, 0, TAU); ctx.fill(); ctx.stroke(); }
+    ctx.beginPath(); ctx.ellipse(-R * 0.1, R * 0.72, R * 0.42, R * 0.2, -0.2, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(-R * 0.98, -R * 0.7, R * 0.28, R * 1.4);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse(-R * 0.2, -R * 0.45, R * 0.35, R * 0.12, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  function atkStar(ctx, P, p, s) { // Twinkle Beam: a pink beam carrying spinning golden stars
+    var C = PAL.star, o = { x: 0, y: 0 }, i, q0 = Math.max(0, p - 0.5);
+    ctx.globalCompositeOperation = 'lighter';
+    if (ribbon(ctx, P, q0, p, 12, function (k) { return s * 0.12 * (0.2 + k); })) { var t0 = at(P, q0, { x: 0, y: 0 }), h0 = at(P, p, { x: 0, y: 0 }), g = ctx.createLinearGradient(t0.x, t0.y, h0.x, h0.y); g.addColorStop(0, rgba(C.mid, 0)); g.addColorStop(1, rgba(C.mid, 0.75)); ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.fill(); }
+    for (i = 0; i < 7; i++) { var q = p - i * 0.06; if (q < 0) continue; at(P, q, o); var R = s * (0.13 - i * 0.012), w = Math.sin(q * 14 + i) * s * 0.12;
+      ctx.globalCompositeOperation = 'source-over'; put(ctx, starSpr(R), o.x - P.uy * w, o.y + P.ux * w, R * 3, R * 3, q * 6 + i, 1 - i * 0.1);
+      ctx.globalCompositeOperation = 'lighter'; sparkle(ctx, o.x - P.uy * w, o.y + P.ux * w, R * 1.2, C.hi, 0.6, p * 5); }
+    var h = at(P, p, { x: 0, y: 0 }); ctx.globalCompositeOperation = 'lighter'; glow(ctx, h.x, h.y, s * 0.4, C.mid, 0.6, true);
+  }
+
+  var ATK = { fire: atkFire, water: atkWater, leaf: atkLeaf, spark: atkSpark, stone: atkStone, frost: atkFrost, normal: atkNormal,
+    wind: atkWind, bug: atkBug, mind: atkMind, shadow: atkShadow, dragon: atkDragon, metal: atkMetal, fight: atkFight, star: atkStar };
+  var ARC = { fire: 0.12, water: 0.07, leaf: 0.1, spark: 0, stone: 0.3, frost: 0.05, normal: 0.03, wind: 0.15, bug: 0.08, mind: 0.02, shadow: 0.1, dragon: 0.06, metal: 0.04, fight: 0.02, star: 0.12 };
 
   /* ---------------- guard ---------------- */
   function prep(ctx) {
@@ -623,13 +755,14 @@
   function attack(ctx, type, x0, y0, x1, y1, p, s) {
     x0 = num(x0, 0); y0 = num(y0, 0); x1 = num(x1, x0); y1 = num(y1, y0);
     p = clamp(num(p, 0), 0, 1); s = Math.max(4, num(s, 60));
-    var fn = ATK[type] || atkNormal;
+    var fn = (Object.prototype.hasOwnProperty.call(ATK, type) && ATK[type]) || atkNormal;
     fn(ctx, mkPath(x0, y0, x1, y1, ARC[type] !== undefined ? ARC[type] : 0.05), p, s);
   }
 
   /* ---------------- impact ---------------- */
   function impact(ctx, type, x, y, p, s) {
     x = num(x, 0); y = num(y, 0); p = clamp(num(p, 0), 0, 1); s = Math.max(4, num(s, 60));
+    if (!Object.prototype.hasOwnProperty.call(PAL, type)) type = 'normal';
     var C = pal(type), e = eo(p), fade = 1 - p, i, a, d, px, py, k;
     // tinted body (light bg) + additive flash
     ctx.globalCompositeOperation = 'source-over';
@@ -666,7 +799,7 @@
       } else if (type === 'leaf') {
         ctx.globalCompositeOperation = 'source-over';
         put(ctx, leafSpr(ps * 1.6), px, py + p * s * 0.2, ps * 4, ps * 2.1, a + p * 8 * (i % 2 ? 1 : -1), k, 0.4 + 0.6 * Math.abs(Math.cos(p * 10 + i)));
-      } else if (type === 'spark') {
+      } else if (type === 'spark' || type === 'metal') {
         ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = k * (0.6 + 0.4 * hash(i, Math.floor(p * 30)));
         ctx.strokeStyle = rgba(i % 3 ? C.hi : C.core, 1); ctx.lineWidth = Math.max(0.7, s * 0.025);
         var d0 = d * 0.55, dm = d * 0.78, jg = s * 0.06 * (hash(i, 95) - 0.5) * 2;
@@ -677,6 +810,13 @@
         ctx.globalCompositeOperation = 'source-over';
         glow(ctx, px, py, ps * 3, C.hi, 0.25 * k);
         put(ctx, rockSpr(ps * 1.1, i), px, py + p * p * s * 0.7, ps * 2.9, ps * 2.9, a + p * 6, Math.min(1, k * 1.5));
+      } else if (type === 'shadow' || type === 'bug') {
+        ctx.globalCompositeOperation = 'source-over';
+        glow(ctx, px, py - (type === 'shadow' ? p * s * 0.3 : 0), ps * 2.6 * (0.5 + k), type === 'shadow' ? C.lo : C.mid, 0.7 * k);
+        if (type === 'bug') { ctx.globalAlpha = k; ctx.fillStyle = rgba(C.lo, 1); ctx.beginPath(); ctx.arc(px, py, ps * 0.8, 0, TAU); ctx.fill(); }
+      } else if (type === 'star') {
+        ctx.globalCompositeOperation = 'source-over';
+        put(ctx, starSpr(ps * 1.4), px, py, ps * 4.2, ps * 4.2, a + p * 4, Math.min(1, k * 1.4));
       } else if (type === 'frost') {
         ctx.globalCompositeOperation = 'source-over';
         put(ctx, shardSpr(ps * 1.6), px, py, ps * 4.2, ps * 1.8, a, Math.min(1, k * 1.4));
@@ -692,7 +832,7 @@
         glow(ctx, x + Math.cos(a) * d, y + Math.sin(a) * d * 0.6, s * (0.25 + 0.3 * e), C.hi, 0.28 * fade);
       }
     }
-    if (type === 'normal' || type === 'fire' || type === 'spark') {
+    if (type === 'normal' || type === 'fire' || type === 'spark' || type === 'fight' || type === 'metal' || type === 'dragon') {
       // radial streaks
       ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = rgba(C.core, 1);
       for (i = 0; i < 8; i++) {
@@ -1372,7 +1512,7 @@
     catchBurst: safe(catchBurst),
     spawnRing: safe(spawnRing),
     item: safe(item),
-    types: ['fire', 'water', 'leaf', 'spark', 'stone', 'frost', 'normal'],
+    types: ['fire', 'water', 'leaf', 'spark', 'stone', 'frost', 'wind', 'bug', 'mind', 'shadow', 'dragon', 'metal', 'fight', 'star', 'normal'],
     items: ['orb', 'great', 'ultra', 'berry', 'badge'],
     clearCache: function () { CACHE = {}; CN = 0; }
   };

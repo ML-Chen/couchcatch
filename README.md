@@ -14,7 +14,7 @@ Open `dist/couchcatch.html` in a browser. It is one self-contained file (about 1
 
 ## Features
 
-- 55 original creatures in evolution lines, drawn procedurally on canvas, with Chinese names and pinyin.
+- 70 original creatures across 14 types (fire, water, leaf, spark, stone, frost, wind, bug, mind, shadow, dragon, metal, fight, star), drawn procedurally on canvas, with Chinese names and pinyin.
 - Places: a home region (Backyard, Lakeshore, Old Quarry, Pine Ridge, Storm Pier, Ash Hills), California (San Diego, Los Angeles, San Francisco, Yosemite) and the Starveil Rift, each with a painted background.
 - Flick-to-throw catching with a shrinking ring, curveballs, Great and Ultra orbs and Calm Berries.
 - Gym battles with type matchups and a three-turn giant form; giant raid bosses; shiny and legendary creatures.
@@ -59,6 +59,7 @@ Recorded clips: Qwen3-TTS (0.6B CustomVoice) run locally; lines without a whole-
 | `src/speak.js` | Audio playback, Speak lesson and conversation player |
 | `src/trace.js`, `src/hanzi_writer.js` | Character-tracing ladders and overlay; Hanzi Writer library plus stroke data |
 | `src/reader.js`, `src/readings.js` | Papers lying around in the scene and the graded-reader sheet; 36 beginner texts |
+| `src/types_ext.js` | The eight added types: colours, strengths, moves, where they spawn, tracing ladders |
 | `src/story.js`, `src/story_dialogues.js`, `src/story_readings.js` | The Little Star story arc: chapter triggers, goals, the floating companion; its nine conversations and six papers |
 | `src/hsk_chars.js`, `tools/make_hsk.py` | All 1,071 HSK 1–4 characters with kid-friendly glosses, example words and themes, and the script that builds them |
 | `tools/build_and_check.sh` | Build, syntax-check, standard screenshots and (with `--tests`) the e2e suite in one step |
