@@ -76,6 +76,7 @@ canvas.mini{width:72px;height:72px;flex:none}
 .starters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .starters button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px}
 .starters canvas{width:84px;height:84px}
+.stimp{margin-top:12px;display:flex;flex-direction:column;align-items:center;gap:6px}.stimp #stImpBox{width:100%;display:flex;gap:6px;align-items:stretch}.stimp #stImpBox[hidden]{display:none}.stimp textarea{flex:1;min-width:0;font-size:12px;border-radius:10px;padding:6px}
 .zh{display:block;font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;font-weight:500;font-size:.8em;opacity:.92;margin-top:2px;cursor:pointer}
 .zh i{font-style:normal;font-family:var(--body);font-weight:600;opacity:.7;margin-left:5px;font-size:.92em}
 .zh.inl{display:inline;margin-left:6px}
@@ -344,6 +345,7 @@ canvas.mini{border-radius:8px;background:radial-gradient(circle at 50% 70%,rgba(
   <h2>Pick your first partner<span class="zh" data-say="选择你的第一个伙伴">选择你的第一个伙伴<i>xuǎnzé nǐ de dì yī gè huǒbàn</i></span></h2>
   
   <div class="starters" id="starterList"></div>
+  <div class="stimp"><button class="small" id="stImpBtn">I have a save code<span class="zh" data-say="存档">存档<i>cúndàng</i></span></button><div id="stImpBox" hidden><textarea id="stImpText" rows="2" spellcheck="false" placeholder="Paste the save code here"></textarea><button class="small" id="stImpLoad">Load</button></div></div>
 </div></div>
 
 <div id="toast"></div>
@@ -11297,10 +11299,19 @@ function renderSettings(full){const seg=document.getElementById('lvlSeg');seg.in
     if(Date.now()-armed>4000){armed=Date.now();lb.textContent='Tap again';clearTimeout(armT);armT=setTimeout(()=>{armed=0;lb.textContent='Load'},4000);toast(`Replace this game with the saved one (${obj.col.length} creature${obj.col.length===1?'':'s'})? Tap Load again.`);return}
     clearTimeout(armT);importSave(obj)}}
 // Replace the whole game with an imported save: everything comes from the save (team, field, trip), nothing from this page
+// A save code ("CC1:" + base64 of the save) back into a save object, or null if it isn't one.
+function decodeSaveCode(raw){try{const o=JSON.parse(decodeURIComponent(escape(atob(String(raw||'').trim().replace(/^CC1:/,'')))));if(o&&o.v===2&&Array.isArray(o.col))return o}catch(e){}return null}
+// The first screen: a child moving to a new phone or browser pastes their save code instead of starting over.
+document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('stImpBtn'),box=document.getElementById('stImpBox'),ta=document.getElementById('stImpText'),go=document.getElementById('stImpLoad');if(!b)return;
+  b.onclick=()=>{box.hidden=!box.hidden;if(!box.hidden)ta.focus()};
+  go.onclick=()=>{const obj=decodeSaveCode(ta.value);if(!obj){toast('That is not a save code');return}LOG('start_import',{n:obj.col.length});importSave(obj)}});
 function importSave(obj){LOG('save_import',{n:obj.col.length});
   try{window.stopTalk&&stopTalk();window.stopLesson&&stopLesson()}catch(e){}document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());
   C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;
-  S=obj;S.savedAt=Date.now();migrate();restore(); // restore() sets the field and the trip from the save, so writing it back keeps them
+  S=obj;S.savedAt=Date.now();migrate();
+  // an imported game has already met the neighbor: never replay the opening conversation
+  S.talked=S.talked||{};if(S.col.length&&!S.talked.intro_neighbor){S.talked.intro_neighbor=1;(S.talkDay=S.talkDay||{}).intro_neighbor=S.talkDay.intro_neighbor||'imported'}
+  restore(); // restore() sets the field and the trip from the save, so writing it back keeps them
   writeLocal();clearTimeout(localTimer);clearTimeout(remoteTimer);pushRemote();setTimeout(()=>location.reload(),400)}
 document.getElementById('bSet').onclick=()=>{renderSettings(true);open('sSet')};
 const CONTACTS=[

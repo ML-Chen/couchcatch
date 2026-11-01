@@ -10,7 +10,8 @@ Couchcatch is a single-file browser game: you stay in one place and original cre
   `tools/build_and_check.sh src dist/couchcatch.html /tmp/shots --tests`
   Look at `/tmp/shots/sheet.png` after every change: it shows every screen at the kids' phone size (360x629) and is how UI regressions get caught. `errors.txt` beside it lists page errors.
 - Setup for tests/screenshots: `npm install` then `npx playwright install chromium`.
-- GitHub Pages: the `gh-pages` branch holds only `index.html` (a copy of `dist/couchcatch.html`) and `.nojekyll`. Refresh it on every release as a single force-pushed commit so the branch never accumulates copies of the 9 MB page. Outside Claude, saves stay in the browser only (use Settings → Save code to move progress).
+- GitHub Pages and the Android app's updates: pushing to `main` runs `.github/workflows/publish.yml`. It builds the game and publishes `gh-pages` as a single force-pushed commit holding `index.html`, `.nojekyll` and `update/` (the same page plus `manifest.json` and `manifest.sig`). The signature is made with the `COUCHCATCH_UPDATE_KEY` secret, and the Android app installs only builds signed by that key. Don't push `gh-pages` by hand: an unsigned or hand-made `update/` would just be rejected by the app. If the workflow can't run, `COUCHCATCH_UPDATE_KEY=... tools/publish_pages.sh dist/couchcatch.html site` assembles the same site locally. Outside Claude and the Android app, saves stay in the browser only (use Settings → Save code to move progress).
+- Android app: `android/` (see android/README.md). `android/build.sh` builds the APK without Gradle, and it must be signed with the project's release keystore, which is never in the repo. The released APK is committed at `android/release/couchcatch.apk` and copied onto the Pages site as `couchcatch.apk` Publishing a GitHub Release tagged `android-vX.Y` (done by the owner; Claude sessions may not create releases or push tags) runs `.github/workflows/release-apk.yml`, which attaches that APK after checking it against `CHECKSUMS.txt`. A new APK is only needed when the Android code changes; game changes reach the app through the signed updates.
 - The game is published as a Claude artifact. In a Claude session, publish `dist/couchcatch.html` with the Artifact tool, passing the existing artifact URL as `url` (the owner must have given you edit access). Keep the declared capabilities: `{db:{rules:[{path:"logs",read:"admin",write:"admin"},{path:"logs/{self}",read:"interact",write:"interact"}]},user:{}}`. Saves live in each viewer's private `data/users/<id>/` space; action logs (for bug-hunting) go to `logs/<viewer id>/chunks/…` and only the owner can read all of them.
 
 ## Module map (src/)
@@ -30,6 +31,7 @@ Couchcatch is a single-file browser game: you stay in one place and original cre
 | types_ext.js | Extra creature types (if present): mutates TYPES/STRONG/MOVES/PLACES, adds tracing ladders |
 | theme_glass.css | The glass UI theme (loaded last) |
 | zh_audio.js | Recorded Mandarin clips (Ogg Opus, base64). Keys are the Chinese text |
+| ../android/ | Android app: WebView shell, signed self-updates from gh-pages (MainActivity, GameStore, UpdateCheck, Updater) |
 
 ## Rules the family has asked for
 

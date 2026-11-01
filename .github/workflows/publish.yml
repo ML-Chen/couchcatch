@@ -1,0 +1,47 @@
+# Publishes the game to GitHub Pages, together with the SIGNED update the Android app downloads.
+#
+# Security model (why a random branch, fork or pull request cannot ship code to phones):
+# - The app installs a downloaded build only if its manifest is signed with the private update key, and the
+#   app checks that signature against a public key compiled into the APK (android/src/.../UpdateCheck.java).
+# - The private key exists only as the repository secret COUCHCATCH_UPDATE_KEY. GitHub never exposes secrets
+#   to workflows started from forks or pull requests, and this workflow only runs for pushes to main (which
+#   only the owner and collaborators can make) or a manual start by them.
+# - Third-party code is limited to actions/checkout, pinned to an exact commit.
+name: Publish game and signed app update
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tools/publish_pages.sh', 'tools/update_manifest.py', '.github/workflows/publish.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publish-pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'ML-Chen/couchcatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Build the single-file game
+        run: cd src && python3 build.py draw.js ../dist/couchcatch.html
+      - name: Assemble the site and sign the update
+        env:
+          COUCHCATCH_UPDATE_KEY: ${{ secrets.COUCHCATCH_UPDATE_KEY }}
+        run: |
+          if [ -z "$COUCHCATCH_UPDATE_KEY" ]; then
+            echo "::warning::COUCHCATCH_UPDATE_KEY is not set, so the Android app will not see this build. Add it under Settings > Secrets and variables > Actions."
+          fi
+          tools/publish_pages.sh dist/couchcatch.html site
+      - name: Push to the gh-pages branch (one commit, replacing the previous one)
+        run: |
+          cd site
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Couchcatch build from ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages

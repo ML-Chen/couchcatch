@@ -1,3 +1,8 @@
 node_modules/
 *.log
 __pycache__/
+dist/*.apk
+dist/*.idsig
+*.keystore
+*signing_key.pem
+node_modules
