@@ -50,7 +50,7 @@ A full run takes about 2 minutes. Playwright is preinstalled, so do not install 
 | 02 | Picking a starter adds a Lv-5 creature and saves it to `localStorage.couchcatch2`. Reload restores the team, the staying mode and the creatures on the field |
 | 03a | Staying spawns creatures over time. Even with forced spawns on every frame, the field never holds more than 7. Spawning stops at the quota of 15 |
 | 03b | The quota is 5, then grows by 2 for each new place stayed at, up to 15. Staying at a place again does not raise it. The status text matches |
-| 04 | A real mouse drag-and-flick from `cGeom().rest` (5 steps up) hits. A sideways flick misses, uses an orb and resets the streak. The step length is calibrated from the measured pointermove gap |
+| 04 | A real mouse drag-and-flick from `cGeom().rest` (5 steps up) hits. A sideways flick misses, uses an orb and resets the streak. The step length is calibrated from the measured pointermove gap. Like 05, 10, 23 and 32 it uses `T.still()` (`catchMotion = false`), so the creature only sways |
 | 05 | A catch adds the creature, increments `S.streak`, counts the catch/first quests and gives XP. A timed Excellent/Great throw counts the `great` quest (regression: `q` shadowing). A Nice throw does not |
 | 06 | During a gym battle while staying, a fainted creature stays at 0 HP through heal ticks and level-ups. After the battle, passive healing tops up hurt creatures but never revives fainted ones |
 | 07 | Every evolution line evolves at Lv 18/36 (3 stages) or Lv 28 (2 stages). `gainXP` queues exactly the creatures that reach the threshold, and the evolution sheet evolves them |
@@ -70,8 +70,13 @@ A full run takes about 2 minutes. Playwright is preinstalled, so do not install 
 | 20 | Importing a save code replaces everything (field, trip, items); the "Tap again" label goes back to "Load" after 4 s |
 | 21 | Stop ends the Speak lesson at once: no audio and no phrase recorded after it; a new lesson then works |
 | 22 | Story: no "New goal" toast for a goal already met; the Starveil rift stays at Yosemite (and comes back if it was lost) until chapter 8 |
-| 23 | Catch hints are Chinese with pinyin, play from recordings and are spoken (release without a flick, idle hint); the Spell button resets after the throw; no Spell without orbs |
+| 23 | Catch hints are Chinese with pinyin, play from recordings and are spoken (release without a flick, idle hint); the Spell button agrees with the spell, which is still on after the throw; no Spell without orbs |
 | 24 | The daily Chinese quest counts conversation answers, lines said in the Speak lesson and traced characters (real mouse tracing); the "phrases said" tile matches the phrase list |
 | 25 | Raid toast only for a raid that showed up; no "flight" labels from the Rift; a knock banner is gone on a trip; player names are text and an unnamed player is "Player N"; plurals |
 | 26 | At 360x629 and 336x560: Settings fits, every reading reaches Done without scrolling, all status lines fit, map cards and battle titles fit; toasts sit below sheet headers |
 | 27 | A creature past both evolution levels evolves twice; little kids get no level choice and no mic button; unfound book cards show only a silhouette |
+| 28 | A cleared browser never overwrites the cloud: a fresh starter picked before the cloud answers is replaced by the richer cloud save |
+| 29 | Catch movement: with dodges off, a creature that darts away is missed by an orb aimed where it was and hit by one aimed where it lands; an orb under a jump that peaks at landing misses |
+| 30 | Dodges, over many throws on a virtual clock (`VTHROWS`): a quick wind bird (Zipbeak Lv 25) tries to dodge at least 35% of throws and dodges at least 20%; a stone one (Pebblin) at most a third as often and only stomps; every dodge is a miss labelled "It dodged!" with 躲开了！ and pinyin shown and spoken; a little kid gets no moves, no dodges and every well-aimed orb hits |
+| 31 | The catch spell calms the creature: dodge chance none > ok > perfect > 0, a Calm Berry lowers it, the sway shrinks; over 150 throws a perfect spell means fewer dodge attempts, more hits and hops under 80% as high |
+| 32 | The catch spell is traced once when a creature is tapped, before the catch screen; it lasts through a miss and a break-free with no new trace; the traced character lands on the creature; the next catch starts from its own trace (ok = smaller, skipped = none); the Spell button still casts by hand |

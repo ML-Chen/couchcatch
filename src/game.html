@@ -473,7 +473,7 @@ const ZT=k=>(typeof ZH_TYPES!=='undefined'&&ZH_TYPES[k])||{zh:'',py:''};
 const ZM=n=>(typeof ZH_MOVES!=='undefined'&&ZH_MOVES[n])||{zh:'',py:''};
 const ZI=k=>(typeof ZH_ITEMS!=='undefined'&&ZH_ITEMS[k])||{zh:'',py:''};
 const W={nice:['Nice!','不错！','bú cuò!'],great:['Great!','很好！','hěn hǎo!'],excellent:['Excellent!','太棒了！','tài bàng le!'],hit:['Hit!','打中了！','dǎ zhòng le!'],curve:['Curveball!','曲线球！','qūxiàn qiú!'],
- short:['Too soft! It fell short.','太轻了！没打到。','tài qīng le! méi dǎ dào.'],over:['Too hard! It flew over.','太重了！飞过头了。','tài zhòng le! fēi guòtóu le.'],wide:['Missed! It went wide.','偏了！没打中。','piān le! méi dǎ zhòng.'],
+ dodged:['It dodged!','躲开了！','duǒ kāi le!'],short:['Too soft! It fell short.','太轻了！没打到。','tài qīng le! méi dǎ dào.'],over:['Too hard! It flew over.','太重了！飞过头了。','tài zhòng le! fēi guòtóu le.'],wide:['Missed! It went wide.','偏了！没打中。','piān le! méi dǎ zhòng.'],
  broke:['It broke free! Throw again.','它挣脱了！再扔一次。','tā zhèngtuō le! zài rēng yí cì.'],fled:['It broke free and ran away.','它挣脱后逃走了。','tā zhèngtuō hòu táozǒu le.'],
  // catch hints for children who can't read English yet: each Chinese line has a recorded clip (whole, or one per clause)
  drag:['Drag the orb up and throw!','把球往上扔！','bǎ qiú wǎng shàng rēng!'],flick:['Now flick it up!','然后往上扔！','ránhòu wǎng shàng rēng!'],spin:['Curveball! Now flick it up!','曲线球！然后往上扔！','qūxiàn qiú! ránhòu wǎng shàng rēng!'],
@@ -861,7 +861,7 @@ document.getElementById('bEvoOk').onclick=()=>{E=null;document.getElementById('s
 // ---------- catching: drag-and-flick orb throw ----------
 const ccv=document.getElementById('ccv'),cctx=ccv.getContext('2d');
 const RING_MIN=.3;
-function openCatch(wd){if(C||!wd||(!wd.raid&&!wild.includes(wd)))return;LOG('catch_open',{sp:SP[wd.sp].n,lvl:wd.lvl,shiny:!!wd.shiny,raid:!!wd.raid});C={throws:0,berry:false,kind:pickKind(),wd,phase:'aim',t0:T,drag:null,orb:null,spin:0,turn:0,curve:0,dodge:R(0,6),visible:true,msgT:0,parts:[]};
+function openCatch(wd){if(C||!wd||(!wd.raid&&!wild.includes(wd)))return;LOG('catch_open',{sp:SP[wd.sp].n,lvl:wd.lvl,shiny:!!wd.shiny,raid:!!wd.raid});C={throws:0,berry:false,kind:pickKind(),wd,phase:'aim',t0:T,ts:T,drag:null,orb:null,spin:0,turn:0,curve:0,ph:R(0,6),visible:true,msgT:0,parts:[]};C.mv=mvNew(wd);
   const z=ZS(SP[wd.sp].n),wname=(wd.raid?'巨大的':'野生的')+z.zh,wpy=(wd.raid?'jùdà de ':'yěshēng de ')+z.py;
   document.getElementById('catchTitle').innerHTML=`<span class="ctz" data-say="${wname}">${wname}${wd.shiny?' <b class="ctag">★</b>':''}${SP[wd.sp].leg?' <b class="ctag">传说</b>':''}</span><span class="ctp">${wpy}</span><span class="cte">${wd.raid?'Giant':'Wild'} ${SP[wd.sp].n} · Lv ${wd.lvl}${wd.shiny?' · Shiny':''}${SP[wd.sp].leg?' · Legendary':''}</span>`;if(wd.shiny)sfx('shiny');if(SP[wd.sp].leg)sfx('legend');
   updOrbs();msgW(orbsLeft()?'drag':'noorbs');renderSpell();
@@ -884,10 +884,14 @@ if(typeof window.drawOrb!=='function')window.drawOrb=function(ctx,x,y,r,spin,glo
   if(glow){ctx.globalAlpha=.5*glow;ctx.beginPath();ctx.arc(0,0,r*1.7,0,7);ctx.fillStyle='#ffe48a';ctx.fill();ctx.globalAlpha=1}
   const g=ctx.createRadialGradient(-r*.35,-r*.4,r*.1,0,0,r);g.addColorStop(0,cols[0]);g.addColorStop(.45,cols[1]);g.addColorStop(1,cols[2]);ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fillStyle=g;ctx.fill();ctx.lineWidth=Math.max(2,r*.08);ctx.strokeStyle='#0a1a2a';ctx.stroke();
   ctx.rotate(spin||0);ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.22:r*.5;ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}ctx.closePath();ctx.fillStyle=cols[3];ctx.fill();ctx.restore()};
-function orbK(ctx,x,y,r,s,g){drawOrb(ctx,x,y,r,s||0,g||(C&&(C.power||C.spell)&&(C.phase==='aim'||C.phase==='fly')?.6+.4*Math.sin(T*6):0),C?C.kind:'orb')}
-function spellGlyph(ctx,x,y,r){if(!C||!C.spell||!C.spellCh)return;const k=Math.min(1,(T-(C.spellT||0))/.5);ctx.save();ctx.globalAlpha=k*(.75+.25*Math.sin(T*3));ctx.font=`700 ${Math.round(r*1.5)}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.shadowColor='#ffd27a';ctx.shadowBlur=18;ctx.fillStyle='#ffe7b0';ctx.fillText(C.spellCh,x,y-r*2.25-Math.sin(T*2)*3);
-  for(let i=0;i<6;i++){const a=T*1.4+i*Math.PI/3,rr=r*1.55;ctx.globalAlpha=k*.6;ctx.beginPath();ctx.arc(x+Math.cos(a)*rr,y+Math.sin(a)*rr*.55,2.2,0,7);ctx.fillStyle='#ffd27a';ctx.fill()}ctx.restore()}
+// how strongly the catch spell shows everywhere on the catch screen: perfect trace = full, ok = small, none = nothing
+function spellK(){return !C?0:C.spell===2?1:C.spell?.45:0}
+function orbK(ctx,x,y,r,s,g){const sk=spellK(),live=!!C&&(C.phase==='aim'||C.phase==='fly');
+  if(live&&sk){const R2=r*(1.7+1.1*sk),gg=ctx.createRadialGradient(x,y,r*.5,x,y,R2);gg.addColorStop(0,`rgba(255,214,122,${(.8*sk*(.75+.25*Math.sin(T*6))).toFixed(3)})`);gg.addColorStop(1,'rgba(255,214,122,0)');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(x,y,R2,0,7);ctx.fill()}
+  drawOrb(ctx,x,y,r,s||0,g||(live&&(C.power||sk)?Math.max(C.power?1:0,sk)*(.6+.4*Math.sin(T*6)):0),C?C.kind:'orb')}
+function spellGlyph(ctx,x,y,r){if(!C||!C.spell||!C.spellCh)return;const sk=spellK(),k=Math.min(1,(T-(C.spellT||0))/.5);ctx.save();ctx.globalAlpha=k*(.55+.45*sk)*(.75+.25*Math.sin(T*3));ctx.font=`700 ${Math.round(r*(1.05+.45*sk))}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.shadowColor='#ffd27a';ctx.shadowBlur=8+10*sk;ctx.fillStyle='#ffe7b0';ctx.fillText(C.spellCh,x,y-r*(1.9+.35*sk)-Math.sin(T*2)*3);
+  const n=sk>=1?6:3;for(let i=0;i<n;i++){const a=T*1.4+i*Math.PI*2/n,rr=r*1.55;ctx.globalAlpha=k*.6;ctx.beginPath();ctx.arc(x+Math.cos(a)*rr,y+Math.sin(a)*rr*.55,2.2,0,7);ctx.fillStyle='#ffd27a';ctx.fill()}ctx.restore()}
 // the catch screen's voice: a new line cuts the old one; talk==='after' waits for the line that is playing to finish
 let cSayTok=0,cSayP=Promise.resolve();
 function cSay(zh,after){const tk=++cSayTok,go=()=>window.speakAsync?speakAsync(zh):(speak(zh),null);
@@ -899,13 +903,66 @@ function throwHint(k,talk){if(!C)return;C.hintT=T;if(talk&&T-(C.hintSaid||-9)<2.
 function swipeCue(ctx,x,y,r){const k=(T*.9)%1;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=Math.max(3,r*.16);
   for(let i=0;i<3;i++){const q=(k+i/3)%1,cy=y-r*1.3-q*r*3.2,w=r*.55;ctx.globalAlpha=Math.sin(q*Math.PI)*.95;ctx.strokeStyle='#fff';ctx.shadowColor='rgba(20,30,80,.55)';ctx.shadowBlur=6;
     ctx.beginPath();ctx.moveTo(x-w,cy+w*.55);ctx.lineTo(x,cy);ctx.lineTo(x+w,cy+w*.55);ctx.stroke()}ctx.restore()}
-function cGeom(){const r=ccv.getBoundingClientRect(),w=r.width,h=r.height,sp=C.wd.sp,z=SP[sp].sz;
-  const s=Math.min(h*.14,h*.42/(2.6*z));const range=Math.max(0,Math.min(w*(.05+.04*SP[sp].stage),w/2-1.7*s*z))*(C.berry?.3:1)*(C.spell===2?.45:1)*(isYoung()?.5:1);
-  const cx=cxAt(T,range),gy=h*.5;
+// catch-screen geometry without the creature's position (cBase), and with it at the current time (cGeom)
+function cBase(){const r=ccv.getBoundingClientRect(),w=r.width,h=r.height,sp=C.wd.sp,z=SP[sp].sz;
+  const s=Math.min(h*.14,h*.42/(2.6*z)),gy=h*.5,maxOff=Math.max(0,w/2-1.7*s*z),range=Math.min(maxOff,w*(.05+.04*SP[sp].stage))*swayK();
   const hitR=Math.max(40,s*z*1.4)*(isYoung()?1.5:1),ty=gy-s*z*1.0;
-  const k=RING_MIN+(1-RING_MIN)*Math.abs(Math.sin((T-C.t0)*1.6));
-  return{w,h,s,cx,gy,ty,hitR,k,range,ringR:hitR*1.1*k,orbR:Math.max(18,w*.065),rest:{x:w/2,y:h*.86}}}
-function cxAt(tm,range){const sp=C.wd.sp,w=ccv.getBoundingClientRect().width;return w/2+Math.sin((tm-C.t0)*(.45+.15*SP[sp].stage)+C.dodge)*range}
+  return{w,h,s,z,gy,ty,hitR,range,maxOff,orbR:Math.max(18,w*.065),rest:{x:w/2,y:h*.86}}}
+function cGeom(){const g=cBase(),p=cPos(T,g),k=ringK(T);g.cx=p.x;g.lift=p.lift;g.k=k;g.ringR=g.hitR*1.1*k;return g}
+function ringK(t){return RING_MIN+(1-RING_MIN)*Math.abs(Math.sin((t-C.t0)*1.6))}
+// ---------- the creature on the catch screen: hops, shuffles, darts and dodges ----------
+// Light, quick kinds (wind, bug, spark, fight, shadow, small ones) move and dodge more, and more at higher levels; heavy or
+// sleepy ones (stone, metal) and giants stay put and now and then stomp. Every move starts with a crouch, so a child can
+// learn to wait for the landing. The catch spell calms it (a perfect trace most), and so does the Calm Berry.
+// Little kids keep the old gentle sway: no hops, darts or dodges. Tests turn catchMotion off for a creature that only sways.
+var catchMotion=true;
+const AGI_T={wind:.95,bug:.85,spark:.8,fight:.8,shadow:.8,fire:.55,star:.55,leaf:.5,water:.45,mind:.45,dragon:.45,frost:.35,metal:.1,stone:.05},
+  AGI_B={bird:.12,butterfly:.12,bug:.08,biped:.08,ghost:.05,quad:0,fish:-.05,blob:-.1,snake:-.1,seal:-.15,jelly:-.2,larva:-.2,tortoise:-.35,golem:-.35};
+function agility(sp){const s=SP[sp];return Math.max(0,Math.min(1,(AGI_T[s.t]??.5)+(AGI_B[s.body]||0)+(s.sz<=.6?.12:s.sz<.8?.04:s.sz>=1.3?-.15:0)+(s.leg?.15:0)))}
+function mvNew(wd){return{a:agility(wd.sp),lv:.65+Math.min(.55,wd.lvl/50),moves:[],next:null,hold:0,raid:!!wd.raid}}
+function mvOn(){return catchMotion&&!isYoung()&&!!(C&&C.mv)}
+function calmK(){return(C.spell===2?.55:C.spell?.8:1)*(C.berry?.6:1)}
+function swayK(){const base=(C.berry?.3:1)*(isYoung()?.5:1);return mvOn()?base*(.6+.8*C.mv.a*Math.min(1,(C.wd.lvl+5)/25))*(C.spell===2?.55:C.spell?.8:1):base*(C.spell===2?.45:1)}
+// where the creature is at time t: x, lift (px above the ground), crouch 0..1, move direction, flinch shake, move kind
+function cPos(t,g){g=g||cBase();const m=C.mv;let ax=0,lift=0,cr=0,dir=0,sh=0,k='';
+  if(m)for(const v of m.moves){
+    if(t>=v.t1){ax=v.a1;const d=t-v.t1;if(d<.14)cr=Math.max(cr,v.land*(1-d/.14));continue}
+    if(t>=v.t0){const u=(t-v.t0)/(v.t1-v.t0),e=u*u*(3-2*u);ax=v.a0+(v.a1-v.a0)*e;lift=Math.sin(Math.PI*u)*v.hh;if(!v.hh)cr=Math.max(cr,v.cr*(1-u));dir=Math.sign(v.a1-v.a0);sh=v.k==='flinch'?1:0;k=v.k;break}
+    if(t>=v.t0-v.ant){ax=v.a0;cr=Math.max(cr,v.cr*Math.min(1,(t-v.t0+v.ant)/v.ant*1.3));dir=Math.sign(v.a1-v.a0);sh=v.k==='flinch'?1:0;break}
+    ax=v.a0;break}
+  const sw=Math.sin((t-C.ts)*(.45+.15*SP[C.wd.sp].stage)+C.ph)*g.range;
+  return{x:g.w/2+Math.max(-g.maxOff,Math.min(g.maxOff,ax+sw)),lift,cr,dir,sh,k}}
+// plan the next move (called every frame while aiming; nothing new starts while an orb is in the air)
+function mvTick(t){if(!mvOn()||C.phase!=='aim'||C.spelling)return;const m=C.mv;
+  if(m.next==null){m.next=t+R(.6,1.3);return}
+  const L=m.moves,last=L[L.length-1];if(t<m.next||t<m.hold||(last&&t<last.t1+.15))return;
+  if(L.length>6)L.splice(0,L.length-3);
+  const g=cBase(),a=m.a,ck=calmK(),lv=m.lv,ax=last?last.a1:0,span=Math.max(0,g.maxOff-g.range),u=g.s*g.z;let v;
+  if(m.raid||a<.25){v={k:'stomp',ant:.45,dur:.32,a1:ax,hh:u*.18,cr:.9,land:1};m.next=t+R(3.2,5.5)/ck}
+  else{const wD=a>=.55?(a-.45)*3.5*ck*ck:0,wS=a>=.35?1:.3,r=Math.random()*(1+wS+wD);
+    if(r<1)v={k:'hop',ant:.3,dur:.42,a1:ax+R(-.08,.08)*span,hh:u*(.5+.6*a)*lv*ck,cr:.7,land:.6};
+    else if(r<1+wS){let d=g.w*R(.07,.14)*lv*ck*(Math.random()<.5?-1:1);if(Math.abs(ax+d)>span)d=-d;v={k:'shuffle',ant:.22,dur:.3,a1:ax+d,hh:u*.25,cr:.45,land:.3}}
+    else{let a1=R(-span,span);for(let i=0;i<5&&Math.abs(a1-ax)<span*.6;i++)a1=R(-span,span);v={k:'dart',ant:.4,dur:.42,a1,hh:u*.45,cr:.9,land:.7}}
+    m.next=t+(R(1.2,2.2)+(1-a)*1.4)/(lv*ck)}
+  v.a1=Math.max(-span,Math.min(span,v.a1));v.a0=ax;v.t0=t+v.ant;v.t1=v.t0+v.dur;L.push(v);m.next=Math.max(m.next,v.t1+.2)}
+// a throw: moves that have not visibly started (no crouch yet) wait until the orb has landed
+function mvThrow(land){if(!C.mv)return;const m=C.mv;m.moves=m.moves.filter(v=>v.t0-v.ant<=T);m.hold=land+.35}
+// some creatures try to dodge an orb that would hit: more for quick kinds and higher levels, less after the spell or a berry
+function dodgeChance(){if(!mvOn())return 0;const m=C.mv;return Math.min(.7,(.02+.95*m.a)*(.45+Math.min(.75,C.wd.lvl/40)))*(m.raid?.3:1)*(C.spell===2?.65:C.spell?.85:1)*(C.berry?.55:1)}
+// decided at the throw. Excellent/Great timing, a curveball or an orb right at the middle can still beat it: then it only flinches
+function tryDodge(o,land,g){const pd=dodgeChance();if(!pd)return;const m=C.mv,p=cPos(land,g),d0=Math.hypot(o.x1-p.x,o.y1-(g.ty-p.lift));
+  if(d0>g.hitR||!(Math.random()<pd))return;
+  const k=ringK(land),inR=d0<=g.hitR*1.1*k,beat=1-(1-(inR?(k<.5?.6:k<.75?.2:0):0))*(1-(o.curve?.4:0))*(1-(d0<g.hitR*.3?.15:0));
+  const L=m.moves,last=L[L.length-1],free=last?last.t1+.02:T,ax=last?last.a1:0,info={sp:SP[C.wd.sp].n,p:+pd.toFixed(2),beat:+beat.toFixed(2),res:'beaten'};
+  if(Math.random()<beat){const t0=Math.max(free+.15,land-.1);L.push({k:'flinch',t0,t1:t0+.24,ant:.15,a0:ax,a1:ax,hh:0,cr:.75,land:0});LOG('dodge',info);return}
+  const need=g.hitR*1.4,sw=Math.sin((land-C.ts)*(.45+.15*SP[C.wd.sp].stage)+C.ph)*g.range,away=o.x1>=p.x?-1:1,spc=SP[C.wd.sp];
+  const step=()=>{const t0=Math.max(T+R(.1,.16),free+.08);if(t0+.24>land-.02)return null;
+      for(const sd of[away,-away]){const xn=o.x1+sd*need;if(Math.abs(xn-g.w/2)<=g.maxOff)return{k:'step',t0,t1:t0+.24,ant:.08,a0:ax,a1:xn-g.w/2-sw,hh:g.s*g.z*.3,cr:.6,land:.5}}return null},
+    jump=()=>{const t0=land-.3;if(t0-.12<free)return null;return{k:'jump',t0,t1:land+.28,ant:.12,a0:ax,a1:ax,hh:g.hitR*1.2,cr:.85,land:.8}};
+  const hopper=['biped','quad','seal','blob','golem','tortoise'].includes(spc.body)&&spc.sz<1&&Math.random()<.4;
+  let v=hopper?jump()||step():step()||jump();
+  if(v){L.push(v);const q=cPos(land,g);if(Math.hypot(o.x1-q.x,o.y1-(g.ty-q.lift))<=g.hitR){L.pop();v=null}}
+  info.res=v?v.k:'busy';if(v)o.dodged=true;LOG('dodge',info)}
 function cPt(e){const r=ccv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top,t:performance.now()}}
 ccv.addEventListener('pointerdown',e=>{if(!C||C.quizzing||C.phase!=='aim'||!orbsLeft())return;const g=cGeom(),p=cPt(e);
   if(Math.hypot(p.x-g.rest.x,p.y-g.rest.y)>g.orbR*2.6)return;ccv.setPointerCapture(e.pointerId);C.drag={pts:[p],x:p.x,y:p.y,head:null,turn:0};C.aimT=T;C.hintT=0;ccv.style.cursor='grabbing'});
@@ -922,23 +979,49 @@ function predict(x0,y0,vx,vy){const g=cGeom(),P=-vy,slope=vx/(-vy),lo=g.h*1.1,hi
   return{x1:x0+slope*(y0-y1),y1}}
 ccv.addEventListener('pointerup',release);ccv.addEventListener('pointercancel',()=>{if(C)C.drag=null});
 ccv.addEventListener('keydown',e=>{if((e.key===' '||e.key==='Enter')&&C&&!C.quizzing&&C.phase==='aim'&&orbsLeft()){e.preventDefault();const g=cGeom();throwOrb(g.rest.x,g.rest.y,(g.cx-g.rest.x)*6,-(g.rest.y-g.ty)*6)}});
-function throwOrb(x0,y0,vx,vy){const g=cGeom();sfx('throw');C.throws++;S.items[C.kind]--;updOrbs();save();const dur=.55;
-  let {x1,y1}=predict(x0,y0,vx,vy);const tx=cxAt(T+dur,g.range);if(y1===g.ty&&Math.abs(x1-tx)<g.hitR*1.3)x1+=(tx-x1)*.35; // light aim assist on near-hits only
-  LOG('throw',{kind:C.kind,berry:C.berry,vx:Math.round(vx),vy:Math.round(vy),land:`${Math.round(x1)},${Math.round(y1)}`,target:`${Math.round(tx)},${Math.round(g.ty)}`,hitR:Math.round(g.hitR),curve:C.curve});
-  C.phase='fly';C.orb={x0,y0,x1,y1,t0:T,dur,curve:C.curve,arc:g.h*.14,trail:[]};C.curve=0;msg('');renderSpell()}
+function throwOrb(x0,y0,vx,vy){const g=cGeom();sfx('throw');C.throws++;S.items[C.kind]--;updOrbs();save();const dur=.55,land=T+dur;mvThrow(land);
+  let {x1,y1}=predict(x0,y0,vx,vy);const tp=cPos(land,g),tx=tp.x;if(y1===g.ty&&Math.abs(x1-tx)<g.hitR*1.3)x1+=(tx-x1)*.35; // light aim assist on near-hits only
+  LOG('throw',{kind:C.kind,berry:C.berry,vx:Math.round(vx),vy:Math.round(vy),land:`${Math.round(x1)},${Math.round(y1)}`,target:`${Math.round(tx)},${Math.round(g.ty-tp.lift)}`,hitR:Math.round(g.hitR),curve:C.curve});
+  C.phase='fly';C.orb={x0,y0,x1,y1,t0:T,dur,curve:C.curve,arc:g.h*.14,trail:[]};tryDodge(C.orb,land,g);C.curve=0;msg('');renderSpell()}
 function orbPos(o,p){const bend=o.curve*Math.sin(Math.PI*p)*70;return{x:o.x0+(o.x1-o.x0)*p+bend,y:o.y0+(o.y1-o.y0)*p-o.arc*Math.sin(Math.PI*p),sc:1-.42*p}}
-function burst(x,y,col){for(let i=0;i<18;i++)C.parts.push({x,y,vx:R(-160,160),vy:R(-220,40),t0:T,col})}
+function burst(x,y,col,n){for(let i=0;i<(n||18);i++)C.parts.push({x,y,vx:R(-160,160),vy:R(-220,40),t0:T,col})}
+function dust(x,y,n){for(let i=0;i<n;i++)C.parts.push({x:x+R(-10,10),y:y-2,vx:R(-70,70),vy:R(-22,-6),t0:T,col:'#f3ead8',puff:R(3,6)})}
+function twinkle(ctx,x,y,r){ctx.beginPath();ctx.moveTo(x,y-r*2);ctx.quadraticCurveTo(x,y,x+r*2,y);ctx.quadraticCurveTo(x,y,x,y+r*2);ctx.quadraticCurveTo(x,y,x-r*2,y);ctx.quadraticCurveTo(x,y,x,y-r*2);ctx.fill()}
+// the spell, seen: the traced character flies from the trace card onto the creature and stays as a golden ring and halo
+// (two rings and many sparkles for a perfect trace, one faint ring for an ok one, nothing without a spell)
+function spellAura(ctx,g,x,lift){const sk=spellK();if(!sk)return;const a=Math.min(1,Math.max(0,(T-(C.spellT||0)-.5)/.35));if(a<=0)return;const u=g.s*g.z,gy=g.gy,cy=gy-lift-u;
+  ctx.save();const R2=u*(1.5+.5*sk),gg=ctx.createRadialGradient(x,cy,u*.3,x,cy,R2);gg.addColorStop(0,`rgba(255,226,150,${(.45*sk*a).toFixed(3)})`);gg.addColorStop(1,'rgba(255,226,150,0)');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(x,cy,R2,0,7);ctx.fill();
+  ctx.strokeStyle='#ffd27a';ctx.shadowColor='#ffb84a';ctx.shadowBlur=6+8*sk;
+  for(let i=0;i<(sk>=1?2:1);i++){const rx=u*(1.2+.3*i)*(1+.05*Math.sin(T*2.2+i*1.7)),ry=rx*.27;ctx.globalAlpha=a*(.9-.4*i)*(.5+.5*sk);ctx.lineWidth=(1.5+1.5*sk)*(1-.35*i);ctx.beginPath();ctx.ellipse(x,gy,rx,ry,0,0,7);ctx.stroke()}
+  ctx.shadowBlur=4;ctx.fillStyle='#fff3c4';const n=Math.round(2+5*sk);
+  for(let i=0;i<n;i++){const k=(T*.35+i/n)%1,an=i*2.4+T*.5;ctx.globalAlpha=a*Math.sin(k*Math.PI)*.95;twinkle(ctx,x+Math.cos(an)*u*1.15,gy-k*u*2.5-lift*.6,1+1.4*sk)}
+  ctx.restore()}
+function spellFly(ctx,g,x1,y1){if(!C.spell||!C.spellCh)return;const tt=T-(C.spellT||0),sk=spellK();if(tt<0||tt>1)return;const x0=g.w/2,y0=g.h*.98;ctx.save();
+  if(tt<.55){const at=v=>{const u=Math.max(0,v)/.55,e=1-(1-u)*(1-u);return{x:x0+(x1-x0)*e+Math.sin(u*Math.PI)*g.w*.14,y:y0+(y1-y0)*e-Math.sin(u*Math.PI)*g.h*.08,e}};
+    ctx.fillStyle='#ffd27a';for(let j=8;j>=1;j--){const q=at(tt-j*.03);ctx.globalAlpha=(1-j/9)*.55;ctx.beginPath();ctx.arc(q.x,q.y,3+5*(1-j/9)*(.5+.5*sk),0,7);ctx.fill()}
+    const q=at(tt);ctx.globalAlpha=1;ctx.font=`700 ${Math.round(g.h*(.3-.2*q.e))}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor='#ffd27a';ctx.shadowBlur=24;ctx.fillStyle='#fff3c4';ctx.fillText(C.spellCh,q.x,q.y)}
+  else{const u=(tt-.55)/.45;ctx.globalAlpha=(1-u)*(.5+.5*sk);ctx.strokeStyle='#ffe7b0';ctx.shadowColor='#ffd27a';ctx.shadowBlur=14;ctx.lineWidth=2+4*sk*(1-u);ctx.beginPath();ctx.arc(x1,y1,g.s*g.z*(.5+1.6*u),0,7);ctx.stroke();
+    if(!C.spellBurst){C.spellBurst=1;burst(x1,y1,'#ffd27a',Math.round(8+16*sk))}}
+  ctx.restore()}
 function catchLoop(){if(!C)return;requestAnimationFrame(catchLoop);try{catchFrame()}catch(e){console.error(e)}}
 function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransform(d,0,0,d,0,0);bg(cctx,w,h*.85,PLACES[S.place],h);if(ambOK(PLACES[S.place]))ambient(cctx,w,h,PLACES[S.place]);vignette(cctx,w,h);
-  const g=cGeom(),sp=C.wd.sp;
-  if(C.phase==='aim'||C.phase==='fly'){C.cx=g.cx}
-  const cx=C.cx??g.cx;
-  // creature
+  mvTick(T);const g=cGeom(),sp=C.wd.sp,live=C.phase==='aim'||C.phase==='fly'||C.phase==='miss',P=live?cPos(T,g):null,sk=spellK();
+  if(live){C.cx=P.x}
+  const cx=C.cx??g.cx,lift=live?P.lift:0;
+  // a little dust where it lands after a big hop, a dart or a stomp
+  if(live&&C.mv)for(const v of C.mv.moves)if(!v.dust&&T>=v.t1&&v.land>=.6){v.dust=1;if(T-v.t1<.2)dust(cx,g.gy,v.k==='stomp'?10:5)}
+  // creature (behind it, the spell's halo)
   if(C.visible){let sc=1;if(C.phase==='absorb')sc=Math.max(0,1-(T-C.pt)/.45);
-    if(sc>0){cctx.save();cctx.translate(cx,g.gy);cctx.scale(sc,sc);dc(cctx,sp,0,0,g.s,T,{ethereal:inRift(),shiny:C.wd.shiny,titan:!!C.wd.raid,flip:Math.cos((T-C.t0)*(.8+.25*SP[sp].stage)+C.dodge)<0,awake:true,silhouette:C.phase==='absorb'?'#fff3c4':undefined,hop:C.phase==='aim'?Math.max(0,Math.sin(T*3))*g.s*.12:0});cctx.restore()}}
-  // ring
-  if(C.phase==='aim'||C.phase==='fly'){const k=g.k;cctx.beginPath();cctx.arc(cx,g.ty,g.ringR,0,7);cctx.strokeStyle=k<.5?'#45dc9a':k<.75?'#ffc93d':'#ff5470';cctx.lineWidth=4;cctx.shadowColor=cctx.strokeStyle;cctx.shadowBlur=12;cctx.stroke();cctx.shadowBlur=0;
-    cctx.beginPath();cctx.arc(cx,g.ty,g.hitR*1.25,0,7);cctx.strokeStyle='rgba(255,255,255,.55)';cctx.lineWidth=2;cctx.stroke()}
+    if(sc>0){const still=!mvOn(),cr=live?P.cr:0,bob=C.phase==='aim'&&!lift&&!cr?Math.max(0,Math.sin(T*3))*g.s*.12*(still?1:1-.7*sk):0;
+      if(C.phase!=='absorb')spellAura(cctx,g,cx,lift);
+      cctx.save();cctx.translate(cx+(live&&P.sh?Math.sin(T*70)*2.5:0),g.gy);if(sk&&live&&!still)cctx.rotate(Math.sin(T*1.7)*.05*sk);cctx.scale(sc*(1+.12*cr),sc*(1-.2*cr));
+      dc(cctx,sp,0,0,g.s,T,{ethereal:inRift(),shiny:C.wd.shiny,titan:!!C.wd.raid,flip:live&&P.dir?P.dir<0:Math.cos((T-C.ts)*(.8+.25*SP[sp].stage)+C.ph)<0,awake:true,silhouette:C.phase==='absorb'?'#fff3c4':undefined,hop:bob+lift});cctx.restore();
+      // speed lines behind a dodge or a dart
+      if(live&&(P.k==='step'||P.k==='dart')){const u=g.s*g.z;cctx.save();cctx.strokeStyle='rgba(255,255,255,.8)';cctx.lineWidth=2.5;cctx.lineCap='round';
+        for(let i=0;i<3;i++){const yy=g.gy-lift-u*(.5+.5*i),xx=cx-P.dir*u*(1.1+.15*i);cctx.beginPath();cctx.moveTo(xx,yy);cctx.lineTo(xx-P.dir*u*(.6+.2*(i%2)),yy);cctx.stroke()}cctx.restore()}}}
+  // ring (it follows the creature up when it hops)
+  if(C.phase==='aim'||C.phase==='fly'){const k=g.k,ry=g.ty-lift;cctx.beginPath();cctx.arc(cx,ry,g.ringR,0,7);cctx.strokeStyle=k<.5?'#45dc9a':k<.75?'#ffc93d':'#ff5470';cctx.lineWidth=4;cctx.shadowColor=cctx.strokeStyle;cctx.shadowBlur=12;cctx.stroke();cctx.shadowBlur=0;
+    cctx.beginPath();cctx.arc(cx,ry,g.hitR*1.25,0,7);cctx.strokeStyle='rgba(255,255,255,.55)';cctx.lineWidth=2;cctx.stroke()}
   // orb
   if(C.phase==='aim'&&C.drag&&C.drag.pts.length>2){const pts=C.drag.pts,now=performance.now(),rc=pts.filter(q=>now-q.t<110),a=rc[0]||pts[0],b=pts[pts.length-1],dt=Math.max(.016,(b.t-a.t)/1000),vx=(b.x-a.x)/dt,vy=(b.y-a.y)/dt;
     if(vy<-150){const pr=predict(C.drag.x,C.drag.y,vx,vy),o={x0:C.drag.x,y0:C.drag.y,x1:pr.x1,y1:pr.y1,curve:C.curve,arc:g.h*.14};
@@ -949,30 +1032,35 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
       if(!C.drag&&!C.quizzing&&!C.hinted&&T-(C.aimT||T)>(isYoung()?3.5:7)){C.hinted=true;throwHint('drag','after')}
       if(!C.drag&&C.hintT&&T-C.hintT<4.5&&!C.spell)swipeCue(cctx,g.rest.x,g.rest.y,g.orbR)}}
   else if(C.phase==='fly'){const o=C.orb,p=Math.min(1,(T-o.t0)/o.dur),q=orbPos(o,p);o.trail.push([q.x,q.y,q.sc]);if(o.trail.length>12)o.trail.shift();
-    o.trail.forEach(([x,y,sc],i)=>el(cctx,x,y,g.orbR*sc*(i/12)*.8,g.orbR*sc*(i/12)*.8,C.spell?`rgba(255,210,122,${i/18})`:`rgba(120,255,230,${i/24})`));orbK(cctx,q.x,q.y,g.orbR*q.sc,(T-o.t0)*(o.curve?30:8));
-    if(p>=1){const dist=Math.hypot(o.x1-cx,o.y1-g.ty);
-      if(dist<=g.hitR){const inRing=dist<=g.ringR;C.bonus=(inRing?(1-g.k)*.45:0)+(o.curve?.12:0);
-        {const lk=inRing?(g.k<.5?'excellent':g.k<.75?'great':'nice'):'hit';C.label=W[lk][0]+(o.curve?' Curveball!':'');msg(C.label,W[lk][1]+(o.curve?W.curve[1]:''),W[lk][2]+(o.curve?' '+W.curve[2]:''),true)}{const gq=inRing&&g.k<.75,cq=!!o.curve;setTimeout(()=>{if(gq)questEv('great');if(cq)questEv('curve')},0)}
-        LOG('throw_hit',{label:C.label});C.phase='absorb';C.pt=T;C.hit={x:o.x1,y:o.y1};sfx('hit');burst(o.x1,o.y1,'#fff3c4')}
-      else{sfx('miss');C.berry=false;C.power=false;if(S.streak>=2)toast(`Streak lost at ×${S.streak}`);S.streak=0;updateUI();renderItemBar();C.whyK=o.y1>g.ty+1?'short':o.y1<g.ty-1?'over':'wide';C.why=W[C.whyK][0];LOG('throw_miss',{why:C.why});C.phase='miss';C.pt=T;C.miss={x:q.x,y:q.y,vx:(o.x1-o.x0)*.6,vy:-120};msgW(C.whyK,true)}}}
+    o.trail.forEach(([x,y,sc],i)=>el(cctx,x,y,g.orbR*sc*(i/12)*.8,g.orbR*sc*(i/12)*.8,sk?`rgba(255,210,122,${(i/18*(.45+.55*sk)).toFixed(3)})`:`rgba(120,255,230,${i/24})`));orbK(cctx,q.x,q.y,g.orbR*q.sc,(T-o.t0)*(o.curve?30:8));
+    if(sk>=1&&Math.random()<.5)C.parts.push({x:q.x,y:q.y,vx:R(-40,40),vy:R(-40,20),t0:T,col:'#ffe7b0'});
+    // the orb lands: the hit test uses where the creature is at that instant (after any hop, dart or dodge)
+    if(p>=1){const lt=o.t0+o.dur,lp=cPos(lt,g),kl=ringK(lt),dist=Math.hypot(o.x1-lp.x,o.y1-(g.ty-lp.lift));
+      if(dist<=g.hitR){const inRing=dist<=g.hitR*1.1*kl;C.bonus=(inRing?(1-kl)*.45:0)+(o.curve?.12:0);
+        {const lk=inRing?(kl<.5?'excellent':kl<.75?'great':'nice'):'hit';C.label=W[lk][0]+(o.curve?' Curveball!':'');msg(C.label,W[lk][1]+(o.curve?W.curve[1]:''),W[lk][2]+(o.curve?' '+W.curve[2]:''),true)}{const gq=inRing&&kl<.75,cq=!!o.curve;setTimeout(()=>{if(gq)questEv('great');if(cq)questEv('curve')},0)}
+        LOG('throw_hit',{label:C.label});C.phase='absorb';C.pt=T;C.absT=T;C.cx=lp.x;C.hit={x:o.x1,y:o.y1};sfx('hit');burst(o.x1,o.y1,'#fff3c4');if(sk)burst(o.x1,o.y1,'#ffd27a',Math.round(6+14*sk))}
+      else{sfx('miss');C.berry=false;C.power=false;if(S.streak>=2)toast(`Streak lost at ×${S.streak}`);S.streak=0;updateUI();renderItemBar();C.whyK=o.dodged?'dodged':o.y1>g.ty+1?'short':o.y1<g.ty-1?'over':'wide';C.why=W[C.whyK][0];LOG('throw_miss',{why:C.why});C.phase='miss';C.pt=T;C.miss=o.dodged?{x:q.x,y:q.y,vx:(q.x>=lp.x?1:-1)*150,vy:-70}:{x:q.x,y:q.y,vx:(o.x1-o.x0)*.6,vy:-120};msgW(C.whyK,true)}}}
   else if(C.phase==='miss'){const tt=T-C.pt,m=C.miss;orbK(cctx,m.x+m.vx*tt,m.y+m.vy*tt+500*tt*tt,g.orbR*.58,tt*10);
     if(tt>.8){C.phase='aim';C.t0=T-.3;C.aimT=T;renderSpell();if(!orbsLeft())msgW('noorbs','after');else{msgW(C.spell?'spellagain':'again',isYoung()?'after':false);if(isYoung())C.hintT=T}}}
   else if(C.phase==='absorb'){const tt=T-C.pt;orbK(cctx,C.hit.x,C.hit.y,g.orbR*.58,0,1-tt/.5);
     if(tt>.5){C.visible=false;C.phase='drop';C.pt=T;decideCatch()}}
-  else if(C.phase==='drop'||C.phase==='shake'||C.phase==='result'){const tt=T-C.pt,fy=g.gy-g.orbR*.6;
+  else if(C.phase==='drop'||C.phase==='shake'||C.phase==='result'){const tt=T-C.pt,fy=g.gy-g.orbR*.6,rk=C.rollSpell===2?1:C.rollSpell?.45:0;
     let y=C.hit.y+(fy-C.hit.y)*Math.min(1,tt/.35),rot=0;
     if(C.phase==='drop'&&tt>.35){C.phase='shake';C.pt=T;C.shakes=0}
+    // with the spell the wobbles are smaller and each one sparkles: the spell is helping hold the orb shut
     if(C.phase==='shake'){const st=T-C.pt,i=Math.floor(st/.75),f=st%.75;y=fy;
-      if(i<C.nShakes){rot=f<.35?Math.sin(f/.35*Math.PI*2)*.45:0;if(f>.36&&C.shakes<=i){C.shakes=i+1;sfx('shake');msg('•'.repeat(i+1))}}
+      if(i<C.nShakes){rot=f<.35?Math.sin(f/.35*Math.PI*2)*.45*(1-.45*rk):0;if(f>.36&&C.shakes<=i){C.shakes=i+1;sfx('shake');msg('•'.repeat(i+1));if(rk)burst(C.hit.x,fy,'#ffd27a',Math.round(4+8*rk))}}
       else{C.phase='result';C.pt=T;finishCatch()}}
     if(C.phase==='result')y=fy;
+    if(rk&&(C.phase==='drop'||C.phase==='shake')){const pr=C.phase==='shake'?Math.min(1,(T-C.pt)/(.75*Math.max(1,C.nShakes))):0;cctx.save();cctx.globalAlpha=(.4+.5*rk)*(.8+.2*Math.sin(T*8));cctx.strokeStyle='#ffd27a';cctx.shadowColor='#ffd27a';cctx.shadowBlur=10;cctx.lineWidth=1.5+2*rk;cctx.beginPath();cctx.arc(C.hit.x,y,g.orbR*.58*(2.3-pr),0,7);cctx.stroke();cctx.restore()}
     if(!(C.phase==='result'&&!C.caught))orbK(cctx,C.hit.x,y,g.orbR*.58,rot,C.phase==='result'&&C.caught?Math.max(0,1-(T-C.pt)):0)}
   if(C.burstT&&(window.FX&&FX.attack)){const k=(T-C.burstT)/1.3;if(k<1)try{FX.catchBurst(cctx,C.hit.x,C.hit.y,k,g.s*SP[sp].sz*1.4,!!C.wd.shiny)}catch(e){}}
+  if(live&&C.visible)spellFly(cctx,g,cx,g.ty-lift);
   // particles
-  C.parts=C.parts.filter(p=>T-p.t0<.9);for(const p of C.parts){const tt=T-p.t0;cctx.globalAlpha=1-tt/.9;el(cctx,p.x+p.vx*tt,p.y+p.vy*tt+200*tt*tt,4,4,p.col)}cctx.globalAlpha=1;
+  C.parts=C.parts.filter(p=>T-p.t0<.9);for(const p of C.parts){const tt=T-p.t0;if(p.puff){const r=p.puff*(1+tt*2.4);cctx.globalAlpha=(1-tt/.9)*.4;el(cctx,p.x+p.vx*tt,p.y+p.vy*tt,r,r*.6,p.col)}else{cctx.globalAlpha=1-tt/.9;el(cctx,p.x+p.vx*tt,p.y+p.vy*tt+200*tt*tt,4,4,p.col)}}cctx.globalAlpha=1;
 }
 function decideCatch(){const s=SP[C.wd.sp],avg=party().reduce((a,c)=>a+c.lvl,0)/Math.max(1,party().length)||5;
-  const kb=({orb:0,great:.15,ultra:.3}[C.kind]||0)+(C.power?.15:0)+(C.spell===2?.15:C.spell?.08:0);C.power=false;C.rollSpell=C.spell||0;C.spell=0;C.spellCh=null;
+  const kb=({orb:0,great:.15,ultra:.3}[C.kind]||0)+(C.power?.15:0)+(C.spell===2?.15:C.spell?.08:0);C.power=false;C.rollSpell=C.spell||0; // the spell lasts the whole catch
   const chance=Math.max(s.leg?.1:.25,Math.min(.92,.66-(C.wd.lvl-avg)*.02-(s.stage-1)*.08+(C.bonus||0)+kb+(C.berry?.1:0)+(C.wd.raid?.1:0)+(isYoung()?.25:0)-(s.leg?.35:0)));C.berry=false;
   C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2);renderSpell()}
 function finishCatch(){const wd=C.wd,s=SP[wd.sp];
@@ -983,17 +1071,17 @@ function finishCatch(){const wd=C.wd,s=SP[wd.sp];
     save();const cur=C;setTimeout(()=>{if(C===cur)endCatch()},1800)}
   else{sfx('breakfree');C.visible=true;burst(C.hit.x,C.hit.y,'#fff3c4');
     if(!wd.raid&&C.rollSpell!==2&&!isYoung()&&Math.random()<.18){LOG('flee',{sp:s.n});S.streak=0;msgW('fled',true);wild=wild.filter(x=>x!==wd);save();const cur=C;setTimeout(()=>{if(C===cur)C.visible=false},700);setTimeout(()=>{if(C===cur)endCatch()},1500)}
-    else{C.phase='aim';C.t0=T;C.aimT=T;updOrbs();renderSpell();msgW('broke',true);if(orbsLeft())autoSpell(1300);else{const cur=C;setTimeout(()=>{if(C===cur&&C.phase==='aim')msgW('noorbs','after')},1600)}}}
+    else{C.phase='aim';C.t0=T;C.aimT=T;if(C.absT)C.ts+=T-C.absT;if(C.mv)C.mv.hold=T+.8;updOrbs();renderSpell();msgW('broke',true);if(!orbsLeft()){const cur=C;setTimeout(()=>{if(C===cur&&C.phase==='aim')msgW('noorbs','after')},1600)}}}
   updateUI()}
 document.getElementById('bRun').onclick=endCatch;
 function renderSpell(){const b=document.getElementById('bSpell');if(!b||!C)return;b.classList.toggle('ready',!!C.spell);b.disabled=!C.spell&&(!!C.spelling||C.phase!=='aim'||!orbsLeft()||S.trace===false||!window.traceChar);
   b.innerHTML=C.spell?`✦ ${C.spellCh} ready`+zw('准备好了','zhǔnbèi hǎo le'):'✍ Spell'+zw('施法','shīfǎ')}
 document.getElementById('bSpell').onclick=()=>castSpell();
-// every catch starts with a spell (and a break-free recharges it), so tracing is part of the flow rather than a button to remember
-function autoSpell(ms){if(S.trace===false||!window.traceChar||!C)return;const me=C;setTimeout(()=>{if(C===me&&C.phase==='aim'&&!C.spell&&!C.spelling)castSpell()},ms)}
+// every catch starts with a spell, so tracing is part of the flow rather than a button to remember. The spell lasts the whole
+// catch; nothing re-opens the trace by itself after a miss or a break-free (the Spell button stays for a spell that was skipped)
 function castSpell(o){o=o||{};if(!C||C.spell||C.spelling||C.phase!=='aim'||!orbsLeft()||!window.traceChar){o.then&&o.then();return}const me=C,s=SP[C.wd.sp];C.spelling=true;C.quizzing=true;renderSpell();sfx('tap');
   traceChar(s.t,{purpose:'spell',title:o.title,pic:o.pic}).then(r=>{if(C!==me)return;C.spelling=false;C.quizzing=false;if(o.then)o.then();
-    if(!r.skipped){C.spell=r.perfect?2:1;C.spellCh=r.ch;C.spellT=T;LOG('spell',{ch:r.ch,mistakes:r.mistakes});
+    if(!r.skipped){C.spell=r.perfect?2:1;C.spellCh=r.ch;C.spellT=T;C.spellBurst=0;LOG('spell',{ch:r.ch,mistakes:r.mistakes});
       const z=ZS(s.n);if(r.perfect)msg(`Perfect spell! ${s.n} is charmed. Throw now!`,`${z.zh}安静下来了！`,`${z.py} ānjìng xiàlái le!`,true);else msg('The spell is ready. Throw now!','准备好了！','zhǔnbèi hǎo le!',true)}
     renderSpell()})}
 function endCatch(){if(C)LOG('catch_close',{phase:C.phase});C=null;close('sCatch');updateUI()}

@@ -30,6 +30,41 @@ const goTo = async (T, i) => {
   await T.until(i => S.mode === 'arrived' && S.place === i, i, `arrive at place ${i}`);
 };
 
+// Many throws at a fresh catch of {sp, lvl} each, on a virtual clock: game time T is set by hand inside one synchronous
+// call, so the frame loop never runs in between. Each catch waits 1.5-3.5 s of game time (the move planner steps at 30 fps),
+// then throws at where the creature will be when the orb lands, `off` hit radii to one side, timed for a big (Nice) ring,
+// so a dodge that is tried is never beaten by timing or a centre hit. Returns one record per throw.
+const VTHROWS = ({sp, lvl, n, spell = 0, berry = false, off = .6}) => {
+  const out = [];
+  let base = T + 10;
+  for (let i = 0; i < n; i++) {
+    if (C) endCatch();
+    S.items.orb = 999; S.streak = 0;
+    const wd = {sp: IDX[sp], lvl, x: .5, y: .7, vx: 0, ph: 0}; wild.push(wd);
+    const tr = S.trace; S.trace = false; T = base; openCatch(wd); S.trace = tr;
+    if (spell) { C.spell = spell; C.spellCh = '风'; C.spellT = T - 5; }
+    C.berry = berry;
+    const t1 = base + 1.5 + Math.random() * 2;
+    for (let t = base; t < t1; t += 1 / 30) { T = t; mvTick(t); }
+    T = t1; C.t0 = T + .55 - Math.PI / 2 / 1.6;
+    const g = cGeom(), p = cPos(T + .55, g), xAim = p.x + off * g.hitR * (Math.random() < .5 ? -1 : 1);
+    const pd = dodgeChance(), n0 = LOGBUF.length; LOGBUF.length = 0;
+    throwOrb(g.rest.x, g.rest.y, (xAim - g.rest.x) * 900 / (g.rest.y - g.ty), -900);
+    const land = C.orb.t0 + C.orb.dur;
+    for (let t = T; t < land; t += 1 / 30) { T = t; mvTick(t); }
+    T = land + .004; catchFrame();
+    const d = LOGBUF.find(e => e.type === 'dodge'), m = LOGBUF.find(e => e.type === 'throw_miss');
+    out.push({hit: C.phase === 'absorb', why: m ? m.why : null, dodge: d ? d.res : null, pd, msg: document.getElementById('catchMsg').innerText,
+      hops: C.mv.moves.filter(v => v.k === 'hop').map(v => v.hh), kinds: [...new Set(C.mv.moves.map(v => v.k))].join(','), range: cBase().range});
+    wild = wild.filter(x => x !== wd); base += 20;
+  }
+  if (C) endCatch();
+  return out;
+};
+const tally = rs => ({n: rs.length, hit: rs.filter(r => r.hit).length, tried: rs.filter(r => r.dodge).length, dodged: rs.filter(r => r.dodge === 'step' || r.dodge === 'jump').length,
+  hops: rs.reduce((a, r) => a.concat(r.hops), [])});
+const mean = a => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+
 module.exports = [
 
 {name: '01 loads with no errors and shows the starter picker', fn: async T => {
@@ -118,6 +153,7 @@ module.exports = [
 
 {name: '04 drag-and-flick: an upward flick hits, a sideways flick misses and still uses an orb', fn: async T => {
   await T.start();
+  await T.still(); // a creature that only sways: this test is about the flick (29-31 cover hops, darts and dodges)
   await T.stay();
   await T.until(() => wild.length >= 1, null, 'a creature appears', 5000);
   // tap the creature on the scene for real
@@ -151,6 +187,7 @@ module.exports = [
 
 {name: "05 a catch adds the creature, raises the streak, counts quests; Great/Excellent counts the 'great' quest", fn: async T => {
   await T.start();
+  await T.still();
   await T.stay();
   await T.spawn(2);
   await forceCatch(T);
@@ -322,6 +359,7 @@ module.exports = [
 
 {name: '10 raid: pickBoss + startRaid; winning opens a catch for the boss; losing makes the raid leave', timeout: 60000, fn: async T => {
   await T.start();
+  await T.still();
   await T.fastSpeech();
   await T.stay();
   const v = await T.ev(() => {
@@ -812,8 +850,9 @@ module.exports = [
   await T.until(() => S.story.ch === 8 && S.rift && !S.rift.story, null, 'an ordinary rift after chapter 8', 3000);
 }},
 
-{name: '23 catch screen: hints in Chinese with recordings, spoken; the spell button resets after a throw; no spell without orbs (V1/W7/W17)', timeout: 50000, fn: async T => {
+{name: '23 catch screen: hints in Chinese with recordings, spoken; the spell button agrees with the spell, which lasts the catch; no spell without orbs (V1/W7/W17)', timeout: 50000, fn: async T => {
   await T.start();
+  await T.still();
   const plans = await T.ev(() => ['drag', 'flick', 'spin', 'again', 'spellagain', 'noorbs', 'broke', 'fled', 'short', 'over', 'wide'].map(k => [k, W[k][1], zhPlan(W[k][1]), W[k][2]]));
   for (const [k, zh, plan, py] of plans) { T.ok(plan === 'whole' || plan === 'clauses', `catch hint "${k}" ${zh} plays from recordings (plan: ${plan})`); T.ok(/[a-zü]/i.test(py || ''), `catch hint "${k}" has pinyin`); }
   await T.stay(); await T.spawn(2);
@@ -830,13 +869,13 @@ module.exports = [
   await T.ev(() => { C.aimT = T - 20; C.hinted = false; C.hintSaid = -9; __said.length = 0; });
   await T.until(() => /把球往上扔/.test(document.getElementById('catchMsg').innerText), null, 'after a while without a throw the drag hint shows', 3000);
   await T.until(() => __said.includes(W.drag[1]), null, 'and is spoken', 3000);
-  // V1: once the throw lands, the spell is used up and the button says so
+  // V1: the button always agrees with the spell. The spell now lasts the whole catch, so after the throw it is still on and shown
   await forceCatch(T);
   await T.ev(() => ccv.focus());
   await T.page.keyboard.press('Space');
   await T.until(() => C && (C.phase === 'shake' || C.phase === 'result'), null, 'the throw lands', 4000);
   r = await T.ev(() => ({spell: C.spell, btn: document.getElementById('bSpell').innerText}));
-  T.ok(!r.spell && !/ready/.test(r.btn), 'spell button after the throw: ' + r.btn);
+  T.ok(r.spell === 2 && /ready/.test(r.btn), 'the spell is still on after the throw and the button shows it: ' + r.btn);
   await T.until(() => C === null, null, 'the catch screen closes', 5000);
   // W7: no orbs, no spell
   await T.ev(() => { S.items.orb = 0; S.items.great = 0; S.items.ultra = 0; __said.length = 0; window.__tr = 0; const t = window.traceChar; window.traceChar = (...a) => { __tr++; return t(...a); }; openCatch(wild[0]); });
@@ -1009,6 +1048,142 @@ module.exports = [
   await T.ev(() => { const i = SP.findIndex((s, i) => !S.col.some(c => c.sp === i) && !(S.caught || []).includes(i) && s.next != null); openDex(i, false); });
   const dex = await T.ev(() => { const d = document.querySelector('.dexcard'); return {type: !!d.querySelector('.type'), places: d.querySelectorAll('.dplace').length, evo: !!d.querySelector('.devo'), txt: d.innerText}; });
   T.ok(!dex.type && !dex.places && !dex.evo && /？？？/.test(dex.txt), 'an unfound creature shows only its silhouette: ' + JSON.stringify(dex));
+}},
+
+{name: '29 catch movement: a creature that darts or jumps is hit only where it is when the orb lands', timeout: 40000, fn: async T => {
+  await T.start();
+  await T.stay();
+  await T.spawn(1);
+  // movement on, dodges off: this test is only about where the creature is when the orb lands
+  await T.ev(() => { dodgeChance = () => 0; const wd = {sp: IDX.Zipbeak, lvl: 25, x: .5, y: .7, vx: 0, ph: 0}; wild.push(wd); openCatch(wd); });
+  await T.until(() => C && C.phase === 'aim' && __TT.vis('#sCatch'), null, 'catch open', 3000);
+  await T.sleep(100);
+  // the creature's crouch has already started, so the dart is under way when the orb leaves the hand
+  const dart = () => { const g = cBase(), span = g.maxOff - g.range, L = C.mv.moves, ax = L.length ? L[L.length - 1].a1 : 0, side = ax > 0 ? -1 : ax < 0 ? 1 : cPos(T, g).x > g.w / 2 ? -1 : 1;
+    C.mv.next = 1e9; L.push({k: 'dart', ant: .12, dur: .4, a0: ax, a1: side * span, hh: g.s * g.z * .45, cr: .9, land: .7, t0: T + .05, t1: T + .45}); };
+  const throwAt = (aimAtLanding) => { const g = cGeom(), now = cPos(T, g), then = cPos(T + .55, g), x = aimAtLanding ? then.x : now.x;
+    throwOrb(g.rest.x, g.rest.y, (x - g.rest.x) * 900 / (g.rest.y - g.ty), -900);
+    return {now: now.x, then: then.x, liftThen: then.lift, hitR: g.hitR, land: C.orb.x1, n: LOGBUF.filter(e => /^throw_(hit|miss)$/.test(e.type)).length}; };
+  const resolved = n => T.until(n => __TT.countLog('throw_hit') + __TT.countLog('throw_miss') > n, n, 'the throw resolves', 3000);
+  // 1) aimed where it is now: by the time the orb lands it has darted away
+  let r = await T.ev(({d, t}) => { eval(d)(); return eval(t)(false); }, {d: '(' + dart + ')', t: '(' + throwAt + ')'});
+  T.ok(Math.abs(r.then - r.now) > 1.6 * r.hitR, 'the dart moves it well clear of the hit radius: ' + JSON.stringify(r));
+  await resolved(r.n);
+  T.ok(await T.ev(() => !!__TT.lastLog('throw_miss') && __TT.countLog('throw_hit') === 0), 'an orb aimed where it was misses: ' + JSON.stringify(await T.ev(() => __TT.lastLog('throw_miss'))));
+  await T.until(() => C && C.phase === 'aim', null, 'back to aiming', 3000);
+  // 2) a jump that peaks just as the orb lands: aimed at the spot on the ground, the orb passes underneath
+  r = await T.ev(() => { const g = cBase(), ax = C.mv.moves.length ? C.mv.moves[C.mv.moves.length - 1].a1 : 0; C.mv.next = 1e9;
+    C.mv.moves.push({k: 'hop', ant: .1, dur: 1, a0: ax, a1: ax, hh: g.hitR * 1.3, cr: .7, land: .6, t0: T + .05, t1: T + 1.05});
+    const gg = cGeom(), x = cPos(T + .55, gg).x, n = LOGBUF.filter(e => /^throw_(hit|miss)$/.test(e.type)).length;
+    throwOrb(gg.rest.x, gg.rest.y, (x - gg.rest.x) * 900 / (gg.rest.y - gg.ty), -900); return {n, lift: cPos(C.orb.t0 + C.orb.dur, gg).lift, hitR: gg.hitR}; });
+  T.ok(r.lift > r.hitR, 'it is in the air when the orb lands: ' + JSON.stringify(r));
+  await resolved(r.n);
+  T.eq(await T.ev(() => __TT.countLog('throw_hit')), 0, 'an orb under a jumping creature does not hit');
+  await T.until(() => C && C.phase === 'aim' && T > C.mv.moves[C.mv.moves.length - 1].t1 + .2, null, 'back to aiming, and it has landed', 4000);
+  // 3) the same dart again, aimed where it will be when the orb lands: a hit
+  r = await T.ev(({d, t}) => { eval(d)(); return eval(t)(true); }, {d: '(' + dart + ')', t: '(' + throwAt + ')'});
+  await resolved(r.n);
+  T.ok(await T.ev(() => __TT.countLog('throw_hit') === 1), 'an orb aimed where it lands hits: ' + JSON.stringify(r));
+}},
+
+{name: '30 dodges: quick creatures dodge (躲开了！ shown and spoken), heavy ones rarely, little kids never', timeout: 60000, fn: async T => {
+  await T.start();
+  await T.stay();
+  await T.ev(() => { window.__said = []; window.speakAsync = z => { __said.push(z); return Promise.resolve(); }; });
+  const quick = tally(await T.ev(VTHROWS, {sp: 'Zipbeak', lvl: 25, n: 120}));
+  const heavy = tally(await T.ev(VTHROWS, {sp: 'Pebblin', lvl: 25, n: 120}));
+  T.note(`Zipbeak Lv25: ${quick.hit}/${quick.n} hit, ${quick.tried} tried to dodge, ${quick.dodged} dodged; Pebblin Lv25: ${heavy.hit}/${heavy.n} hit, ${heavy.tried} tried, ${heavy.dodged} dodged`);
+  T.ok(quick.tried >= .35 * quick.n && quick.dodged >= .2 * quick.n, 'a quick wind bird dodges often: ' + JSON.stringify({...quick, hops: quick.hops.length}));
+  T.ok(heavy.tried <= quick.tried / 3, 'a stone creature dodges much less: ' + heavy.tried + ' vs ' + quick.tried);
+  T.ok(quick.hit < quick.n - quick.dodged + 1 && quick.hit >= .25 * quick.n, 'it is still catchable');
+  // every dodge is a miss labelled "It dodged!", with the Chinese line and pinyin on screen and spoken
+  const recs = await T.ev(VTHROWS, {sp: 'Zipbeak', lvl: 25, n: 40});
+  for (const r of recs) T.eq(r.why === 'It dodged!', r.dodge === 'step' || r.dodge === 'jump', 'a miss is labelled a dodge exactly when it dodged: ' + JSON.stringify(r));
+  const one = recs.find(r => r.why === 'It dodged!');
+  T.ok(one && /躲开了！/.test(one.msg) && /duǒ kāi le/.test(one.msg), 'the dodge reaction shows 躲开了！ with pinyin: ' + (one && one.msg));
+  T.ok(await T.ev(() => __said.includes(W.dodged[1])), 'and it is spoken');
+  const plan = await T.ev(() => zhPlan(W.dodged[1]));
+  if (plan === 'device') T.note('躲开了！ has no recorded clip yet (device voice until it is recorded)');
+  // heavy creatures only ever stomp in place
+  const kinds = new Set((await T.ev(VTHROWS, {sp: 'Pebblin', lvl: 25, n: 20})).flatMap(r => r.kinds.split(',').filter(Boolean)));
+  T.ok([...kinds].every(k => k === 'stomp' || k === 'flinch' || k === 'step' || k === 'jump'), 'a stone creature only stomps between throws: ' + [...kinds].join(','));
+  // a little kid: no moves, no dodges, every well-aimed orb hits
+  await T.ev(() => { PL.list[0].young = true; applyYoung(); });
+  const young = await T.ev(VTHROWS, {sp: 'Zipbeak', lvl: 25, n: 120});
+  const y = tally(young);
+  T.eq(y.tried, 0, 'dodge attempts for a little kid');
+  T.eq(young.filter(r => r.kinds).length, 0, 'hops, darts or stomps for a little kid');
+  T.eq(y.hit, y.n, 'every well-aimed orb hits for a little kid');
+  T.eq(await T.ev(() => { const wd = {sp: IDX.Zipbeak, lvl: 40, x: .5, y: .7, vx: 0, ph: 0}; wild.push(wd); S.trace = false; openCatch(wd); const p = dodgeChance(); endCatch(); S.trace = true; return p; }), 0, 'dodge chance for a little kid even at Lv 40');
+}},
+
+{name: '31 the catch spell calms the creature: a perfect trace means fewer dodges and smaller hops; a berry calms it too', timeout: 60000, fn: async T => {
+  await T.start();
+  await T.stay();
+  // the chances themselves: none > ok > perfect, and a berry lowers each
+  const ch = await T.ev(() => { const wd = {sp: IDX.Zipbeak, lvl: 25, x: .5, y: .7, vx: 0, ph: 0}; wild.push(wd); S.trace = false; openCatch(wd); S.trace = true; const o = {};
+    for (const sp of [0, 1, 2]) for (const b of [false, true]) { C.spell = sp; C.berry = b; o[sp + (b ? 'b' : '')] = {p: dodgeChance(), sway: cBase().range, calm: calmK()}; }
+    endCatch(); return o; });
+  T.ok(ch[0].p > ch[1].p && ch[1].p > ch[2].p && ch[2].p > 0, 'dodge chance: none > ok > perfect > 0: ' + JSON.stringify(ch));
+  T.ok(ch['0b'].p < ch[0].p && ch['2b'].p < ch[2].p, 'a Calm Berry lowers the dodge chance');
+  T.ok(ch[0].sway > ch[1].sway && ch[1].sway > ch[2].sway, 'and the sway gets smaller');
+  // over many throws at a quick creature
+  const none = tally(await T.ev(VTHROWS, {sp: 'Zipbeak', lvl: 25, n: 150, spell: 0}));
+  const perfect = tally(await T.ev(VTHROWS, {sp: 'Zipbeak', lvl: 25, n: 150, spell: 2}));
+  T.note(`Zipbeak Lv25 no spell: ${none.tried} tried, ${none.dodged} dodged, ${none.hit} hit; perfect spell: ${perfect.tried} tried, ${perfect.dodged} dodged, ${perfect.hit} hit (of 150 each)`);
+  T.ok(perfect.tried < .85 * none.tried, `a perfect spell means fewer dodge attempts (${perfect.tried} vs ${none.tried})`);
+  T.ok(perfect.hit > none.hit, `and more hits (${perfect.hit} vs ${none.hit})`);
+  T.ok(none.hops.length > 10 && perfect.hops.length > 0 && mean(perfect.hops) < .8 * mean(none.hops), `smaller hops after a perfect spell (${mean(perfect.hops).toFixed(1)} vs ${mean(none.hops).toFixed(1)} px)`);
+}},
+
+{name: "32 the catch spell is cast once when the catch opens, lasts the whole catch and is never asked for again after a miss or a break-free; each catch starts fresh", timeout: 60000, fn: async T => {
+  await T.start();
+  await T.still();
+  await T.stay();
+  await T.until(() => wild.length >= 1, null, 'a creature appears', 5000);
+  await T.ev(() => { window.__traces = 0; window.__next = {ok: true, perfect: true, mistakes: 0, ch: '火'}; window.traceChar = () => { __traces++; return Promise.resolve(window.__next); }; });
+  const st = () => T.ev(() => ({traces: __traces, spell: C && C.spell, ch: C && C.spellCh, k: spellK(), burst: C && C.spellBurst, phase: C && C.phase, trace: !!document.querySelector('.tracewrap'), btn: document.getElementById('bSpell').innerText.replace(/\s+/g, ' '), dis: document.getElementById('bSpell').disabled}));
+  // tapping the creature on the scene: the spell comes first, then the catch screen
+  const p = await T.ev(() => { const r = scene.getBoundingClientRect(), w = wild[0]; return {x: r.left + w.x * r.width, y: r.top + (w.y - .07) * r.height}; });
+  await T.page.mouse.click(p.x, p.y);
+  await T.until(() => C && C.phase === 'aim' && __TT.vis('#sCatch'), null, 'tapping the creature opens the catch after the spell', 3000);
+  let s = await st();
+  T.ok(s.traces === 1 && s.spell === 2 && s.ch === '火' && s.k === 1, 'a perfect trace sets the full spell: ' + JSON.stringify(s));
+  await T.until(() => C && C.spellBurst === 1, null, 'the traced character flies onto the creature and bursts into its aura', 3000);
+  // a miss: the spell stays and nothing opens the trace again
+  await T.ev(() => { const g = cGeom(); throwOrb(g.rest.x, g.rest.y, (g.cx + g.hitR * 3 - g.rest.x) * 900 / (g.rest.y - g.ty), -900); });
+  await T.until(() => __TT.countLog('throw_miss') === 1, null, 'the wide throw misses', 3000);
+  await T.until(() => C && C.phase === 'aim', null, 'back to aiming', 3000);
+  await T.sleep(1800);
+  s = await st();
+  T.ok(s.traces === 1 && !s.trace && s.spell === 2 && /✦/.test(s.btn), 'after a miss: same spell, no new trace: ' + JSON.stringify(s));
+  // a hit that breaks free: still no new trace, and the spell is still on for the next throw
+  await T.ev(() => { window.__od = decideCatch; decideCatch = function () { window.__od(); C.caught = false; C.nShakes = 1; }; ccv.focus(); });
+  await T.page.keyboard.press('Space');
+  await T.until(() => __TT.countLog('catch_roll') === 1, null, 'the orb hits and rolls', 4000);
+  await T.until(() => C && C.phase === 'aim' && /挣脱/.test(document.getElementById('catchMsg').innerText), null, 'it breaks free and the child can throw again', 5000);
+  await T.sleep(2500);
+  s = await st();
+  T.ok(s.traces === 1 && !s.trace && s.spell === 2 && s.k === 1, 'after a break-free: same spell, no new trace: ' + JSON.stringify(s));
+  T.ok(await T.ev(() => __TT.lastLog('catch_roll').chance > 0), 'the roll happened');
+  await T.ev(() => { decideCatch = window.__od; endCatch(); });
+  T.eq(await T.ev(() => C), null, 'the catch closes');
+  // the next catch starts from its own trace: an ok trace gives the small spell...
+  await T.ev(() => { __next = {ok: true, perfect: false, mistakes: 2, ch: '水'}; openCatch(wild[0]); });
+  await T.until(() => C && C.phase === 'aim' && __TT.vis('#sCatch'), null, 'second catch open', 3000);
+  s = await st();
+  T.ok(s.traces === 2 && s.spell === 1 && s.ch === '水' && s.k > 0 && s.k < 1, 'an ok trace gives a smaller spell: ' + JSON.stringify(s));
+  await T.ev(() => endCatch());
+  // ...and a skipped one none; the Spell button is still there to cast it by hand
+  await T.ev(() => { __next = {skipped: true}; openCatch(wild[0]); });
+  await T.until(() => C && C.phase === 'aim' && __TT.vis('#sCatch'), null, 'third catch open', 3000);
+  await T.sleep(1500);
+  s = await st();
+  T.ok(s.traces === 3 && !s.spell && s.k === 0 && !s.trace && !s.dis && /Spell/.test(s.btn), 'a skipped trace: no spell, nothing re-opens, the Spell button waits: ' + JSON.stringify(s));
+  await T.ev(() => { __next = {ok: true, perfect: true, mistakes: 0, ch: '火'}; });
+  await T.page.click('#bSpell');
+  await T.until(() => C && C.spell === 2, null, 'the Spell button casts it by hand', 3000);
+  T.eq(await T.ev(() => __traces), 4, 'traces');
 }},
 
 ];

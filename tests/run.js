@@ -131,6 +131,8 @@ function mkHelpers(page, state) {
       await T.ev(n => __TT.pump(n), n);
       await T.until(n => wild.length >= n, n, `${n} creature(s) on the field`);
     },
+    // The catch-screen creature only sways (no hops, darts or dodges), as before catch movement: for tests about aiming.
+    async still() { await T.ev(() => { catchMotion = false; }); },
     // Resolve speech instantly (say() still keeps its own fixed pauses).
     async fastSpeech() { await T.ev(() => { window.speakAsync = () => Promise.resolve(); window.TALK_PACE = .15; }); },
     async openCatchOn(i = 0) {
