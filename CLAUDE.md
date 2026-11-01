@@ -17,11 +17,11 @@ Couchcatch is a single-file browser game: you stay in one place and original cre
 
 | File | What it does |
 |---|---|
-| game.html | Main loop, catching, battles, places, travel, saves, logging, UI |
-| species.js | Creature data. Saves store creatures by array index: only ever APPEND species |
+| game.html | Main loop, catching, battles, places, travel, saves, logging, UI. Wild, raid and gym levels come from `progress()` (team, badges, story), not the place |
+| species.js | Creature data, with an optional second type `t2`. Every species is in an evolution line. Saves store creatures by array index: only ever APPEND species |
 | draw.js | Procedural creature art (cached frames). fx.js: effects and item icons. orb.js: glass orbs |
 | scenery_home.js, scenery_ca.js | Painted backgrounds per place |
-| zh_names.js, vocab.js, phrases.js | Chinese names; beginner words; phrasebook for the Speak lesson |
+| zh_names.js, vocab.js, phrases.js | Chinese names and battle actions (ZH_ACTS); beginner words; phrasebook for the Speak lesson |
 | dialogues.js, story_dialogues.js | Conversations (format: title/who/setting/turns/end/reward). Only `ok:true` options are shown |
 | speak.js | Audio playback (whole-sentence clips → device Chinese voice → trimmed stitched word clips), Speak lesson, conversation player, avatars |
 | trace.js, hanzi_writer.js, hsk_chars.js | Character tracing: per-type ladders, then all HSK 1–4 characters; Hanzi Writer + stroke data |
