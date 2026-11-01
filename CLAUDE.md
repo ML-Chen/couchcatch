@@ -10,6 +10,7 @@ Couchcatch is a single-file browser game: you stay in one place and original cre
   `tools/build_and_check.sh src dist/couchcatch.html /tmp/shots --tests`
   Look at `/tmp/shots/sheet.png` after every change: it shows every screen at the kids' phone size (360x629) and is how UI regressions get caught. `errors.txt` beside it lists page errors.
 - Setup for tests/screenshots: `npm install` then `npx playwright install chromium`.
+- GitHub Pages: the `gh-pages` branch holds only `index.html` (a copy of `dist/couchcatch.html`) and `.nojekyll`. Refresh it on every release as a single force-pushed commit so the branch never accumulates copies of the 9 MB page. Outside Claude, saves stay in the browser only (use Settings → Save code to move progress).
 - The game is published as a Claude artifact. In a Claude session, publish `dist/couchcatch.html` with the Artifact tool, passing the existing artifact URL as `url` (the owner must have given you edit access). Keep the declared capabilities: `{db:{rules:[{path:"logs",read:"admin",write:"admin"},{path:"logs/{self}",read:"interact",write:"interact"}]},user:{}}`. Saves live in each viewer's private `data/users/<id>/` space; action logs (for bug-hunting) go to `logs/<viewer id>/chunks/…` and only the owner can read all of them.
 
 ## Module map (src/)
