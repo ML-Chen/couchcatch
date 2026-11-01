@@ -106,7 +106,8 @@ const Z=(zh,py)=>zw(zh,py);
 const GAPS=[25e3,120e3,600e3,3600e3,5*3600e3,86400e3,5*86400e3];
 function pst(zh){S.ph=S.ph||{};return S.ph[zh]||(S.ph[zh]={n:0,due:0,intro:false})}
 function heard(zh,good=true){const v=pst(zh);v.n++;v.intro=true;v.lvl=Math.max(0,Math.min(GAPS.length-1,(v.lvl||0)+(good?1:-1)));v.due=Date.now()+GAPS[v.lvl];v.last=Date.now()}
-const PB=()=>typeof PHRASEBOOK!=='undefined'?PHRASEBOOK:[];
+// little kids practise only the shortest everyday phrases (units 1–3: hello, me, I want)
+const PB=()=>{const all=typeof PHRASEBOOK!=='undefined'?PHRASEBOOK:[];return window.isYoung&&isYoung()?all.filter(p=>p.unit<=3&&p.zh.replace(/[，。！？]/g,'').length<=5):all};
 function nextNew(){return PB().find(p=>!pst(p.zh).intro)}
 function dueList(){const now=Date.now();return PB().filter(p=>pst(p.zh).intro&&pst(p.zh).due<=now).sort((a,b)=>pst(a.zh).due-pst(b.zh).due)}
 

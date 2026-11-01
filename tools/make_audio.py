@@ -5,8 +5,11 @@ Strings come from tools/zh_strings.js (vocab.js VOCAB/PHRASES, phrases.js PHRASE
 zh_names.js names, every dialogues*.js).  Every string is synthesized as ONE whole utterance
 (never stitched from words), then:
   trim silence (keep 50 ms padding) -> 30 ms fades -> loudness-normalize to -16 LUFS (peak <= -1 dBFS)
-  -> mono MP3 64 kbps CBR at the model's native sample rate (24 kHz for Qwen3-TTS / Kokoro).
-Output:  const ZH_AUDIO={"火":"data:audio/mpeg;base64,...", ...};
+  -> mono Ogg Opus ~24 kbps, speech mode, 24 kHz (--codec opus, default; decode with AudioContext.decodeAudioData)
+     or MP3 CBR (--codec mp3); the bitrate steps down automatically to stay under --max-mb (default 7).
+Output:  const ZH_AUDIO={"火":"data:audio/ogg;base64,...", ...};
+Every finished take is cached as a WAV in --cache-dir, so changing codec/bitrate re-encodes from the source
+(no re-synthesis, no lossy transcoding).
 
 Engines (--engine):
   qwen    Qwen3-TTS-12Hz-0.6B-CustomVoice, speaker "Serena" (warm, gentle young female). Default.
@@ -45,7 +48,8 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from zh_tone import f0 as f0_track, classify as tone_classify  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.join(os.path.dirname(TOOLS), 'src')  # the game's source files
 OUT = os.path.join(ROOT, 'zh_audio.js')
 FFMPEG = os.environ.get('FFMPEG', '/usr/local/bin/ffmpeg' if os.path.exists('/usr/local/bin/ffmpeg') else 'ffmpeg')
 CACHE = os.path.join(os.path.expanduser('~'), '.cache', 'zh_tts')
@@ -72,7 +76,7 @@ def node_json(js, *args):
 
 
 def collect_items(templates):
-    items = json.loads(subprocess.check_output(['node', os.path.join(ROOT, 'tools', 'zh_strings.js'), ROOT]))
+    items = json.loads(subprocess.check_output(['node', os.path.join(TOOLS, 'zh_strings.js'), ROOT]))
     return [it for it in items if templates or it.get('tier') != 'template']
 
 
@@ -304,6 +308,24 @@ def encode_mp3(x, sr, bitrate=BITRATE):
     return subprocess.run(cmd, input=np.clip(x, -1, 1).astype('<f4').tobytes(), stdout=subprocess.PIPE, check=True).stdout
 
 
+def encode_opus(x, sr, bitrate='22k'):
+    """Ogg Opus, speech-tuned (SILK/hybrid). Opus runs at 8/12/16/24/48 kHz; 24 kHz input is passed through."""
+    cmd = [FFMPEG, '-hide_banner', '-loglevel', 'error', '-f', 'f32le', '-ar', str(sr), '-ac', '1', '-i', 'pipe:0',
+           '-ac', '1', '-ar', str(sr if sr in (8000, 12000, 16000, 24000, 48000) else 24000), '-c:a', 'libopus', '-b:a', bitrate,
+           '-application', 'voip', '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact', '-f', 'ogg', 'pipe:1']
+    return subprocess.run(cmd, input=np.clip(x, -1, 1).astype('<f4').tobytes(), stdout=subprocess.PIPE, check=True).stdout
+
+
+def encode(x, sr, codec, bitrate):
+    return encode_opus(x, sr, bitrate) if codec == 'opus' else encode_mp3(x, sr, bitrate)
+
+
+def engine_tag(args):
+    if args.engine == 'qwen':
+        return f'{Qwen.name}/{args.voice or "Serena"}'
+    return f'{args.engine}/sid{int(args.voice) if args.voice else (13 if args.engine == "kokoro" else 0)}'
+
+
 def save_wav(path, x, sr):
     import wave
     with wave.open(path, 'wb') as w:
@@ -342,8 +364,7 @@ def score(x, sr, text, tone, asr, lo_hi):
             m = re.match(r'([\d.]+)-([\d.]+)@[\d.]+-([\d.]+)', d)
             if m and float(m.group(3)) - float(m.group(2)) < 1.0:
                 pen += 1.0                                     # re-roll for the full 214 dip-and-rise learners expect
-    elif asr and nchar >= 2:
-        hyp = asr(x, sr)
+    elif asr and nchar >= 2 and (hyp := asr(x, sr)) is not None:
         ref = norm(text)
         e0 = lev(py_seq(ref, False), py_seq(hyp, False)); e1 = lev(py_seq(ref), py_seq(hyp))
         pen += 2 * e0 + 0.5 * e1
@@ -363,11 +384,14 @@ def main():
     ap.add_argument('--redo', default='', help='comma-separated keys to regenerate')
     ap.add_argument('--templates', action='store_true', help='also record sentence templates (野生的X ...)')
     ap.add_argument('--prune', action='store_true', help='drop clips for strings no longer used')
+    ap.add_argument('--extra', action='append', default=[], help='text file of extra strings, one per line (repeatable)')
     ap.add_argument('--tries', type=int, default=3, help='max takes per string (best one is kept)')
     ap.add_argument('--single-tries', type=int, default=4, help='max takes per single character')
     ap.add_argument('--batch', type=int, default=0, help='utterances per model call (default 32 for qwen)')
     ap.add_argument('--batch-chars', type=int, default=120, help='max (utterances x longest length) per model call')
-    ap.add_argument('--max-mb', type=float, default=8.0, help='lower the MP3 bitrate (64k -> 40k) to stay under this size')
+    ap.add_argument('--codec', default='opus', choices=['opus', 'mp3'],
+                    help='opus = Ogg Opus 24 kHz speech mode (default; Chrome/Firefox/Safari 17+), mp3 = MP3 CBR')
+    ap.add_argument('--max-mb', type=float, default=7.0, help='step the bitrate down (opus 24k->20k, mp3 64k->40k) to stay under this size')
     ap.add_argument('--limit', type=int, default=0, help='only synthesize this many (testing)')
     ap.add_argument('--out', default=OUT)
     args = ap.parse_args()
@@ -384,6 +408,15 @@ def main():
     if not args.prune:
         for k in old:
             want.setdefault(k, k)
+    have = {norm(k) for k in want}
+    prio = {}  # synthesis order: single characters, then game strings, then each --extra file in the order given
+    for fi, f in enumerate(args.extra, 1):  # extra strings, one per line (kept on later runs: they are then in zh_audio.js)
+        for line in open(f, encoding='utf-8'):
+            s = line.strip()
+            if s and HAN.search(s) and norm(s) not in have:
+                have.add(norm(s))
+                want[s] = s
+                prio[s] = fi
     redo_n = {norm(r) for r in args.redo.split(',') if r}
     clips = {} if args.force else {k: v for k, v in old.items() if k in want and norm(k) not in redo_n}
     todo = [k for k in want if k not in clips]
@@ -393,14 +426,26 @@ def main():
     fresh = {}   # key -> (wav path) for clips made by this run (re-encodable)
     engine_desc = 'unchanged'
 
+    tag = engine_tag(args)
+    os.makedirs(args.cache_dir, exist_ok=True)
+    cbase = lambda k: os.path.join(args.cache_dir, hashlib.sha1(f'{tag}|{want[k]}'.encode()).hexdigest()[:20])
+    lazy = {}
+
+    def tts(texts, seed):  # the model is only loaded if something actually needs synthesizing
+        if 'tts' not in lazy:
+            lazy['tts'] = Qwen(args.model_dir, args.voice, args.dtype) if args.engine == 'qwen' else Sherpa(args.engine, args.model_dir, args.voice)
+        return lazy['tts'](texts, seed)
+
+    def asr(x, sr):
+        if 'asr' not in lazy:
+            ok = os.path.exists(os.path.join(args.asr_dir, 'model.int8.onnx'))
+            lazy['asr'] = Asr(args.asr_dir) if ok else None
+            if not ok:
+                print('note: no ASR model in --asr-dir; multi-character takes are not round-trip checked', flush=True)
+        return lazy['asr'](x, sr) if lazy['asr'] else None
+
     if todo:
-        tts = Qwen(args.model_dir, args.voice, args.dtype) if args.engine == 'qwen' else Sherpa(args.engine, args.model_dir, args.voice)
-        engine_desc = tts.tag
-        asr = Asr(args.asr_dir) if os.path.exists(os.path.join(args.asr_dir, 'model.int8.onnx')) else None
-        if not asr:
-            print('note: no ASR model in --asr-dir; multi-character takes are not round-trip checked', flush=True)
-        os.makedirs(args.cache_dir, exist_ok=True)
-        cbase = lambda k: os.path.join(args.cache_dir, hashlib.sha1(f'{tts.tag}|{want[k]}'.encode()).hexdigest()[:20])
+        engine_desc = tag
         singles = [k for k in todo if len(norm(want[k])) == 1]
         multis = [k for k in todo if k not in singles]
         t0, report, state = time.time(), [], {'lo_hi': None, 'n': 0}
@@ -411,7 +456,7 @@ def main():
 
         def keep(k, s, x, sr, note):
             save_wav(cbase(k) + '.wav', x, sr)
-            json.dump({'key': k, 'text': want[k], 'tag': tts.tag, 'score': s, 'note': note, 'dur': len(x) / sr},
+            json.dump({'key': k, 'text': want[k], 'tag': tag, 'score': s, 'note': note, 'dur': len(x) / sr},
                       open(cbase(k) + '.json', 'w'), ensure_ascii=False)
 
         def run(keys, tries, single):
@@ -425,7 +470,7 @@ def main():
                     print(f'  speaker F0 range {state["lo_hi"][0]:.0f}-{state["lo_hi"][1]:.0f} Hz (cached takes)', flush=True)
             pending = [k for k in keys if k not in best or norm(k) in redo_n or (best[k] >= 1 and not meta(k).get('final'))]
             for attempt in range(tries):
-                pending.sort(key=lambda k: len(want[k]))
+                pending.sort(key=lambda k: (prio.get(k, 0), len(want[k])))
                 nxt = []
                 groups, cur = [], []
                 for k in pending:  # memory grows with batch x length: cap characters per batch, not just utterances
@@ -491,27 +536,38 @@ def main():
         if report:
             print('kept the best take but still flagged (check by ear):\n  ' + '\n  '.join(report))
 
-    # Encode this run's clips; step the bitrate down if the file would exceed --max-mb.
+    # Encode every clip that has a cached take (this run's and earlier ones) with one codec; step the
+    # bitrate down if the file would exceed --max-mb. Clips without a cached take are kept as they are.
+    for k in want:
+        if k not in clips and k not in fresh and os.path.exists(cbase(k) + '.wav'):
+            fresh[k] = cbase(k) + '.wav'
+    for k in clips:
+        if k not in fresh and os.path.exists(cbase(k) + '.wav'):
+            fresh[k] = cbase(k) + '.wav'
     order = [k for k in want if k in clips or k in fresh]
     kept_bytes = sum(len(k.encode()) + len(v) + 8 for k, v in clips.items() if k not in fresh)
+    if kept_bytes:
+        print(f'  {sum(1 for k in clips if k not in fresh)} clips have no cached take and are kept as they are', flush=True)
     pcm = {k: load_wav(p) for k, p in fresh.items()}
-    bitrate = BITRATE
-    for br in ('64k', '56k', '48k', '40k'):
+    ladder = ('24k', '22k', '20k', '18k', '16k') if args.codec == 'opus' else ('64k', '56k', '48k', '40k')
+    mime = 'audio/ogg' if args.codec == 'opus' else 'audio/mpeg'
+    for br in ladder:
         bitrate = br
-        enc = {k: 'data:audio/mpeg;base64,' + base64.b64encode(encode_mp3(x, sr, br)).decode('ascii') for k, (x, sr) in pcm.items()}
+        enc = {k: f'data:{mime};base64,' + base64.b64encode(encode(x, sr, args.codec, br)).decode('ascii') for k, (x, sr) in pcm.items()}
         total = kept_bytes + sum(len(k.encode()) + len(v) + 8 for k, v in enc.items())
         if total <= args.max_mb * 1e6 or not pcm:
             break
         print(f'  {total / 1e6:.2f} MB at {br}bps > --max-mb {args.max_mb}; trying a lower bitrate', flush=True)
     clips.update(enc)
     body = ',\n'.join(json.dumps(k, ensure_ascii=False) + ':' + json.dumps(clips[k]) for k in order)
-    hdr = (f'// Generated by tools/make_audio.py ({engine_desc}) -- pre-recorded Mandarin clips, one whole utterance each, '
-           f'mono MP3 {bitrate}bps, {TARGET_LUFS:g} LUFS.\n// Keys are the strings as written; look up with punctuation/spaces removed.\n')
+    fmt = f'Ogg Opus {bitrate}bps (decode with AudioContext.decodeAudioData)' if args.codec == 'opus' else f'MP3 {bitrate}bps'
+    hdr = (f'// Generated by tools/make_audio.py ({tag}) -- pre-recorded Mandarin clips, one whole utterance each, '
+           f'mono {fmt}, {TARGET_LUFS:g} LUFS.\n// Keys are the strings as written; look up with punctuation/spaces removed.\n')
     tmp = args.out + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
         f.write(hdr + 'const ZH_AUDIO={\n' + body + '\n};\n')
     os.replace(tmp, args.out)
-    print(f'wrote {args.out}: {len(order)} clips, {os.path.getsize(args.out) / 1e6:.2f} MB, {bitrate}bps')
+    print(f'wrote {args.out}: {len(order)} clips, {os.path.getsize(args.out) / 1e6:.2f} MB, {args.codec} {bitrate}bps')
 
 
 if __name__ == '__main__':
