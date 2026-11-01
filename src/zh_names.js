@@ -80,6 +80,24 @@ const ZH_SPECIES = {
   'Dojocub':     {zh:'拳虎',   py:'quán hǔ',         mean:'fist + tiger'},
   'Twinkfawn':   {zh:'星鹿',   py:'xīng lù',         mean:'star + deer'},
   'Glimmerbun':  {zh:'星兔',   py:'xīng tù',         mean:'star + rabbit'},
+  // ---- wave 4: evolutions, and the legendaries' babies ----
+  'Billowisp':   {zh:'浪灵',   py:'làng líng',       mean:'wave + spirit'},
+  'Galewing':    {zh:'风暴鸥', py:'fēng bào ōu',     mean:'storm (wind + violent) + gull'},
+  'Gemvixen':    {zh:'星心狐', py:'xīng xīn hú',     mean:'star + heart + fox'},
+  'Nimbuswyrm':  {zh:'风云龙', py:'fēng yún lóng',   mean:'wind + cloud + dragon'},
+  'Skydarner':   {zh:'风蜓',   py:'fēng tíng',       mean:'wind + dragonfly'},
+  'Sevenspot':   {zh:'七星虫', py:'qī xīng chóng',   mean:'seven + star + bug (seven-spot ladybird)'},
+  'Moonflit':    {zh:'夜蝠',   py:'yè fú',           mean:'night + bat'},
+  'Shadowisp':   {zh:'影灵',   py:'yǐng líng',       mean:'shadow + spirit'},
+  'Rivetback':   {zh:'钢鳞王', py:'gāng lín wáng',   mean:'steel + scales + king'},
+  'Forgehorn':   {zh:'钢角虫', py:'gāng jiǎo chóng', mean:'steel + horn + bug'},
+  'Boxaroo':     {zh:'拳王袋鼠', py:'quán wáng dài shǔ', mean:'boxing champion (fist + king) + kangaroo (pouch + mouse)'},
+  'Dojoroar':    {zh:'拳虎王', py:'quán hǔ wáng',    mean:'fist + tiger + king'},
+  'Cometstag':   {zh:'流星鹿', py:'liú xīng lù',     mean:'shooting star (flowing + star) + deer'},
+  'Moonhopper':  {zh:'玉兔',   py:'yù tù',           mean:'jade + rabbit (the rabbit in the moon)'},
+  'Solfawn':     {zh:'小阳鹿', py:'xiǎo yáng lù',    mean:'little + sun + deer'},
+  'Mireling':    {zh:'小月龙', py:'xiǎo yuè lóng',   mean:'little + moon + dragon'},
+  'Stormling':   {zh:'小雷雀', py:'xiǎo léi què',    mean:'little + thunder + sparrow'},
 };
 
 const ZH_TYPES = {

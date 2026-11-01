@@ -394,6 +394,8 @@ const LEGS=SP.map((s,i)=>s.leg?i:-1).filter(i=>i>=0);
 // up to two types per creature (types come from the species data, never from a save)
 SP.forEach(s=>{s.ts=s.t2?[s.t,s.t2]:[s.t]});
 const hasT=(i,t)=>SP[i].ts.includes(t),inTypes=(i,list)=>SP[i].ts.some(t=>list.includes(t));
+// legendaries grow up from a baby: babies come out in the wild, the grown ones lead raids
+const LEG_BASES=LEGS.filter(i=>SP[i].prev==null),LEG_TOPS=LEGS.filter(i=>SP[i].next==null);
 const ITEMS={orb:{n:'Stay Orb',d:'A basic orb for catching creatures.'},great:{n:'Great Orb',d:'Better catch chance (+15%).'},ultra:{n:'Ultra Orb',d:'Much better catch chance (+30%).'},berry:{n:'Calm Berry',d:'Feed one to a creature before a throw. It moves much less and is easier to catch.'}};
 const PLACES=[
  {n:'Backyard',key:'backyard',region:'Home',sky:['#7cc8ff','#d8f1ff'],ground:'#5fbf5f',hill:'#3f9a55',amb:'leaves',prop:'tree',types:['leaf','spark','water'],leader:'Coach Mira',lv:5},
@@ -602,7 +604,8 @@ function spawnWild(road){const p=PLACES[S.place];
   if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const nat=t=>BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)));let t=pick(p.types);if(!nat(t).length){const ok=p.types.filter(x=>nat(x).length);if(ok.length&&Math.random()<.8)t=pick(ok)}
     spi=pick(BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.2)))??pick(BASES.filter(i=>hasT(i,t)))}
   spi=grown(spi,lvl,.35);
-  if(!road&&LEGS.length&&Math.random()<(inRift()?1/25:1/250)){spi=pick(LEGS)}
+  // a legendary comes as its baby, grown up only when the level allows
+  if(!road&&LEG_BASES.length&&Math.random()<(inRift()?1/25:1/250)){spi=grown(pick(LEG_BASES),lvl,.5)}
   let bx=R(.12,.88),by=R(.6,.9);if(!road){let best=-1;for(let k=0;k<14;k++){const cx=R(.12,.88),cy=R(.6,.9);let md=9;for(const o of wild)md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6));if(md>best){best=md;bx=cx;by=cy}}}
   return{shiny:Math.random()<shinyRate(),sp:spi,lvl,x:bx,y:road?R(.66,.7):by,vx:R(-.03,.03),ph:R(0,6),born:T,road}}
 function riftHere(){return!!(S.rift&&S.rift.shown&&S.rift.place===S.place&&S.mode!=='travel')}
@@ -1118,7 +1121,7 @@ async function win(){sfx('win');if(!B.raid&&!S.badges.includes(S.place))S.pendin
   endBattle()}
 async function lose(){LOG('battle_end',{result:'lose',raid:!!B.raid,party:snap().party});if(B.raid){S.raid=null;await say('Your whole team fainted, and the giant boss left. Move somewhere and stay there to heal your team.')}else await say('Your whole team fainted. Move somewhere and stay there to heal your team, then try again.');endBattle()}
 function pickBoss(){const p=PLACES[S.place];let pool=SP.map((s,i)=>!s.leg&&s.next==null&&s.stage>=2&&inTypes(i,p.types)?i:-1).filter(i=>i>=0);
-  if(LEGS.length&&Math.random()<(p.rift?.35:.12))pool=LEGS;return{place:S.place,sp:pick(pool),lvl:p.lv+4,shiny:Math.random()<shinyRate(),shown:false}}
+  if(LEG_TOPS.length&&Math.random()<(p.rift?.35:.12))pool=LEG_TOPS;return{place:S.place,sp:pick(pool),lvl:p.lv+4,shiny:Math.random()<shinyRate(),shown:false}}
 function startRaid(){if(!raidHere()||B)return;if(!party().some(c=>c.hp>0)){toast('Your team is worn out. Stay a little longer to heal.');return}
   const r=S.raid,boss=mk(r.sp,r.lvl,r.shiny);S.nextId--;boss.hpMul=4;boss.hp=stats(boss).maxhp;
   LOG('battle_start',{kind:'raid',boss:SP[r.sp].n,lvl:r.lvl,party:snap().party});
