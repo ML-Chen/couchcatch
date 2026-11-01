@@ -5,10 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Smoldy in 3D</title>
 <style>
-  /* The canvas fills the whole window. The background colour matches the sky so nothing flashes while the shader compiles. */
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #b9cfe4; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  /* The page background is a soft sky-to-meadow gradient, so the screen looks right even before
+     the shader is ready. */
+  html, body { margin: 0; height: 100%; overflow: hidden;
+    background: linear-gradient(to bottom, #869fcb 0%, #a1b5d6 20%, #c2ced9 36%, #acc3b9 44%,
+      #9bbb9f 50%, #94b87a 70%, #73a45c 100%); }
+  /* The 3D view fills the window. It stays invisible until its shader is compiled and the first
+     frame is drawn, then fades in over the poster. */
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none;
+    cursor: grab; opacity: 0; transition: opacity 0.5s ease; }
   canvas:active { cursor: grabbing; }
+  body.ready canvas, body.still canvas { opacity: 1; transition: none; }
+  body.ready canvas { transition: opacity 0.5s ease; }
+  /* Poster: a still picture of Smoldy shown while the shader compiles. It is a square render of
+     the opening camera view, placed where the live view will draw the fox (the shader frames the
+     scene by the screen's shorter side), with soft edges that melt into the background. */
+  .poster { position: fixed; left: 50%; top: 50%; width: min(100vw, 100vh); height: min(100vw, 100vh);
+    transform: translate(-50%, -50%); pointer-events: none; user-select: none;
+    -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+    mask-image: radial-gradient(closest-side, #000 72%, transparent 100%); }
+  /* In portrait the live camera sits 10% closer (see cameraPosition), so the poster matches that. */
+  @media (orientation: portrait) { .poster { transform: translate(-50%, -50%) scale(1.11); } }
+  body.still .poster { display: none; }
   /* The one line of text on screen. */
   .caption {
     position: fixed; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom));
@@ -20,6 +38,7 @@
 </style>
 </head>
 <body>
+<img class="poster" id="poster" alt="" src="data:image/jpeg;base64,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">
 <canvas id="view"></canvas>
 <div class="caption">Smoldy · 烟狐 yān hú · drag to turn</div>
 
@@ -38,6 +57,11 @@ void main() {
   FRAGMENT SHADER
   Runs once for every pixel. For each pixel it shoots a ray from the camera, finds where the ray first touches the fox
   (or the ground), works out the colour of the fur there, lights it, and adds the glowing tail flame on top.
+
+  A note on size: graphics drivers paste a full copy of a function at every place it is called, and may paste a loop's
+  body once per iteration. The fox's distance function is big, so this shader calls it from exactly three places
+  (castRay, probeSurface, softShadow) and gives every loop a budget that is only known when the shader runs. That keeps
+  the compiled program small, so it compiles quickly instead of freezing the browser.
 -->
 <script id="fragment-shader" type="x-shader/x-fragment">
 precision highp float;
@@ -62,6 +86,13 @@ uniform vec3  uTailEnd;
 uniform vec3  uFlameBase;       // where the flame sits on the tail tip
 uniform vec2  uFlameLean;       // sideways lean of the flame (it trails behind the tail's swing)
 uniform float uFlameGlow;       // flicker brightness, roughly 0.85 .. 1.15
+// Loop budgets. Each loop below has a fixed upper limit (WebGL 1 requires one) but stops at the
+// budget JavaScript passes in. Because the real count is unknown until the shader runs, drivers
+// keep these as compact loops instead of unrolling them. JavaScript lowers them on slow devices.
+uniform int   uMarchSteps;        // steps along each camera ray
+uniform int   uShadowSteps;       // steps along each shadow ray
+uniform int   uOcclusionSamples;  // ambient occlusion samples per surface point
+uniform int   uFlameSteps;        // slices through the flame
 
 // AA = rays per pixel along each axis. JavaScript sets it: 1 for the live view, 2 for still screenshots.
 #ifndef AA
@@ -74,10 +105,11 @@ uniform float uFlameGlow;       // flicker brightness, roughly 0.85 .. 1.15
 #define DEBUG_VIEW 0
 #endif
 
-// Ray-marching budgets. Low enough for a phone, high enough to reach every surface cleanly.
-#define MAX_MARCH_STEPS 96
-#define MAX_SHADOW_STEPS 40
-#define FLAME_STEPS 20
+// Upper limits for the loop budgets above.
+#define MARCH_STEP_LIMIT 80
+#define SHADOW_STEP_LIMIT 28
+#define OCCLUSION_SAMPLE_LIMIT 4
+#define FLAME_STEP_LIMIT 16
 
 // Material numbers returned by the distance function alongside the distance.
 #define MATERIAL_FUR 1.0
@@ -89,7 +121,8 @@ uniform float uFlameGlow;       // flicker brightness, roughly 0.85 .. 1.15
 //    with toLinear(), because lighting maths must be done in linear light.
 // ============================================================================================
 const vec3 FUR_ORANGE_SRGB      = vec3(1.000, 0.585, 0.270);  // #ff8a3d (Smoldy's c1 in species.js), lifted a touch
-const vec3 FUR_DEEP_ORANGE_SRGB = vec3(0.960, 0.470, 0.200);  // slightly deeper orange along the back
+const vec3 FUR_BACK_SRGB        = vec3(0.930, 0.400, 0.150);  // redder fur along the back and the top of the head
+const vec3 FUR_FLANK_SRGB       = vec3(1.000, 0.680, 0.380);  // paler, sandier fur on the flanks
 const vec3 FUR_CREAM_SRGB       = vec3(1.000, 0.910, 0.770);  // close to #ffe0b8 (c2), a touch lighter
 const vec3 FUR_DARK_SRGB        = vec3(0.500, 0.230, 0.140);  // rust-brown socks and ear tips (c3 #9c3a14, darker)
 const vec3 INNER_EAR_SRGB       = vec3(1.000, 0.840, 0.760);  // warm pinkish cream inside the ears
@@ -102,7 +135,8 @@ const vec3 NOSE_SRGB            = vec3(0.150, 0.090, 0.080);  // dark brown-blac
 vec3 toLinear(vec3 srgb) { return pow(srgb, vec3(2.2)); }
 
 // ============================================================================================
-// 3. Lights. A warm sun, a cool blue sky dome, and warm light bouncing up from the ground.
+// 3. Lights. A warm sun, a cool blue sky dome, warm light bouncing up from the ground, and the
+//    tail flame's own glow.
 // ============================================================================================
 const vec3 SUN_DIRECTION = normalize(vec3(0.30, 0.80, 0.55));  // points towards the sun: high, front, a little right
 const vec3 SUN_COLOR     = vec3(1.00, 0.93, 0.82) * 1.6;
@@ -131,6 +165,7 @@ const vec3 HIND_HOCK        = vec3(0.088, 0.14, -0.200);
 const vec3 HIND_ANKLE       = vec3(0.082, 0.06, -0.170);
 const vec3 HIND_PAW_CENTER  = vec3(0.082, 0.036, -0.150);
 const vec3 PAW_RADII        = vec3(0.055, 0.038, 0.072);
+const float LEGS_TOP        = 0.40;                   // nothing of the legs is higher than this
 // Tail spine in the resting pose (JavaScript swings it from here; see poseFox)
 const vec3 TAIL_REST_START = vec3(0.0, 0.38, -0.22);
 const vec3 TAIL_REST_BEND  = vec3(0.0, 0.30, -0.62);
@@ -147,18 +182,26 @@ const vec3 NOSE_CENTER  = vec3(0.0, -0.082, 0.336);
 const vec3 NOSE_RADII   = vec3(0.030, 0.022, 0.024);
 const vec3 CHEEK_ROOT   = vec3(0.13, -0.09, 0.04);
 const vec3 CHEEK_TIP    = vec3(0.245, -0.20, -0.02);
-const vec3 EYE_CENTER   = vec3(0.089, -0.006, 0.207);
-const vec3 EYE_RADII    = vec3(0.068, 0.082, 0.050);
+// Eyes: upright ovals set a little apart, sunk into the skull so only a shallow dome shows.
+// EYE_CENTER sits 0.018 under the skull's surface along the surface normal there.
+const vec3 EYE_CENTER   = vec3(0.092, -0.009, 0.216);
+const vec3 EYE_RADII    = vec3(0.042, 0.051, 0.031);
 const float EYE_TURN    = 0.345;                    // eyes face slightly outwards (radians)
 const vec3 EAR_BASE     = vec3(0.13, 0.15, -0.03);
 const float EAR_LENGTH  = 0.29;
+const vec3 EAR_BOUND_CENTER = vec3(0.19, 0.29, -0.045);   // middle of the right ear, for skipping work
 const vec3 BLUSH_CENTER = vec3(0.150, -0.085, 0.185);
-// Bounding spheres, used to skip work far from the fox
+// Bounding sphere around the whole fox, used to skip work far from it
 const vec3 FOX_BOUND_CENTER  = vec3(0.0, 0.55, -0.08);
 const float FOX_BOUND_RADIUS = 0.82;
 // Flame
 const float FLAME_HEIGHT = 0.38;
 const float FLAME_RADIUS = 0.105;
+// Fur
+const float CLUMP_FREQUENCY  = 30.0;   // clumps of hair: about 3 cm apart on a fox 1.1 tall
+const float STRAND_FREQUENCY = 95.0;   // finer strands inside the clumps, only drawn up close
+const float PATCH_FREQUENCY  = 7.0;    // slow light/dark variation from patch to patch
+const float TUFT_LENGTH      = 0.016;  // how far wisps of fur can poke out past the silhouette
 
 // Camera-facing directions, filled in by main() and used for the eye catchlights.
 vec3 gCameraForward;
@@ -205,10 +248,23 @@ vec2 sphereIntersect(vec3 rayOrigin, vec3 rayDir, vec3 center, float radius) {
   return vec2(-halfB - root, -halfB + root);
 }
 
+// Where a ray enters and leaves an endless upright cylinder (axis along y through axisXZ):
+// the same quadratic, in the horizontal plane only. A ray parallel to the axis is inside or out.
+vec2 verticalCylinderIntersect(vec3 rayOrigin, vec3 rayDir, vec2 axisXZ, float radius) {
+  vec2 offset = rayOrigin.xz - axisXZ;
+  float horizontalSq = dot(rayDir.xz, rayDir.xz);
+  if (horizontalSq < 1e-6) return dot(offset, offset) < radius * radius ? vec2(-1e9, 1e9) : vec2(-1.0);
+  float halfB = dot(offset, rayDir.xz) / horizontalSq;
+  float offsetSqMinusRadiusSq = (dot(offset, offset) - radius * radius) / horizontalSq;
+  float discriminant = halfB * halfB - offsetSqMinusRadiusSq;
+  if (discriminant < 0.0) return vec2(-1.0);
+  float root = sqrt(discriminant);
+  return vec2(-halfB - root, -halfB + root);
+}
+
 // ============================================================================================
 // 6. Noise. A cheap hash turns a position into a pseudo-random number; value noise blends the
-//    hashes at the 8 corners of a grid cell so the randomness is smooth; fbm stacks a few
-//    octaves of it for flame-like detail.
+//    hashes at the 8 corners of a grid cell so the randomness is smooth.
 // ============================================================================================
 
 // Hash (Dave Hoskins' "hash without sine"): scrambles the bits of a position into 0..1. It avoids
@@ -225,28 +281,45 @@ float hash12(vec2 position) {
   return fract((scrambled.x + scrambled.y) * scrambled.z);
 }
 
-float valueNoise(vec3 position) {
+// Value noise with its slope (Quilez): returns (value, d/dx, d/dy, d/dz). The slope comes almost
+// for free from the same 8 corner hashes, and the fur uses it to tilt the normal along its clumps.
+vec4 valueNoiseWithSlope(vec3 position) {
   vec3 cell = floor(position);
   vec3 inCell = fract(position);
   vec3 blend = inCell * inCell * (3.0 - 2.0 * inCell);   // smoothstep-shaped, so cell edges don't show
-  return mix(mix(mix(hash13(cell + vec3(0, 0, 0)), hash13(cell + vec3(1, 0, 0)), blend.x),
-                 mix(hash13(cell + vec3(0, 1, 0)), hash13(cell + vec3(1, 1, 0)), blend.x), blend.y),
-             mix(mix(hash13(cell + vec3(0, 0, 1)), hash13(cell + vec3(1, 0, 1)), blend.x),
-                 mix(hash13(cell + vec3(0, 1, 1)), hash13(cell + vec3(1, 1, 1)), blend.x), blend.y), blend.z);
+  vec3 blendSlope = 6.0 * inCell * (1.0 - inCell);
+  float c000 = hash13(cell + vec3(0, 0, 0));
+  float c100 = hash13(cell + vec3(1, 0, 0));
+  float c010 = hash13(cell + vec3(0, 1, 0));
+  float c110 = hash13(cell + vec3(1, 1, 0));
+  float c001 = hash13(cell + vec3(0, 0, 1));
+  float c101 = hash13(cell + vec3(1, 0, 1));
+  float c011 = hash13(cell + vec3(0, 1, 1));
+  float c111 = hash13(cell + vec3(1, 1, 1));
+  // The trilinear blend written as a polynomial in blend.x, blend.y, blend.z.
+  float k1 = c100 - c000;
+  float k2 = c010 - c000;
+  float k3 = c001 - c000;
+  float k4 = c000 - c100 - c010 + c110;
+  float k5 = c000 - c010 - c001 + c011;
+  float k6 = c000 - c100 - c001 + c101;
+  float k7 = -c000 + c100 + c010 - c110 + c001 - c101 - c011 + c111;
+  float value = c000 + k1 * blend.x + k2 * blend.y + k3 * blend.z + k4 * blend.x * blend.y
+              + k5 * blend.y * blend.z + k6 * blend.z * blend.x + k7 * blend.x * blend.y * blend.z;
+  vec3 slope = blendSlope * vec3(k1 + k4 * blend.y + k6 * blend.z + k7 * blend.y * blend.z,
+                                 k2 + k5 * blend.z + k4 * blend.x + k7 * blend.z * blend.x,
+                                 k3 + k6 * blend.x + k5 * blend.y + k7 * blend.x * blend.y);
+  return vec4(value, slope);
 }
 
-// Fractal noise: three octaves, each twice as fine and half as strong as the one before.
-float fbm(vec3 position) {
-  float sum = 0.5 * valueNoise(position);
-  sum += 0.25 * valueNoise(position * 2.03 + 7.1);
-  sum += 0.125 * valueNoise(position * 4.11 + 3.7);
-  return sum / 0.875;
+float valueNoise(vec3 position) {
+  return valueNoiseWithSlope(position).x;
 }
 
 // ============================================================================================
-// 7. Signed distance functions (SDFs) for basic shapes. Each returns how far the given point is from the
-//    surface: positive outside, negative inside, zero on the surface. The formulas are Inigo
-//    Quilez's (iquilezles.org/articles/distfunctions), with the variables renamed for reading.
+// 7. Signed distance functions (SDFs) for basic shapes. Each returns how far the given point is
+//    from the surface: positive outside, negative inside, zero on the surface. The formulas are
+//    Inigo Quilez's (iquilezles.org/articles/distfunctions), with the variables renamed for reading.
 // ============================================================================================
 
 // Ellipsoid (a squashed sphere). There is no simple exact formula; this is a very good estimate.
@@ -271,7 +344,7 @@ float sdRoundCone(vec3 point, vec3 startCenter, vec3 endCenter, float startRadiu
   float sidewaysSq = dot2(fromStart * axisLengthSq - axis * along);   // squared distance from the axis (scaled)
   float alongSq = along * along * axisLengthSq;
   float pastEndSq = pastEnd * pastEnd * axisLengthSq;
-  // Is point nearest the end sphere, the start sphere, or the slanted side?
+  // Is the point nearest the end sphere, the start sphere, or the slanted side?
   float sideTest = sign(radiusChange) * radiusChange * radiusChange * sidewaysSq;
   if (sign(pastEnd) * slantSq * pastEndSq > sideTest) return sqrt(sidewaysSq + pastEndSq) * invAxisLengthSq - endRadius;
   if (sign(along) * slantSq * alongSq < sideTest) return sqrt(sidewaysSq + alongSq) * invAxisLengthSq - startRadius;
@@ -282,19 +355,19 @@ float sdRoundCone(vec3 point, vec3 startCenter, vec3 endCenter, float startRadiu
 // Returns (distance, t) where t in 0..1 says how far along the curve the closest point is.
 // The tail is "everything within tailRadius(t) of this curve".
 // The curve is  curve(t) = start + 2t(bend - start) + t^2(start - 2 bend + end).  The closest point
-// is where the line from the point meets the curve at a right angle, which is a cubic equation in t; it is
-// solved in closed form (Cardano's method).
+// is where the line from the point meets the curve at a right angle, which is a cubic equation in t;
+// it is solved in closed form (Cardano's method).
 vec2 sdQuadraticBezier(vec3 point, vec3 start, vec3 bend, vec3 end) {
   vec3 towardsBend = bend - start;
   vec3 curvature = start - 2.0 * bend + end;
   vec3 startVelocity = towardsBend * 2.0;
   vec3 pointToStart = start - point;
-  // Coefficients of the cubic, normalised so the curveT^3 term is 1.
+  // Coefficients of the cubic, normalised so the t^3 term is 1.
   float invCurvatureSq = 1.0 / dot(curvature, curvature);
   float coefficientX = invCurvatureSq * dot(towardsBend, curvature);
   float coefficientY = invCurvatureSq * (2.0 * dot(towardsBend, towardsBend) + dot(pointToStart, curvature)) / 3.0;
   float coefficientZ = invCurvatureSq * dot(pointToStart, towardsBend);
-  // Shift curveT to remove the curveT^2 term ("depressed cubic"), then test how many real roots there are.
+  // Shift t to remove the t^2 term ("depressed cubic"), then test how many real roots there are.
   float depressedP = coefficientY - coefficientX * coefficientX;
   float depressedQ = coefficientX * (2.0 * coefficientX * coefficientX - 3.0 * coefficientY) + coefficientZ;
   float discriminant = depressedQ * depressedQ + 4.0 * depressedP * depressedP * depressedP;
@@ -318,6 +391,11 @@ vec2 sdQuadraticBezier(vec3 point, vec3 start, vec3 bend, vec3 end) {
     result = distanceSqA < distanceSqB ? vec2(distanceSqA, candidates.x) : vec2(distanceSqB, candidates.y);
   }
   return vec2(sqrt(result.x), result.y);
+}
+
+// Direction of the Bezier curve at position t (its derivative).
+vec3 bezierDirection(vec3 start, vec3 bend, vec3 end, float curveT) {
+  return 2.0 * (1.0 - curveT) * (bend - start) + 2.0 * curveT * (end - bend);
 }
 
 // ============================================================================================
@@ -350,8 +428,8 @@ float legsDistance(vec3 point) {
   return min(front, hind);
 }
 
-// How thick the tail is at position t along its spine: thin at the root, bushy in the middle,
-// narrowing to a tuft at the tip where the flame sits.
+// How thick the tail is at position alongTail (0 = root, 1 = tip): thin at the root, bushy in the
+// middle, narrowing to a tuft at the tip where the flame sits.
 float tailRadius(float alongTail) {
   float swell = smoothstep(0.0, 0.45, alongTail);
   float taper = smoothstep(0.5, 1.0, alongTail);
@@ -407,6 +485,10 @@ float headFurDistance(vec3 headPoint) {
   float cheeks = sdRoundCone(mirrored, CHEEK_ROOT, CHEEK_TIP, 0.08, 0.01);
   float head = smoothMin(skull, snout, 0.05);
   head = smoothMin(head, cheeks, 0.06);
+  // The ears are the most expensive part of the head; skip them unless the point is near enough to
+  // a sphere around the ear (with room for a twitch) to make a difference.
+  float earBound = length(mirrored - EAR_BOUND_CENTER) - 0.30;
+  if (earBound > head + 0.035) return head;
   return smoothMin(head, earDistance(headPoint), 0.035);
 }
 
@@ -417,15 +499,23 @@ vec3 toEyeSpace(vec3 headPoint) {
   return eyePoint;
 }
 
-// Big glossy eyes: upright ellipsoids pressed into the skull so only a dome shows.
+// Eyes: small upright ovals pressed into the skull so only a dome shows.
 float eyesDistance(vec3 headPoint) {
   return sdEllipsoid(toEyeSpace(headPoint), EYE_RADII);
 }
 
 // Where the eyelids meet when the eye is shut, in eye space (a little below the eye's middle).
-const float LID_MEET_HEIGHT = -0.3 * 0.082;
+const float LID_MEET_HEIGHT = -0.3 * 0.051;   // -0.3 x the eye's vertical radius
 
-// Height (in eye space) of the upper lid's edge: above the eye when open, at the meeting line when shut.
+// The lids' edges droop towards the eye's corners, by the same fraction of the eye's height
+// whatever its size, so a closing eye makes a soft, content arch rather than a flat, stern line.
+float lidDroop(vec3 eyePoint) {
+  float acrossEye = eyePoint.x / EYE_RADII.x;   // -1 .. 1 from corner to corner
+  return 0.28 * EYE_RADII.y * acrossEye * acrossEye;
+}
+
+// Height (in eye space) of the upper lid's edge at the eye's centre line: above the eye when
+// open, at the meeting line when shut.
 float upperLidHeight() {
   return mix(EYE_RADII.y * 1.15, LID_MEET_HEIGHT, uBlink);
 }
@@ -433,12 +523,11 @@ float upperLidHeight() {
 // Eyelids for blinking: a furry shell a hair larger than the eye. The upper lid is the part of the
 // shell above a level that slides down as uBlink goes 0 -> 1; the lower lid is the part below a
 // level that rises to meet it. max() of two distances keeps only where both shapes overlap
-// (shell AND above the level); min() joins the two lids. Both levels droop at the corners
-// (the 5x^2 term), so the lids close in a soft, content arch rather than a flat, stern line.
+// (shell AND above the level); min() joins the two lids.
 float eyelidsDistance(vec3 headPoint) {
   vec3 eyePoint = toEyeSpace(headPoint);
-  float shell = sdEllipsoid(eyePoint, EYE_RADII + 0.007);
-  float droop = 5.0 * eyePoint.x * eyePoint.x;
+  float shell = sdEllipsoid(eyePoint, EYE_RADII + 0.0045);
+  float droop = lidDroop(eyePoint);
   float lowerLidHeight = mix(-EYE_RADII.y * 1.15, LID_MEET_HEIGHT, uBlink);
   float upperLid = max(shell, upperLidHeight() - droop - eyePoint.y);
   float lowerLid = max(shell, eyePoint.y - lowerLidHeight + droop);
@@ -455,12 +544,13 @@ float noseDistance(vec3 headPoint) {
 // ============================================================================================
 vec2 foxSDF(vec3 point) {
   float fur = torsoDistance(point);
-  fur = smoothMin(fur, legsDistance(point), 0.045);
 
-  // Skipping work: the tail and head each sit inside a bounding sphere. If even that sphere is
-  // further away than the body (by more than the blend width), the part cannot change the answer,
-  // so we skip its expensive maths. (Returning the sphere's distance instead would be wrong here:
-  // it under-estimates, and the shadow and occlusion code would mistake that for nearby fur.)
+  // Skipping work: the legs, tail and head each have a simple bound. If even that bound is further
+  // away than the body (by more than the blend width), the part cannot change the answer, so its
+  // maths is skipped. (Returning the bound's distance instead would be wrong here: it
+  // under-estimates, and the shadow and occlusion code would mistake that for nearby fur.)
+  if (point.y - LEGS_TOP < fur + 0.045) fur = smoothMin(fur, legsDistance(point), 0.045);
+
   float tailBound = length(point - (uTailStart + uTailEnd) * 0.25 - uTailBend * 0.5) - 0.46;
   if (tailBound < fur + 0.06) fur = smoothMin(fur, tailDistance(point), 0.06);
 
@@ -469,7 +559,7 @@ vec2 foxSDF(vec3 point) {
   if (headBound > fur + 0.09) return vec2(fur, MATERIAL_FUR);
 
   fur = smoothMin(fur, headFurDistance(headPoint), 0.09);
-  if (uBlink > 0.001) fur = smoothMin(fur, eyelidsDistance(headPoint), 0.008);   // only while blinking
+  if (uBlink > 0.001) fur = smoothMin(fur, eyelidsDistance(headPoint), 0.006);   // only while blinking
   vec2 result = vec2(fur, MATERIAL_FUR);
   float eyes = eyesDistance(headPoint);
   if (eyes < result.x) result = vec2(eyes, MATERIAL_EYE);
@@ -488,49 +578,95 @@ float foxDistance(vec3 point) {
 //     touching a surface.
 // ============================================================================================
 // Returns (distance, material) for a hit, or distance -1 for a miss.
-// For a miss it also reports where the ray passed closest to the fox (nearMissDistance) and how
-// much of the pixel the fox would cover there (nearMissCoverage, 0..1). At each step, distance /
-// travelled is the angle by which the ray clears the fox; compared with the angle one pixel spans,
-// that says whether the fox's edge pokes into this pixel. render() uses it to blend the fox in
-// softly, which anti-aliases the silhouette for the price of shading only the edge pixels twice.
-vec2 castRay(vec3 rayOrigin, vec3 rayDir, out float nearMissDistance, out float nearMissCoverage) {
+// For a miss it also reports where the ray passed closest to the fox (nearMissDistance), how wide
+// the gap was there in world units (nearMissGap), and which material was nearest (nearMissMaterial).
+// render() uses this to draw the fox's soft, furry edge: if the gap is smaller than a pixel plus the
+// length of the fur's wisps, the fox partly covers this pixel.
+vec2 castRay(vec3 rayOrigin, vec3 rayDir, out float nearMissDistance, out float nearMissGap, out float nearMissMaterial) {
   nearMissDistance = -1.0;
-  nearMissCoverage = 0.0;
+  nearMissGap = 1e9;
+  nearMissMaterial = MATERIAL_FUR;
   vec2 span = sphereIntersect(rayOrigin, rayDir, FOX_BOUND_CENTER, FOX_BOUND_RADIUS);
   if (span.y < 0.0) return vec2(-1.0, 0.0);          // the ray never comes near the fox
   float travelled = max(span.x, 0.0);
   float closestAngle = 1e10;
-  for (int i = 0; i < MAX_MARCH_STEPS; i++) {
+  for (int i = 0; i < MARCH_STEP_LIMIT; i++) {
+    if (i >= uMarchSteps) break;
     vec2 hit = foxSDF(rayOrigin + rayDir * travelled);
-    if (hit.x < 0.0004 * travelled) return vec2(travelled, hit.y);   // close enough: we hit the surface
+    // Close enough to count as a hit: within a third of a pixel's width at this distance.
+    if (hit.x < 0.3 * gPixelAngle * travelled) return vec2(travelled, hit.y);
+    // distance / travelled is the angle by which the ray clears the fox here.
     float clearanceAngle = hit.x / travelled;
     if (clearanceAngle < closestAngle) {
       closestAngle = clearanceAngle;
       nearMissDistance = travelled;
+      nearMissGap = hit.x;
+      nearMissMaterial = hit.y;
     }
-    travelled += hit.x * 0.9;                                  // 0.9 = a little caution, some shapes are estimates
-    if (travelled > span.y) break;                             // left the bounding sphere: missed
+    travelled += hit.x * 0.9;                          // 0.9 = a little caution, some shapes are estimates
+    if (travelled > span.y) break;                     // left the bounding sphere: missed
   }
-  nearMissCoverage = clamp(1.0 - closestAngle / gPixelAngle, 0.0, 1.0);
   return vec2(-1.0, 0.0);
 }
 
-// The surface normal is the direction in which the distance grows fastest (its gradient). We
-// estimate it by sampling the distance at four nearby points arranged as a tetrahedron, the
-// corners (+,-,-), (-,-,+), (-,+,-) and (+,+,+): each sample pulls the sum towards its corner by
-// how far that corner is from the surface. Four samples instead of the obvious six (+-x, +-y, +-z).
-// (A loop rather than four written-out calls keeps the compiled shader smaller.)
-vec3 calcNormal(vec3 point) {
+// What the lighting needs to know about a surface point.
+struct SurfaceProbe {
+  vec3 point;       // the point, nudged exactly onto the surface
+  vec3 normal;      // which way the surface faces
+  float occlusion;  // ambient occlusion: 1 = open sky, 0 = buried in a crease
+};
+
+// One loop does two jobs, so the big distance function is compiled only once here:
+//  - samples 0..3 are four points around `point` arranged as a tetrahedron, at the corners
+//    (+,-,-), (-,-,+), (-,+,-) and (+,+,+). The surface normal is the direction in which the
+//    distance grows fastest (its gradient): adding up the corner directions weighted by the
+//    distance found there estimates it. Their average is the distance at the centre, which lets us
+//    step the point exactly onto the surface.
+//  - the remaining samples step out along that normal for ambient occlusion: if the scene is
+//    closer than how far we stepped, something nearby is crowding this point and blocking the sky.
+// For the ground the normal is known (straight up), so its four normal samples are skipped.
+// occlusionSamples can be 0 (normal only), for the fox's thin wispy edge where occlusion hardly shows.
+SurfaceProbe probeSurface(vec3 point, bool isGround, float occlusionReach, int occlusionSamples) {
+  SurfaceProbe probe = SurfaceProbe(point, vec3(0.0, 1.0, 0.0), 1.0);
   const float offset = 0.0006;
-  vec3 normal = vec3(0.0);
-  for (int i = 0; i < 4; i++) {
-    float index = float(i);
-    float y = index > 1.5 ? 1.0 : -1.0;
-    float z = mod(index, 2.0) > 0.5 ? 1.0 : -1.0;
-    vec3 corner = vec3(y * z, y, z);           // i = 0,1,2,3 gives the four corners above
-    normal += corner * foxDistance(point + corner * offset);
+  vec3 gradientSum = vec3(0.0);
+  float distanceSum = 0.0;
+  float crowding = 0.0;
+  float weight = 1.0;
+  for (int i = 0; i < 4 + OCCLUSION_SAMPLE_LIMIT; i++) {
+    if (i >= 4 + occlusionSamples) break;
+    bool forNormal = i < 4;
+    if (forNormal && isGround) continue;
+    if (i == 4 && !isGround) {
+      // The four normal samples are in: finish the normal and step onto the surface.
+      probe.normal = normalize(gradientSum);
+      probe.point = point - probe.normal * distanceSum * 0.25;
+    }
+    vec3 corner = vec3(0.0);
+    float stepOut = 0.0;
+    vec3 samplePoint;
+    if (forNormal) {
+      float index = float(i);
+      float y = index > 1.5 ? 1.0 : -1.0;
+      float z = mod(index, 2.0) > 0.5 ? 1.0 : -1.0;
+      corner = vec3(y * z, y, z);                    // i = 0,1,2,3 gives the four corners above
+      samplePoint = point + corner * offset;
+    } else {
+      stepOut = occlusionReach * (0.06 + 0.3 * float(i - 4));
+      samplePoint = probe.point + probe.normal * stepOut;
+    }
+    float sampleDistance = foxDistance(samplePoint);   // the one call to the distance function
+    if (forNormal) {
+      gradientSum += corner * sampleDistance;
+      distanceSum += sampleDistance;
+    } else {
+      float crowdedBy = stepOut - min(sampleDistance, samplePoint.y);   // the ground crowds too
+      crowding += crowdedBy * weight;
+      weight *= 0.8;
+    }
   }
-  return normalize(normal);
+  if (occlusionSamples > 0) probe.occlusion = clamp(1.0 - 2.1 * crowding / occlusionReach, 0.0, 1.0);
+  return probe;
 }
 
 // Soft shadows (the classic sphere-traced penumbra). March from the surface towards the sun. At each
@@ -539,59 +675,58 @@ vec3 calcNormal(vec3 point) {
 // the ray becomes the shadow amount, which gives soft edges that widen the further the blocker is,
 // just like a real penumbra.
 const float SHADOW_SOFTNESS = 4.5;   // larger = sharper shadow edges
-float softShadow(vec3 origin, vec3 dir) {
+float softShadow(vec3 origin, vec3 dir, int maxSteps) {
   // Only march where the fox could matter. The sphere is padded (+0.5) because a ray that passes
   // close to the fox still gets some penumbra; with a tight sphere that penumbra would stop
   // abruptly at the sphere's outline and draw a visible arc on the ground.
   vec2 span = sphereIntersect(origin, dir, FOX_BOUND_CENTER, FOX_BOUND_RADIUS + 0.5);
   if (span.y < 0.0) return 1.0;                     // the shadow ray misses the fox entirely
+  // Most shadow rays from the ground pass the fox with room to spare. Everywhere along the ray the
+  // fox is at least `clearance` away, so the penumbra ratio can never drop below
+  // SHADOW_SOFTNESS * clearance / (furthest distance marched). If even that is 1 or more, the
+  // point is fully lit and we can skip the march.
+  vec3 toCenter = FOX_BOUND_CENTER - origin;
+  float alongToCenter = dot(toCenter, dir);
+  float clearance = length(toCenter - dir * alongToCenter) - FOX_BOUND_RADIUS;
+  if (SHADOW_SOFTNESS * clearance >= span.y) return 1.0;
   float result = 1.0;
   float travelled = max(span.x, 0.01);
-  for (int i = 0; i < MAX_SHADOW_STEPS; i++) {
+  for (int i = 0; i < SHADOW_STEP_LIMIT; i++) {
+    if (i >= maxSteps) break;
     float nearest = foxDistance(origin + dir * travelled);
     result = min(result, SHADOW_SOFTNESS * nearest / travelled);
-    travelled += clamp(nearest, 0.01, 0.12);
+    travelled += clamp(nearest, 0.015, 0.15);
     if (result < 0.002 || travelled > span.y) break;
   }
   result = clamp(result, 0.0, 1.0);
   return result * result * (3.0 - 2.0 * result);     // smoothstep for a nicer falloff
 }
 
-// Ambient occlusion: step a little way out along the normal. If the scene's distance there is less
-// than how far we stepped, something nearby is crowding this point, so less sky light reaches it.
-float ambientOcclusion(vec3 point, vec3 normal, float reach) {
-  float occlusion = 0.0;
-  float weight = 1.0;
-  for (int i = 0; i < 5; i++) {
-    float stepOut = reach * (0.06 + 0.24 * float(i));
-    vec3 samplePoint = point + normal * stepOut;
-    float distanceThere = min(foxDistance(samplePoint), samplePoint.y);   // the ground occludes too
-    occlusion += (stepOut - distanceThere) * weight;
-    weight *= 0.8;
-  }
-  return clamp(1.0 - 1.8 * occlusion / reach, 0.0, 1.0);
-}
-
 // ============================================================================================
-// 11. Painting the fur. Given a point on the fox's surface, decide its colour: orange coat, cream
-//     muzzle/chest/tail tip, dark socks and ear tips, pink blush, the mouth line. Masks are
-//     smoothstep()s so colours blend softly instead of having hard edges.
+// 11. Painting the fur. Given a point on the fox's surface, decide its colour: orange coat (redder
+//     on the back, paler on the flanks), cream muzzle/chest/tail tip, dark socks and ear tips,
+//     pink blush, the mouth line. Masks are smoothstep()s so colours blend softly.
 // ============================================================================================
-// What the painter decided at a point: the fur colour, plus two masks the lighting needs because
-// ears are thin (light shines through them) and their insides are cups (light bounces around in them).
+// What the painter decided at a point: the fur colour, plus masks the lighting needs.
 struct FurPaint {
-  vec3 albedo;      // fur colour in linear light
-  float ear;        // 1 on the ears
-  float innerEar;   // 1 inside the ear cups
+  vec3 albedo;       // fur colour in linear light
+  float ear;         // 1 on the ears (thin: light shines through them)
+  float innerEar;    // 1 inside the ear cups (light bounces around in them)
+  float fluffiness;  // how long and wispy the fur is here (chest bib, cheeks, tail, ear edges)
 };
 
-FurPaint paintFur(vec3 point, vec3 normal) {
+FurPaint paintFur(vec3 point, vec3 normal, vec2 spine) {
   vec3 headPoint = toHeadSpace(point);
   vec3 mirroredHead = vec3(abs(headPoint.x), headPoint.y, headPoint.z);
   float nearHead = smoothstep(0.42, 0.34, length(headPoint - vec3(0.0, -0.02, 0.04)));
 
-  // Base coat: orange, a little deeper on upward-facing fur (like a real fox's darker back).
-  vec3 color = mix(toLinear(FUR_ORANGE_SRGB), toLinear(FUR_DEEP_ORANGE_SRGB), smoothstep(0.3, 0.95, normal.y) * 0.7);
+  // Base coat: orange, redder where the fur faces up (the back, the top of the head and tail), paler
+  // and sandier on the flanks, like a real red fox.
+  vec3 color = toLinear(FUR_ORANGE_SRGB);
+  float back = smoothstep(0.3, 0.95, normal.y);
+  float flank = smoothstep(0.5, 0.95, abs(normal.x)) * (1.0 - abs(normal.y));
+  color = mix(color, toLinear(FUR_BACK_SRGB), back * 0.75);
+  color = mix(color, toLinear(FUR_FLANK_SRGB), flank * 0.55);
 
   // Cream bib on the chest and throat.
   float bib = smoothstep(0.012, -0.012, sdEllipsoid(point - vec3(0.0, 0.43, 0.24), vec3(0.115, 0.19, 0.11)));
@@ -599,26 +734,30 @@ FurPaint paintFur(vec3 point, vec3 normal) {
   float muzzleLine = -0.080 + 0.045 * smoothstep(0.10, 0.22, mirroredHead.x);
   float muzzle = smoothstep(0.010, -0.010, headPoint.y - muzzleLine) * smoothstep(-0.14, -0.02, headPoint.z) * nearHead;
   // Cream tip on the tail.
-  vec2 spine = sdQuadraticBezier(point, uTailStart, uTailBend, uTailEnd);
   float onTail = smoothstep(0.03, 0.0, spine.x - tailRadius(spine.y));
   float tailTip = smoothstep(0.72, 0.84, spine.y) * onTail;
   color = mix(color, toLinear(FUR_CREAM_SRGB), max(max(bib, muzzle), tailTip));
 
   // Dark socks: everything low enough to be leg or paw.
-  color = mix(color, toLinear(FUR_DARK_SRGB), smoothstep(0.15, 0.10, point.y));
+  float socks = smoothstep(0.15, 0.10, point.y);
+  color = mix(color, toLinear(FUR_DARK_SRGB), socks);
 
   // Ears: warm cream inside the cup, dark tips.
+  // (onEar uses just the ear's outline and thickness, not the carved cup: cheaper, and enough here.)
   vec3 earPoint = toEarSpace(headPoint);
-  float onEar = smoothstep(0.012, 0.0, earDistance(headPoint)) * nearHead;
+  float earOutline = sdRoundCone(earPoint, vec3(0.0), vec3(0.0, EAR_LENGTH, 0.0), 0.105, 0.012);
+  float earSlab = abs(earPoint.z) - mix(0.056, 0.012, clamp(earPoint.y / EAR_LENGTH, 0.0, 1.0));
+  float onEar = smoothstep(0.012, 0.0, max(earOutline, earSlab)) * nearHead;
   float insideCup = smoothstep(0.006, -0.002, earCupDistance(earPoint)) * step(0.0, earPoint.z);
   color = mix(color, toLinear(INNER_EAR_SRGB), onEar * insideCup);
   color = mix(color, toLinear(FUR_DARK_SRGB), onEar * smoothstep(0.18, 0.23, earPoint.y));
 
   // Lash line: a dark edge along the bottom of the upper eyelid while blinking.
   if (uBlink > 0.001) {
-    vec3 eye = toEyeSpace(headPoint);
-    float onLid = smoothstep(0.006, 0.0, sdEllipsoid(eye, EYE_RADII + 0.007));
-    float atEdge = smoothstep(0.007, 0.002, abs(eye.y - upperLidHeight() + 5.0 * eye.x * eye.x - 0.002));
+    vec3 eyePoint = toEyeSpace(headPoint);
+    float onLid = smoothstep(0.004, 0.0, sdEllipsoid(eyePoint, EYE_RADII + 0.0045));
+    float lidEdge = upperLidHeight() - lidDroop(eyePoint);
+    float atEdge = smoothstep(0.0045, 0.0012, abs(eyePoint.y - lidEdge - 0.0012));
     color = mix(color, toLinear(MOUTH_SRGB) * 0.6, onLid * atEdge * smoothstep(0.0, 0.3, uBlink));
   }
 
@@ -628,64 +767,96 @@ FurPaint paintFur(vec3 point, vec3 normal) {
 
   // Mouth: a short line down from the nose that splits into a small smile, drawn on the snout tip.
   float frontOfSnout = smoothstep(0.26, 0.31, headPoint.z) * nearHead;
-  float philtrum = max(abs(headPoint.x), max(headPoint.y + 0.124, -0.104 - headPoint.y));     // the short vertical stroke
-  float smile = abs(headPoint.y - (-0.124 + 4.5 * headPoint.x * headPoint.x));                 // the curved smile
+  float philtrum = max(abs(headPoint.x), max(headPoint.y + 0.124, -0.104 - headPoint.y));   // the short vertical stroke
+  float smile = abs(headPoint.y - (-0.124 + 4.5 * headPoint.x * headPoint.x));               // the curved smile
   smile = max(smile, abs(headPoint.x) - 0.040);
   float mouth = smoothstep(0.0055, 0.0025, min(philtrum, smile)) * frontOfSnout;
   color = mix(color, toLinear(MOUTH_SRGB), mouth);
 
-  return FurPaint(color, onEar, onEar * insideCup);
-}
+  // Where the fur is long and wispy: the chest bib, cheeks, tail and ear edges; short on the legs.
+  float fluffiness = max(max(0.35, bib), max(muzzle * 0.9, max(onTail * 0.9, onEar * (1.0 - insideCup) * 0.7)));
+  fluffiness *= 1.0 - 0.6 * socks;
 
-// The fur pattern must stick to the fox as it moves; otherwise the noise would slide across the
-// fur like a slide projected onto it. So the noise is looked up at the point's position in the
-// fox's resting pose: we undo the head's turn for head points and the tail's swing for tail points.
-vec3 restPosePosition(vec3 point) {
-  vec3 headPoint = toHeadSpace(point);
-  float onHead = smoothstep(0.40, 0.32, length(headPoint - vec3(0.0, -0.02, 0.04)));
-  vec2 spine = sdQuadraticBezier(point, uTailStart, uTailBend, uTailEnd);
-  float alongTail = spine.y;
-  vec3 tailSwing = 2.0 * alongTail * (1.0 - alongTail) * (uTailBend - TAIL_REST_BEND) + alongTail * alongTail * (uTailEnd - TAIL_REST_END);
-  float onTail = smoothstep(0.04, 0.0, spine.x - tailRadius(alongTail));
-  vec3 rest = mix(point, headPoint + HEAD_REST_CENTER, onHead);
-  return rest - tailSwing * onTail;
-}
-
-// Which way the fur grows at a rest-pose point: back along the body and head, down the legs, and
-// out along the tail towards its tip.
-vec3 furFlow(vec3 rest) {
-  vec3 flow = normalize(vec3(0.0, -0.4, -1.0));
-  flow = normalize(mix(flow, vec3(0.0, -1.0, 0.0), smoothstep(0.26, 0.18, rest.y)));
-  vec2 spine = sdQuadraticBezier(rest, TAIL_REST_START, TAIL_REST_BEND, TAIL_REST_END);
-  float alongTail = spine.y;
-  vec3 tailTangent = normalize(2.0 * (1.0 - alongTail) * (TAIL_REST_BEND - TAIL_REST_START) + 2.0 * alongTail * (TAIL_REST_END - TAIL_REST_BEND));
-  float onTail = smoothstep(0.04, 0.0, spine.x - tailRadius(alongTail));
-  return normalize(mix(flow, tailTangent, onTail));
-}
-
-// Fur micro-detail: nudge the normal with noise that is stretched along the direction the fur grows,
-// so light picks out soft streaks of hair, and darken the noise's valleys a touch (shadowed hair
-// roots). The detail fades away when one streak would be narrower than a couple of pixels, because
-// detail finer than a pixel just flickers. Kept gentle so Smoldy still reads as soft and clean.
-vec3 furNormal(vec3 point, vec3 normal, float pixelSize, out float strandShade) {
-  vec3 rest = restPosePosition(point);
-  vec3 flow = furFlow(rest);
-  vec3 streaked = rest - flow * dot(rest, flow) * 0.8;    // squash along the flow: long streaks
-  // Two layers: soft clumps, and finer strands that only appear when the camera is close.
-  const float clumpFrequency = 45.0;
-  const float strandFrequency = 130.0;
-  vec3 clumpCoords = streaked * clumpFrequency;
-  vec3 strandCoords = streaked * strandFrequency + 9.1;
-  vec3 clumps = vec3(valueNoise(clumpCoords), valueNoise(clumpCoords + 17.3), valueNoise(clumpCoords + 41.9)) - 0.5;
-  vec3 strands = vec3(valueNoise(strandCoords), valueNoise(strandCoords + 23.1), valueNoise(strandCoords + 37.7)) - 0.5;
-  float clumpVisibility = smoothstep(0.5, 0.2, pixelSize * clumpFrequency);
-  float strandVisibility = smoothstep(0.5, 0.2, pixelSize * strandFrequency);
-  strandShade = 1.0 + 0.10 * clumps.x * clumpVisibility + 0.13 * strands.x * strandVisibility;
-  return normalize(normal + 0.25 * clumpVisibility * clumps + 0.3 * strandVisibility * strands);
+  return FurPaint(color, onEar, onEar * insideCup, fluffiness);
 }
 
 // ============================================================================================
-// 12. The flame. A glowing volume shaped like a teardrop, its edge broken up by noise that scrolls
+// 12. Fur structure. Real fox fur is not a smooth coat of paint: hairs gather into clumps, the
+//     gaps between clumps are dark (you see down to the shaded roots), the clump tips are lighter,
+//     and the whole pattern streams in the direction the fur grows. This builds a small "height
+//     field" of clumps and strands at each surface point and turns it into a tilted normal, a
+//     root-to-tip shade and a strand direction for the hair highlight.
+// ============================================================================================
+struct FurStructure {
+  vec3 bumpedNormal;      // the normal tilted along the clumps, so light picks them out
+  float height;           // 0 = down between clumps at the roots, 1 = out at the clump tips
+  float tufts;            // raw clump pattern, used to break the silhouette into wisps
+  float patchShade;       // slow light/dark variation from one patch of fur to the next
+  float detail;           // how visible the clumps are at this distance (0 = too small to see)
+  vec3 strandDirection;   // the direction the hairs run along the surface, in world space
+};
+
+FurStructure furStructure(vec3 point, vec3 normal, vec2 spine, float pixelSize) {
+  FurStructure fur;
+  // 1. The fur pattern must stick to the fox as it moves, or it would slide across the fur like a
+  //    projected slide. So the noise is looked up at the point's resting-pose position: undo the
+  //    head's turn for head points and the tail's swing for tail points.
+  vec3 headPoint = toHeadSpace(point);
+  float onHead = smoothstep(0.40, 0.32, length(headPoint - vec3(0.0, -0.02, 0.04)));
+  float alongTail = spine.y;
+  float onTail = smoothstep(0.04, 0.0, spine.x - tailRadius(alongTail));
+  vec3 tailSwing = 2.0 * alongTail * (1.0 - alongTail) * (uTailBend - TAIL_REST_BEND)
+                 + alongTail * alongTail * (uTailEnd - TAIL_REST_END);
+  vec3 rest = mix(point, headPoint + HEAD_REST_CENTER, onHead) - tailSwing * onTail;
+
+  // 2. Which way the fur grows: back along the body and head, down the legs, out along the tail.
+  vec3 bodyFlow = normalize(mix(vec3(0.0, -0.37, -0.93), vec3(0.0, -1.0, 0.0), smoothstep(0.26, 0.18, rest.y)));
+  vec3 restTailFlow = normalize(bezierDirection(TAIL_REST_START, TAIL_REST_BEND, TAIL_REST_END, alongTail));
+  vec3 restFlow = normalize(mix(bodyFlow, restTailFlow, onTail));
+  // The same direction in today's pose (head turned, tail swung), for the hair highlight.
+  // (vector * matrix multiplies by the transpose, which undoes the head's world-to-head rotation.)
+  vec3 worldTailFlow = normalize(bezierDirection(uTailStart, uTailBend, uTailEnd, alongTail));
+  vec3 worldFlow = mix(mix(bodyFlow, bodyFlow * uHeadRotation, onHead), worldTailFlow, onTail);
+  vec3 alongSurface = worldFlow - normal * dot(worldFlow, normal);
+  float alongLength = length(alongSurface);
+  fur.strandDirection = alongLength > 0.05 ? alongSurface / alongLength : normalize(cross(normal, vec3(1.0, 0.0, 0.0)));
+
+  // 3. Three layers of noise, squashed along the flow so their ridges run with the hair and each
+  //    clump is several times longer than it is wide: broad patches (slow light/dark variation),
+  //    clumps, and fine strands. Each layer fades out once it would be finer than a couple of
+  //    pixels (detail finer than a pixel only flickers). The face gets shorter, finer fur than the
+  //    body. The layers share one loop, so the noise code is compiled once.
+  const float squash = 0.85;
+  vec3 streaked = rest - restFlow * dot(rest, restFlow) * squash;
+  float faceFront = onHead * smoothstep(0.0, 0.16, headPoint.z) * (1.0 - smoothstep(0.03, 0.08, headPoint.y));
+  fur.detail = smoothstep(0.6, 0.25, pixelSize * CLUMP_FREQUENCY) * (1.0 - 0.55 * faceFront);
+  float strandVisibility = smoothstep(0.6, 0.25, pixelSize * STRAND_FREQUENCY);
+  vec4 clumps = vec4(0.5, 0.0, 0.0, 0.0);
+  vec4 strands = vec4(0.5, 0.0, 0.0, 0.0);
+  fur.patchShade = 0.5;
+  for (int layer = 0; layer < 3; layer++) {
+    if (layer == 2 && strandVisibility <= 0.0) break;
+    float frequency = layer == 0 ? PATCH_FREQUENCY : (layer == 1 ? CLUMP_FREQUENCY : STRAND_FREQUENCY);
+    vec4 noise = valueNoiseWithSlope(streaked * frequency + float(layer) * 9.1);
+    if (layer == 0) fur.patchShade = noise.x;
+    else if (layer == 1) clumps = noise;
+    else strands = noise;
+  }
+  float rawHeight = clumps.x * 0.65 + mix(0.5, strands.x, strandVisibility) * 0.35;
+  fur.tufts = rawHeight;
+  fur.height = mix(0.5, rawHeight, fur.detail);
+
+  // 4. Tilt the normal down the slopes of that height field (bump mapping). Slopes along the flow
+  //    are squashed like the coordinates were, and only the part lying along the surface tilts it.
+  vec3 slope = clumps.yzw * 0.55 * fur.detail + strands.yzw * 0.3 * strandVisibility;
+  slope -= restFlow * dot(slope, restFlow) * squash;
+  slope -= normal * dot(slope, normal);
+  fur.bumpedNormal = normalize(normal - slope * 0.5);
+  return fur;
+}
+
+// ============================================================================================
+// 13. The flame. A glowing volume shaped like a teardrop, its edge broken up by noise that scrolls
 //     upwards so it licks and flickers. Light is added up along the ray as it passes through.
 // ============================================================================================
 
@@ -695,7 +866,13 @@ vec2 flameField(vec3 point) {
   float height = clamp(local.y / FLAME_HEIGHT, 0.0, 1.0);
   local.xz -= uFlameLean * height * height;              // the tip trails behind the tail's swing
   float shape = sdRoundCone(local, vec3(0.0), vec3(0.0, FLAME_HEIGHT, 0.0), FLAME_RADIUS, 0.004);
-  float noise = fbm(vec3(local.x * 13.0, local.y * 8.0 - uTime * 4.5, local.z * 13.0));
+  // Two octaves of noise scrolling upwards: big licks plus a finer flicker.
+  vec3 scrolling = vec3(local.x * 13.0, local.y * 8.0 - uTime * 4.5, local.z * 13.0);
+  float noise = 0.0;
+  for (int octave = 0; octave < 2; octave++) {        // a loop, so the noise code is compiled once
+    float scale = octave == 0 ? 1.0 : 2.03;
+    noise += (octave == 0 ? 2.0 : 1.0) / 3.0 * valueNoise(scrolling * scale + 7.1 * float(octave));
+  }
   shape += (noise - 0.5) * 0.11 * (0.15 + height * 1.1);   // calm at the base, licking at the tip
   float density = smoothstep(0.006, -0.014, shape);        // a fairly crisp edge, like the 2D flame
   float heat = smoothstep(0.0, -0.10, shape) * (1.0 - 0.6 * height);
@@ -717,18 +894,25 @@ vec3 addFlame(vec3 rayOrigin, vec3 rayDir, float sceneDistance, vec3 background,
   vec3 center = uFlameBase + vec3(0.0, FLAME_HEIGHT * 0.38, 0.0);
   vec3 color = background;
 
-  // Volume: march through the flame's bounding sphere, stopping at any solid surface in front.
+  // Volume: march through the part of the ray that is inside both the flame's bounding sphere and
+  // a slim upright cylinder around it (the flame is tall and thin, so the cylinder cuts the march
+  // to where the fire actually is, and the slices get shorter). Stop at any solid surface in front.
   vec2 span = sphereIntersect(rayOrigin, rayDir, center, FLAME_HEIGHT * 0.75);
-  if (span.y > 0.0 && span.x < sceneDistance) {
+  vec2 cylinderSpan = verticalCylinderIntersect(rayOrigin, rayDir, center.xz, 0.17);
+  span = vec2(max(span.x, cylinderSpan.x), min(span.y, cylinderSpan.y));
+  if (span.y > 0.0 && span.y > span.x && span.x < sceneDistance) {
     float start = max(span.x, 0.0);
     float end = min(span.y, sceneDistance);
-    float stepLength = (end - start) / float(FLAME_STEPS);
-    float travelled = start + stepLength * hash12(pixel);     // random start offset hides banding
+    float stepLength = (end - start) / float(uFlameSteps);
+    // Start each pixel's march at a random fraction of a step: this turns visible bands (one per
+    // slice) into a faint, fine grain.
+    float travelled = start + stepLength * hash12(pixel);
     // Emission-absorption: each slice of fire hides a little of what is behind it and adds its own
     // glow in proportion. Thin noisy edges are see-through; the thick middle is nearly solid.
     vec3 emitted = vec3(0.0);
     float transmittance = 1.0;
-    for (int i = 0; i < FLAME_STEPS; i++) {
+    for (int i = 0; i < FLAME_STEP_LIMIT; i++) {
+      if (i >= uFlameSteps) break;
       vec2 fire = flameField(rayOrigin + rayDir * travelled);
       float sliceOpacity = 1.0 - exp(-fire.x * stepLength * 18.0);
       emitted += transmittance * sliceOpacity * flameColor(fire.y);
@@ -757,7 +941,7 @@ vec3 flameLight(vec3 point, vec3 normal) {
 }
 
 // ============================================================================================
-// 13. Sky and ground.
+// 14. Sky and ground.
 // ============================================================================================
 vec3 skyColor(vec3 rayDir) {
   float height = clamp(rayDir.y, 0.0, 1.0);
@@ -772,7 +956,11 @@ vec3 skyColor(vec3 rayDir) {
 // A soft meadow: two greens blended by large-scale noise so the ground isn't flat-looking, and a
 // sunnier, softer patch right under Smoldy, like a little stage.
 vec3 meadowColor(vec2 xz) {
-  float patches = 0.65 * valueNoise(vec3(xz * 1.4, 0.0)) + 0.35 * valueNoise(vec3(xz * 4.3, 5.0));
+  float patches = 0.0;
+  for (int octave = 0; octave < 2; octave++) {        // a loop, so the noise code is compiled once
+    float frequency = octave == 0 ? 1.4 : 4.3;
+    patches += (octave == 0 ? 0.65 : 0.35) * valueNoise(vec3(xz * frequency, 5.0 * float(octave)));
+  }
   vec3 grass = toLinear(vec3(0.44, 0.63, 0.37));
   vec3 driedGrass = toLinear(vec3(0.60, 0.69, 0.42));
   vec3 color = mix(grass, driedGrass, 0.6 * smoothstep(0.3, 0.8, patches));
@@ -780,19 +968,13 @@ vec3 meadowColor(vec2 xz) {
   return mix(color, toLinear(vec3(0.66, 0.76, 0.50)), 0.45 * stage);
 }
 
-// Light the meadow: sun (with Smoldy's soft shadow), sky, contact occlusion, flame glow, then haze.
-vec3 shadeGround(vec3 point, vec3 rayDir, float distanceFromCamera) {
+// Light the meadow: sun (with Smoldy's soft shadow), sky (dimmed by the contact occlusion under the
+// fox), the flame's glow, then depth haze.
+vec3 shadeGround(vec3 point, vec3 rayDir, float distanceFromCamera, float occlusion, float shadow) {
   vec3 albedo = meadowColor(point.xz);
-  vec3 up = vec3(0.0, 1.0, 0.0);
-  float shadow = softShadow(point, SUN_DIRECTION);
-  // Contact occlusion under the fox. Only worth computing near it; faded out towards the edge of
-  // that zone so there is no visible seam where we stop computing it.
-  float occlusion = 1.0;
-  float fromFox = length(point - FOX_BOUND_CENTER) - FOX_BOUND_RADIUS;
-  if (fromFox < 0.3) occlusion = mix(ambientOcclusion(point, up, 0.35), 1.0, smoothstep(0.0, 0.3, fromFox));
   vec3 light = SUN_COLOR * SUN_DIRECTION.y * shadow
              + SKY_COLOR * 1.1 * occlusion
-             + flameLight(point, up) * 1.5;
+             + flameLight(point, vec3(0.0, 1.0, 0.0)) * 1.5;
   vec3 color = albedo * light;
   // Depth haze: far-away ground fades into the horizon colour.
   float haze = 1.0 - exp(-max(distanceFromCamera - 1.5, 0.0) * 0.16);
@@ -800,44 +982,56 @@ vec3 shadeGround(vec3 point, vec3 rayDir, float distanceFromCamera) {
 }
 
 // ============================================================================================
-// 14. Shading the fox's surfaces.
+// 15. Shading the fox's surfaces. Occlusion and the sun's shadow arrive already computed.
 // ============================================================================================
 
-// Fur: soft "wrap" diffuse so light bleeds past the shadow line, warm-tinted penumbras (light
-// scattering inside the fur), sky and ground fill, a velvet-like rim at grazing angles.
-vec3 shadeFur(vec3 point, vec3 normal, vec3 rayDir, float pixelSize) {
-  float strandShade;
-  vec3 bumped = furNormal(point, normal, pixelSize, strandShade);
-  FurPaint paint = paintFur(point, normal);
-  vec3 albedo = paint.albedo * strandShade;
-  // Ambient occlusion, never quite black: even deep creases in fur get some bounced light.
-  float occlusion = 0.2 + 0.8 * ambientOcclusion(point, normal, 0.13);
+// Fur. Returns the colour, and in .a how far wisps of fur stick out here (for the fuzzy outline).
+// The ingredients: soft "wrap" diffuse so light bleeds past the shadow line, warm-tinted penumbras,
+// sky and ground fill, light scattered inside the fur, clumps that shade their own roots, a hair
+// highlight that runs across the strands, and a velvet-like glow at grazing angles.
+vec4 shadeFur(vec3 point, vec3 normal, vec3 rayDir, float pixelSize, float occlusion, float shadow) {
+  vec2 spine = sdQuadraticBezier(point, uTailStart, uTailBend, uTailEnd);   // shared by paint and structure
+  FurPaint paint = paintFur(point, normal, spine);
+  FurStructure fur = furStructure(point, normal, spine, pixelSize);
+  vec3 bumped = fur.bumpedNormal;
+
+  // Roots darker, tips lighter, and some patches a little brighter than others.
+  float rootToTip = mix(0.74, 1.1, fur.height);
+  vec3 albedo = paint.albedo * rootToTip * mix(0.92, 1.07, fur.patchShade);
+
+  // Occlusion: the scene's (never quite black: even deep creases get some bounced light), times
+  // the shade down in the gaps between clumps.
+  occlusion = 0.2 + 0.8 * occlusion;
+  occlusion *= mix(0.68, 1.0, fur.height);
   // Inside the ear cups, light bounces between the walls and shines through the thin skin, so
   // they are much less dark than the occlusion estimate alone would make them.
   occlusion = mix(occlusion, 1.0, paint.innerEar * 0.6);
-  float shadow = mix(softShadow(point + normal * 0.003, SUN_DIRECTION), 1.0, paint.innerEar * 0.4);
+  shadow = mix(shadow, 1.0, paint.innerEar * 0.4);
 #if DEBUG_VIEW == 1
-  return vec3(shadow);
+  return vec4(vec3(shadow), 0.0);
 #elif DEBUG_VIEW == 2
-  return vec3(occlusion);
+  return vec4(vec3(occlusion), 0.0);
 #elif DEBUG_VIEW == 3
-  return paint.albedo;
+  return vec4(albedo, 0.0);
 #elif DEBUG_VIEW == 4
-  return toLinear(bumped * 0.5 + 0.5);
+  return vec4(toLinear(bumped * 0.5 + 0.5), 0.0);
 #endif
   // Coloured shadow edge: green and blue fall off faster than red, so penumbras glow warm.
   vec3 shadowTint = pow(vec3(shadow), vec3(1.0, 1.25, 1.6));
 
   float sunFacing = dot(bumped, SUN_DIRECTION);
   float wrapDiffuse = clamp((sunFacing + 0.35) / 1.35, 0.0, 1.0);
-  vec3 light = SUN_COLOR * wrapDiffuse * shadowTint;
+  // Fur self-shadowing: where sunlight skims across the coat, the clumps shade the gaps between them.
+  float skimming = 1.0 - clamp(sunFacing, 0.0, 1.0);
+  float selfShadow = mix(1.0, smoothstep(0.05, 0.75, fur.height), 0.6 * skimming * fur.detail);
+  vec3 light = SUN_COLOR * wrapDiffuse * shadowTint * selfShadow;
   light += SKY_COLOR * (0.65 + 0.35 * bumped.y) * occlusion;
   light += BOUNCE_COLOR * clamp(0.5 - 0.5 * bumped.y, 0.0, 1.0) * occlusion;
   light += flameLight(point, bumped) * (0.4 + 0.6 * occlusion);
   // Light that soaked into the fur somewhere sunlit and wandered out here. Each bounce inside the
   // fur is tinted by the fur's own colour, so shadows stay a warm, saturated orange instead of
   // turning grey-brown under the blue sky.
-  light += SUN_COLOR * albedo * 0.22 * occlusion;
+  light += SUN_COLOR * paint.albedo * 0.22 * occlusion;
   // Ears are thin: with the sun behind them they glow warm, like your fingers held over a torch.
   float sunBehind = clamp(dot(rayDir, SUN_DIRECTION), 0.0, 1.0);
   light += SUN_COLOR * vec3(1.0, 0.55, 0.4) * paint.ear * 0.8 * sunBehind * sunBehind;
@@ -847,22 +1041,30 @@ vec3 shadeFur(vec3 point, vec3 normal, vec3 rayDir, float pixelSize) {
   float fresnel = pow(clamp(1.0 + dot(normal, rayDir), 0.0, 1.0), 3.0);
   color += fresnel * occlusion * (albedo * 0.45 + SKY_COLOR * 0.2);
 
-  // A broad, faint sheen from the sun (kept weak: strong highlights make fur look like plastic).
+  // Hair highlight (Kajiya-Kay). A hair is a thin cylinder, so it reflects light in a band at right
+  // angles to its length rather than in a spot. The highlight depends on the angle between the strand
+  // and the half-way vector (between the light and the eye): brightest when they are perpendicular.
+  // Nudging the strand direction by the clump height breaks the band into streaks, like real hair.
+  vec3 strand = normalize(fur.strandDirection + normal * (fur.height - 0.5) * 0.7);
   vec3 halfVector = normalize(SUN_DIRECTION - rayDir);
-  color += SUN_COLOR * 0.03 * pow(clamp(dot(bumped, halfVector), 0.0, 1.0), 10.0) * shadow;
-  return color;
+  float strandDotHalf = dot(strand, halfVector);
+  float sinAngle = sqrt(max(1.0 - strandDotHalf * strandDotHalf, 0.0));
+  float hairHighlight = pow(sinAngle, 90.0) * smoothstep(-0.1, 0.4, dot(normal, SUN_DIRECTION)) * shadow;
+  color += SUN_COLOR * mix(vec3(1.0, 0.85, 0.65), paint.albedo, 0.5) * 0.11 * hairHighlight * mix(0.5, 1.0, fur.height);
+
+  // The fur's wisps: long and separate where the coat is fluffy, shown as a ragged outline.
+  float wispLength = TUFT_LENGTH * paint.fluffiness * smoothstep(0.25, 0.85, fur.tufts);
+  return vec4(color, wispLength);
 }
 
 // Eyes: dark and glassy. Mostly reflection: the sky, the sun, and two "studio" catchlights placed
 // relative to the camera (a big glint up and to the side, a tiny sparkle low on the other side),
 // so Smoldy always has the bright, alive eyes of the 2D art.
-vec3 shadeEye(vec3 point, vec3 normal, vec3 rayDir) {
+vec3 shadeEye(vec3 point, vec3 normal, vec3 rayDir, float occlusion, float shadow) {
   // Base colour: near-black, warming to brown towards the bottom, like light glowing up through an iris.
   vec3 eyePoint = toEyeSpace(toHeadSpace(point));
   float lowerGlow = smoothstep(-0.1, -0.85, eyePoint.y / EYE_RADII.y);
   vec3 base = mix(toLinear(EYE_DARK_SRGB), toLinear(EYE_WARM_SRGB), lowerGlow * 0.8);
-  float occlusion = ambientOcclusion(point, normal, 0.12);
-  float shadow = softShadow(point + normal * 0.003, SUN_DIRECTION);
   vec3 color = base * (SKY_COLOR * occlusion + SUN_COLOR * 0.3 * clamp(dot(normal, SUN_DIRECTION), 0.0, 1.0) * shadow);
 
   // Glossy surface: reflect the sky, more strongly at grazing angles (Fresnel), plus a tight sun highlight.
@@ -872,20 +1074,19 @@ vec3 shadeEye(vec3 point, vec3 normal, vec3 rayDir) {
   color += SUN_COLOR * 3.0 * pow(clamp(dot(reflected, SUN_DIRECTION), 0.0, 1.0), 300.0) * shadow;
 
   // Catchlights: if the reflected ray points at one of two imaginary lights fixed relative to the
-  // camera, show a crisp white spot. smoothstep on the angle gives the spots clean, round edges.
+  // camera, show a crisp white spot. The eye's shape is the same at any size, so the spots cover the
+  // same share of it and shrink and grow with the eye. smoothstep on the angle gives clean round edges.
   vec3 glintDirection = normalize(-gCameraForward * 0.87 + gCameraUp * 0.48 - gCameraRight * 0.10);
   vec3 sparkleDirection = normalize(-gCameraForward * 0.88 - gCameraUp * 0.40 + gCameraRight * 0.28);
   float glint = smoothstep(0.952, 0.962, dot(reflected, glintDirection));
-  float sparkle = smoothstep(0.993, 0.995, dot(reflected, sparkleDirection));
+  float sparkle = smoothstep(0.990, 0.993, dot(reflected, sparkleDirection));
   color += vec3(1.0) * (2.4 * glint + 1.6 * sparkle) * (0.4 + 0.6 * occlusion);
   return color;
 }
 
 // Nose: dark and a little wet-looking, with a soft highlight.
-vec3 shadeNose(vec3 point, vec3 normal, vec3 rayDir) {
+vec3 shadeNose(vec3 point, vec3 normal, vec3 rayDir, float occlusion, float shadow) {
   vec3 base = toLinear(NOSE_SRGB);
-  float occlusion = ambientOcclusion(point, normal, 0.1);
-  float shadow = softShadow(point + normal * 0.003, SUN_DIRECTION);
   vec3 color = base * (SUN_COLOR * clamp(dot(normal, SUN_DIRECTION), 0.0, 1.0) * shadow + SKY_COLOR * occlusion);
   vec3 reflected = reflect(rayDir, normal);
   color += SUN_COLOR * 0.5 * pow(clamp(dot(reflected, SUN_DIRECTION), 0.0, 1.0), 40.0) * shadow;
@@ -894,52 +1095,77 @@ vec3 shadeNose(vec3 point, vec3 normal, vec3 rayDir) {
   return color;
 }
 
-// ============================================================================================
-// 15. Render one ray: find what it hits, shade it, add the flame.
-// ============================================================================================
-// Shade a point on the fox's surface with the right material.
-vec3 shadeFox(vec3 point, float material, vec3 rayDir, float distanceFromCamera) {
-  vec3 normal = calcNormal(point);
-  if (material == MATERIAL_EYE) return shadeEye(point, normal, rayDir);
-  if (material == MATERIAL_NOSE) return shadeNose(point, normal, rayDir);
-  return shadeFur(point, normal, rayDir, distanceFromCamera * gPixelAngle);
+// Pick the right material. Returns the colour, plus (for fur) the wisp length in .a.
+vec4 shadeFox(SurfaceProbe probe, float material, vec3 rayDir, float distanceFromCamera, float shadow) {
+  if (material == MATERIAL_EYE) return vec4(shadeEye(probe.point, probe.normal, rayDir, probe.occlusion, shadow), 0.0);
+  if (material == MATERIAL_NOSE) return vec4(shadeNose(probe.point, probe.normal, rayDir, probe.occlusion, shadow), 0.0);
+  return shadeFur(probe.point, probe.normal, rayDir, distanceFromCamera * gPixelAngle, probe.occlusion, shadow);
 }
 
+// ============================================================================================
+// 16. Render one ray: find what it hits, shade it, add the flame.
+// ============================================================================================
 vec3 render(vec3 rayOrigin, vec3 rayDir, vec2 pixel) {
-  float nearMissDistance, nearMissCoverage;
-  vec2 foxHit = castRay(rayOrigin, rayDir, nearMissDistance, nearMissCoverage);
-  float groundDistance = rayDir.y < 0.0 ? -rayOrigin.y / rayDir.y : 1e9;   // ground is the plane y = 0
-  vec3 color;
-  float sceneDistance;
+  // 1. Trace the ray against the fox (marched) and the ground (the plane y = 0, one division).
+  float nearMissDistance, nearMissGap, nearMissMaterial;
+  vec2 foxHit = castRay(rayOrigin, rayDir, nearMissDistance, nearMissGap, nearMissMaterial);
+  float groundDistance = rayDir.y < 0.0 ? -rayOrigin.y / rayDir.y : 1e9;
+  bool hitFox = foxHit.x > 0.0 && foxHit.x < groundDistance;
+  // A near miss still shows some fox if the ray passed within a pixel plus a wisp's length of it.
+  bool nearMiss = !hitFox && nearMissDistance > 0.0 && nearMissDistance < groundDistance
+                  && nearMissGap < gPixelAngle * nearMissDistance + TUFT_LENGTH;
+  float foxAlongRay = hitFox ? foxHit.x : nearMissDistance;
+  float foxMaterial = hitFox ? foxHit.y : nearMissMaterial;
 
-  if (foxHit.x > 0.0 && foxHit.x < groundDistance) {
-    // The ray hit the fox.
-    sceneDistance = foxHit.x;
-    color = shadeFox(rayOrigin + rayDir * foxHit.x, foxHit.y, rayDir, foxHit.x);
-  } else {
-    // The ray missed the fox: it sees the ground or the sky.
-    if (groundDistance < 1e8) {
-      sceneDistance = groundDistance;
-      color = shadeGround(rayOrigin + rayDir * groundDistance, rayDir, groundDistance);
+  // 2. A pixel can show two surfaces: the ground (or sky) behind, and the fox in front, either
+  //    filling the pixel or only partly covering it at its wispy edge. Both are shaded in this small
+  //    loop, so the lighting code (and the distance function inside it) is compiled only once.
+  vec3 color = skyColor(rayDir);
+  float sceneDistance = hitFox ? foxHit.x : groundDistance;
+  for (int layer = 0; layer < 2; layer++) {
+    bool isFox = layer == 1;
+    if (isFox && !hitFox && !nearMiss) break;                  // no fox in this pixel
+    if (!isFox && (hitFox || groundDistance > 1e8)) continue;  // background hidden, or it is sky
+    float alongRay = isFox ? foxAlongRay : groundDistance;
+    vec3 point = rayOrigin + rayDir * alongRay;
+
+    // Normal and ambient occlusion. Far from the fox the ground needs neither (it faces up and
+    // nothing crowds it), and the contact occlusion fades out before that so there is no seam.
+    float fromFox = length(point - FOX_BOUND_CENTER) - FOX_BOUND_RADIUS;
+    SurfaceProbe probe = SurfaceProbe(point, vec3(0.0, 1.0, 0.0), 1.0);
+    // At the fox's wispy edge (a near miss) the fur is thin and partly see-through: occlusion hardly
+    // shows there and the shadow can be rougher, so those pixels get a cheaper probe and shadow.
+    bool foxEdge = isFox && nearMiss;
+    if (isFox || fromFox < 0.3) probe = probeSurface(point, !isFox, isFox ? 0.13 : 0.35, foxEdge ? 0 : uOcclusionSamples);
+    if (foxEdge) probe.occlusion = 0.85;
+    if (!isFox) probe.occlusion = mix(probe.occlusion, 1.0, smoothstep(0.0, 0.3, fromFox));
+
+    // The sun's soft shadow. Surfaces facing well away from the sun get no sunlight anyway, so
+    // they skip the shadow march.
+    float shadow = 0.0;
+    int shadowSteps = foxEdge ? uShadowSteps / 2 : uShadowSteps;
+    if (dot(probe.normal, SUN_DIRECTION) > -0.45) shadow = softShadow(probe.point + probe.normal * 0.003, SUN_DIRECTION, shadowSteps);
+
+    if (!isFox) {
+      color = shadeGround(probe.point, rayDir, alongRay, probe.occlusion, shadow);
     } else {
-      sceneDistance = 1e9;
-      color = skyColor(rayDir);
-    }
-    // Silhouette anti-aliasing: if the ray only just missed, blend in the fox's colour from the
-    // nearest point on its surface, weighted by how much of the pixel the fox covers.
-    if (nearMissCoverage > 0.0 && nearMissDistance < groundDistance) {
-      vec3 point = rayOrigin + rayDir * nearMissDistance;
-      vec2 nearest = foxSDF(point);
-      point -= calcNormal(point) * nearest.x;                  // step from the ray onto the surface
-      vec3 edgeColor = shadeFox(point, nearest.y, rayDir, nearMissDistance);
-      color = mix(color, edgeColor, nearMissCoverage);
+      vec4 fox = shadeFox(probe, foxMaterial, rayDir, alongRay, shadow);
+      // How much of the pixel the fox covers: all of it for a hit; at the edge, it depends on how the
+      // gap compares with the wisps' length (fox.a) and the pixel's width. Wisps are partly see-through.
+      float coverage = 1.0;
+      if (nearMiss) {
+        float pixelWidth = gPixelAngle * alongRay;
+        coverage = clamp(1.0 - (nearMissGap - fox.a) / pixelWidth, 0.0, 1.0);
+        coverage *= 1.0 - 0.35 * smoothstep(0.0, TUFT_LENGTH, nearMissGap);
+      }
+      color = mix(color, fox.rgb, coverage);
     }
   }
   return addFlame(rayOrigin, rayDir, sceneDistance, color, pixel);
 }
 
 // ============================================================================================
-// 16. Tone mapping. Lighting produces values above 1.0 (the flame core, sunlit cream fur). This
+// 17. Tone mapping. Lighting produces values above 1.0 (the flame core, sunlit cream fur). This
 //     curve (Khronos "PBR Neutral") squeezes them into the displayable range while keeping hues
 //     true, so the orange stays orange instead of drifting to yellow. Then gamma-encode for display.
 // ============================================================================================
@@ -967,7 +1193,7 @@ vec3 toneMap(vec3 color) {
 }
 
 // ============================================================================================
-// 17. main: build the camera, shoot AA x AA rays through each pixel, finish the image.
+// 18. main: build the camera, shoot AA x AA rays through each pixel, finish the image.
 // ============================================================================================
 void main() {
   // Camera frame: forward towards the target, right and up perpendicular to it.
@@ -1051,6 +1277,7 @@ function smoothstep(edge0, edge1, x) {
   const amount = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
   return amount * amount * (3 - 2 * amount);
 }
+function clamp(value, low, high) { return Math.min(high, Math.max(low, value)); }
 
 // ==============================================================================================
 // B. Posing the fox. Every frame this works out where the head, ears, eyelids and tail are, and the
@@ -1140,15 +1367,21 @@ function poseFox(time) {
 }
 
 // ==============================================================================================
-// C. WebGL setup: compile the shaders, make the full-screen triangle, look up the uniforms.
+// C. WebGL setup. Compiling a big shader can take a while, and in a browser a long synchronous
+//    compile freezes the whole page. So: the poster is shown first; the compile is started after it
+//    has painted; and if the browser offers KHR_parallel_shader_compile, the compile runs in the
+//    background while we check on it once per animation frame.
 // ==============================================================================================
 const canvas = document.getElementById('view');
+const poster = document.getElementById('poster');
 const params = new URLSearchParams(location.search);
 const stillMode = params.has('still');            // used for screenshots: render one frame on demand
 const samplesPerAxis = Math.max(1, Math.min(3, parseInt(params.get('aa') || '1', 10)));
 const debugView = Math.max(0, Math.min(4, parseInt(params.get('debug') || '0', 10)));   // see DEBUG_VIEW in the shader
+if (stillMode) document.body.classList.add('still');
 const gl = canvas.getContext('webgl', { antialias: false, depth: false, stencil: false, alpha: false,
   preserveDrawingBuffer: stillMode, powerPreference: 'high-performance' });
+const parallelCompile = gl ? gl.getExtension('KHR_parallel_shader_compile') : null;
 
 function showFallback(message) {
   const note = document.createElement('div');
@@ -1157,29 +1390,49 @@ function showFallback(message) {
   document.body.appendChild(note);
 }
 
-function compileShader(type, source) {
-  const shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
-  return shader;
-}
-
 const uniforms = {};
+let program = null;
+let vertexShader = null;
+let fragmentShader = null;
+let programReady = false;
 let contextLost = false;
 
-// Compile and link the shaders, make the full-screen triangle and look up every uniform. Called at
-// start-up, and again if the browser takes the GPU away and gives it back (see below).
-function setUpGpu() {
-  const program = gl.createProgram();
-  gl.attachShader(program, compileShader(gl.VERTEX_SHADER, document.getElementById('vertex-shader').textContent));
-  gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER,
-    '#define AA ' + samplesPerAxis + '\n#define DEBUG_VIEW ' + debugView + '\n' +
-    document.getElementById('fragment-shader').textContent));
+// Hand the shader sources to the driver and ask it to link. This returns at once; the work may
+// continue in the background. (Asking for the result too early would block until it is done.)
+function startCompiling() {
+  vertexShader = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vertexShader, document.getElementById('vertex-shader').textContent);
+  gl.compileShader(vertexShader);
+  fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(fragmentShader, '#define AA ' + samplesPerAxis + '\n#define DEBUG_VIEW ' + debugView + '\n' +
+    document.getElementById('fragment-shader').textContent);
+  gl.compileShader(fragmentShader);
+  program = gl.createProgram();
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
   gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
-  gl.useProgram(program);
+  waitForProgram();
+}
 
+// Check once per animation frame whether the background compile has finished. Without the
+// extension there is no way to ask "are you done?", so we just take the result (which waits).
+function waitForProgram() {
+  if (contextLost) return;
+  if (parallelCompile && !gl.getProgramParameter(program, parallelCompile.COMPLETION_STATUS_KHR)) {
+    requestAnimationFrame(waitForProgram);
+    return;
+  }
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const log = gl.getShaderInfoLog(fragmentShader) || gl.getProgramInfoLog(program);
+    showFallback('The 3D view could not start on this device.');
+    throw new Error(log);
+  }
+  finishSetup();
+}
+
+// The program is ready: use it, make the full-screen triangle, look up every uniform.
+function finishSetup() {
+  gl.useProgram(program);
   // One triangle big enough to cover the screen (cheaper than two triangles making a quad).
   const buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -1187,29 +1440,19 @@ function setUpGpu() {
   const positionLocation = gl.getAttribLocation(program, 'aPosition');
   gl.enableVertexAttribArray(positionLocation);
   gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
   for (const name of ['uResolution', 'uTime', 'uCameraPosition', 'uCameraTarget', 'uBreath', 'uHeadPivot',
     'uHeadRotation', 'uEarRightFrame', 'uEarLeftFrame', 'uBlink', 'uTailStart', 'uTailBend', 'uTailEnd',
-    'uFlameBase', 'uFlameLean', 'uFlameGlow']) {
+    'uFlameBase', 'uFlameLean', 'uFlameGlow', 'uMarchSteps', 'uShadowSteps', 'uOcclusionSamples', 'uFlameSteps']) {
     uniforms[name] = gl.getUniformLocation(program, name);
   }
-}
-
-if (!gl) {
-  showFallback('This demo needs WebGL, which this browser does not offer.');
-} else {
-  setUpGpu();
-  // If a frame takes too long, or the system needs the GPU, the browser can take the context away.
-  // Pause drawing, come back at a lower resolution when the browser restores it, and rebuild.
-  canvas.addEventListener('webglcontextlost', (event) => {
-    event.preventDefault();                       // tells the browser we want the context back
-    contextLost = true;
-    renderScale = Math.max(MIN_RENDER_SCALE, renderScale * 0.6);
-  });
-  canvas.addEventListener('webglcontextrestored', () => {
-    setUpGpu();
-    contextLost = false;
-  });
+  programReady = true;
+  if (stillMode) {
+    window.renderStill = renderStill;
+    document.body.dataset.ready = '1';
+  } else {
+    calibrate();
+    updateRunning();
+  }
 }
 
 // ==============================================================================================
@@ -1230,8 +1473,8 @@ let pinchStartDistance = 0;
 let pinchStartZoom = 1;
 
 function pinchDistance() {
-  const [a, b] = [...activePointers.values()];
-  return Math.hypot(a.x - b.x, a.y - b.y);
+  const [first, second] = [...activePointers.values()];
+  return Math.hypot(first.x - second.x, first.y - second.y);
 }
 
 canvas.addEventListener('pointerdown', (event) => {
@@ -1249,7 +1492,7 @@ canvas.addEventListener('pointermove', (event) => {
     // One finger: turn. Moving across the whole screen turns about one full circle.
     const scale = 6.0 / Math.max(window.innerWidth, 1);
     camera.targetYaw -= (current.x - previous.x) * scale;
-    camera.targetPitch = Math.min(1.25, Math.max(0.0, camera.targetPitch + (current.y - previous.y) * scale * 0.6));
+    camera.targetPitch = clamp(camera.targetPitch + (current.y - previous.y) * scale * 0.6, 0.0, 1.25);
   } else if (activePointers.size === 2 && pinchStartDistance > 0) {
     // Two fingers: pinch to zoom.
     camera.targetZoom = clampZoom(pinchStartZoom * pinchStartDistance / Math.max(pinchDistance(), 1));
@@ -1267,7 +1510,7 @@ canvas.addEventListener('wheel', (event) => {
   camera.targetZoom = clampZoom(camera.targetZoom * Math.exp(event.deltaY * 0.0012));
 }, { passive: false });
 
-function clampZoom(zoom) { return Math.min(1.5, Math.max(0.6, zoom)); }
+function clampZoom(zoom) { return clamp(zoom, 0.6, 1.5); }
 
 // Move the current camera values a fraction of the way to their targets: exponential smoothing that
 // behaves the same at any frame rate.
@@ -1291,62 +1534,101 @@ function cameraPosition() {
 }
 
 // ==============================================================================================
-// E. Adaptive resolution. The shader is expensive, so we render fewer pixels than the screen has
-//    and let the browser scale the canvas up. If frames take too long we lower the resolution;
-//    if there is headroom we raise it again (slowly, and not right after a drop).
+// E. Staying fast. The rule: no single frame should keep the GPU busy for more than about 30 ms,
+//    because inside a page (or an iframe) a long GPU frame stalls everything on screen.
+//    - We draw at most 30 frames a second.
+//    - We draw fewer pixels than the screen has (the browser scales the canvas up), never more than
+//      PIXEL_CAP, starting at 40% of the screen's resolution.
+//    - Every so often a "probe" frame is timed with gl.finish() (which waits for the GPU), giving the
+//      true cost per pixel; the resolution is then set to fit GPU_BUDGET_MS, rising only gently.
+//    - A frame that arrives late shrinks the resolution at once.
+//    - At the lowest resolution, if it is still too slow, the shader takes fewer steps.
 // ==============================================================================================
-const pixelRatio = window.devicePixelRatio || 1;
-const MAX_RENDER_SCALE = Math.min(pixelRatio, 2);
-const MIN_RENDER_SCALE = 0.3;
-const MAX_PIXELS = 1600000;
-let renderScale = stillMode ? parseFloat(params.get('scale') || '1') : Math.min(MAX_RENDER_SCALE, 0.7);
-let averageFrameMs = 16.7;
-let framesSinceAdjust = 0;
-let lastDropTime = -1e9;
+const FRAME_INTERVAL_MS = 1000 / 30;
+const GPU_BUDGET_MS = 16;
+const PIXEL_CAP = 350000;
+const START_SCALE = 0.4;
+const MIN_RENDER_SCALE = 0.2;
+const MAX_RENDER_SCALE = Math.min(window.devicePixelRatio || 1, 1.5);
+const PROBE_EVERY_FRAMES = 40;           // about every 1.3 seconds at 30 frames a second...
+const PROBE_SOON_FRAMES = 8;             // ...or sooner while the resolution is still climbing
+const LATE_FRAME_MS = 55;                // a frame this late means the GPU is falling behind
+let renderScale = stillMode ? parseFloat(params.get('scale') || '1') : START_SCALE;
+let msPerMegapixel = null;               // learned from probe frames
+let lowQuality = false;
+
+// Loop budgets for the shader (see "Loop budgets" at the top of the fragment shader).
+function loopBudgets() {
+  return lowQuality ? { march: 40, shadow: 12, occlusion: 2, flame: 8 } : { march: 64, shadow: 20, occlusion: 4, flame: 14 };
+}
+
+function cssPixelCount() {
+  return Math.max(1, canvas.clientWidth) * Math.max(1, canvas.clientHeight);
+}
 
 function resizeCanvas() {
-  const cssWidth = Math.max(1, canvas.clientWidth);
-  const cssHeight = Math.max(1, canvas.clientHeight);
-  let width = Math.round(cssWidth * renderScale);
-  let height = Math.round(cssHeight * renderScale);
-  const pixels = width * height;
-  if (pixels > MAX_PIXELS) {
-    const shrink = Math.sqrt(MAX_PIXELS / pixels);
-    width = Math.round(width * shrink);
-    height = Math.round(height * shrink);
+  let width = Math.round(Math.max(1, canvas.clientWidth) * renderScale);
+  let height = Math.round(Math.max(1, canvas.clientHeight) * renderScale);
+  if (!stillMode && width * height > PIXEL_CAP) {
+    const shrink = Math.sqrt(PIXEL_CAP / (width * height));
+    width = Math.floor(width * shrink);
+    height = Math.floor(height * shrink);
   }
+  width = Math.max(1, width);
+  height = Math.max(1, height);
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
   }
 }
 
-function adaptResolution(frameMs, nowSeconds) {
-  // A running average of frame time, so one hiccup doesn't trigger a change.
-  averageFrameMs += (Math.min(frameMs, 250) - averageFrameMs) * 0.15;
-  framesSinceAdjust++;
-  // On a very slow device, don't wait for the average: a few frames over 150 ms is evidence enough.
-  const verySlow = frameMs > 150 && framesSinceAdjust >= 3;
-  if (framesSinceAdjust < 8 && !verySlow) return;   // give the average time to settle after a change
-  if ((averageFrameMs > 24 || verySlow) && renderScale > MIN_RENDER_SCALE) {
-    // Slower than about 40 frames per second: render fewer pixels (cut harder if very slow).
-    renderScale = Math.max(MIN_RENDER_SCALE, renderScale * (averageFrameMs > 60 || verySlow ? 0.7 : 0.87));
-    lastDropTime = nowSeconds;
-    framesSinceAdjust = 0;
-  } else if (averageFrameMs < 17.5 && renderScale < MAX_RENDER_SCALE && nowSeconds - lastDropTime > 4) {
-    // Comfortably at the screen's refresh rate for a while: try a little more detail.
-    renderScale = Math.min(MAX_RENDER_SCALE, renderScale * 1.07);
-    framesSinceAdjust = 0;
-  }
+// Draw one frame and wait for the GPU to finish it, to measure its real cost. Waiting blocks the
+// page for the length of that frame, which is why it is done only now and then, on frames that are
+// already sized to fit the budget.
+function timedFrame(time) {
+  const start = performance.now();
+  drawFrame(time);
+  gl.finish();
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));   // make sure it has really finished
+  return performance.now() - start;
+}
+
+// Learn the cost per pixel from a probe frame and pick the resolution for the next frames.
+function learnFromProbe(frameMs) {
+  const pixels = canvas.width * canvas.height;
+  const sample = frameMs / (pixels / 1e6);
+  msPerMegapixel = msPerMegapixel === null ? sample : 0.5 * msPerMegapixel + 0.5 * sample;
+  const affordablePixels = GPU_BUDGET_MS / msPerMegapixel * 1e6;
+  let targetPixels = Math.min(affordablePixels, PIXEL_CAP, cssPixelCount() * MAX_RENDER_SCALE * MAX_RENDER_SCALE);
+  // Grow gently: by at most 15% per probe when close to the budget, by up to 50% when far below it.
+  const growing = targetPixels > pixels * 1.01;
+  if (growing) targetPixels = Math.min(targetPixels, pixels * (frameMs * 3 < GPU_BUDGET_MS ? 1.5 : 1.15));
+  framesUntilProbe = growing ? PROBE_SOON_FRAMES : PROBE_EVERY_FRAMES;
+  renderScale = clamp(Math.sqrt(targetPixels / cssPixelCount()), MIN_RENDER_SCALE, MAX_RENDER_SCALE);
+  // Already at the lowest resolution and still over budget: take fewer steps. Plenty of room: go back.
+  if (renderScale <= MIN_RENDER_SCALE + 1e-3 && frameMs > GPU_BUDGET_MS) lowQuality = true;
+  else if (frameMs < GPU_BUDGET_MS * 0.5) lowQuality = false;
+}
+
+// Before the first real frame: a tiny warm-up frame (some drivers finish preparing a shader on its
+// first use), then a small timed frame to estimate this device's speed. Start at whichever is
+// smaller: 40% of the screen's resolution, or what that estimate says fits the budget.
+function calibrate() {
+  renderScale = Math.sqrt(1 / cssPixelCount());                 // 1 pixel
+  timedFrame(0);
+  renderScale = Math.sqrt(12000 / cssPixelCount());             // about 12,000 pixels
+  learnFromProbe(timedFrame(0));
+  renderScale = clamp(Math.min(renderScale, START_SCALE), MIN_RENDER_SCALE, MAX_RENDER_SCALE);
 }
 
 // ==============================================================================================
-// F. Drawing a frame: upload the pose and camera, draw the triangle.
+// F. Drawing a frame: upload the pose, camera and loop budgets, draw the triangle.
 // ==============================================================================================
 function drawFrame(time) {
   resizeCanvas();
   gl.viewport(0, 0, canvas.width, canvas.height);
   const pose = poseFox(time);
+  const budgets = loopBudgets();
   gl.uniform2f(uniforms.uResolution, canvas.width, canvas.height);
   gl.uniform1f(uniforms.uTime, time % 1000);
   gl.uniform3fv(uniforms.uCameraPosition, cameraPosition());
@@ -1363,43 +1645,104 @@ function drawFrame(time) {
   gl.uniform3fv(uniforms.uFlameBase, pose.flameBase);
   gl.uniform2fv(uniforms.uFlameLean, pose.flameLean);
   gl.uniform1f(uniforms.uFlameGlow, pose.flameGlow);
+  gl.uniform1i(uniforms.uMarchSteps, budgets.march);
+  gl.uniform1i(uniforms.uShadowSteps, budgets.shadow);
+  gl.uniform1i(uniforms.uOcclusionSamples, budgets.occlusion);
+  gl.uniform1i(uniforms.uFlameSteps, budgets.flame);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
-// Live mode: animate forever, adapting resolution to the device's speed.
-let startMs = null;
-let previousMs = null;
-function animationLoop(nowMs) {
-  if (startMs === null) { startMs = nowMs; previousMs = nowMs; }
-  const deltaMs = nowMs - previousMs;
-  previousMs = nowMs;
-  updateCamera(Math.min(deltaMs, 100) / 1000);
-  if (!contextLost) {
-    adaptResolution(deltaMs, nowMs / 1000);
-    drawFrame((nowMs - startMs) / 1000);
+// ==============================================================================================
+// G. The animation loop, which only runs while there is something to see: the shader is ready,
+//    the page is visible (not a background tab) and the canvas is on screen (an iframe scrolled out
+//    of view counts as off screen).
+// ==============================================================================================
+const startMs = performance.now();
+let running = false;
+let pageVisible = document.visibilityState !== 'hidden';
+let onScreen = true;
+let lastFrameMs = null;
+let framesUntilProbe = PROBE_SOON_FRAMES;   // counts down to the next timed probe frame
+
+function updateRunning() {
+  const shouldRun = programReady && pageVisible && onScreen && !contextLost && !stillMode;
+  if (shouldRun && !running) {
+    running = true;
+    lastFrameMs = null;               // don't count the pause as a slow frame
+    requestAnimationFrame(animationLoop);
+  } else if (!shouldRun) {
+    running = false;
   }
-  requestAnimationFrame(animationLoop);
 }
 
-// Still mode (screenshots): window.renderStill({yaw, pitch, zoom, time, focus}) draws one frame.
+function animationLoop(nowMs) {
+  if (!running) return;
+  requestAnimationFrame(animationLoop);
+  // At most 30 frames a second: skip animation frames that come sooner than that.
+  if (lastFrameMs !== null && nowMs - lastFrameMs < FRAME_INTERVAL_MS - 3) return;
+  const intervalMs = lastFrameMs === null ? FRAME_INTERVAL_MS : nowMs - lastFrameMs;
+  lastFrameMs = nowMs;
+  updateCamera(Math.min(intervalMs, 100) / 1000);
+  const time = (nowMs - startMs) / 1000;
+
+  // A late frame means the GPU is falling behind: shrink straight away, and re-measure next frame.
+  if (intervalMs > LATE_FRAME_MS) {
+    renderScale = Math.max(MIN_RENDER_SCALE, renderScale * 0.75);
+    framesUntilProbe = 0;
+  }
+  if (framesUntilProbe <= 0) {
+    learnFromProbe(timedFrame(time));             // also schedules the next probe
+  } else {
+    framesUntilProbe--;
+    drawFrame(time);
+  }
+  // The first frame is on screen: fade the 3D view in over the poster.
+  if (!document.body.classList.contains('ready')) document.body.classList.add('ready');
+}
+
+// Pause in a background tab, or when the canvas is scrolled out of view.
+document.addEventListener('visibilitychange', () => {
+  pageVisible = document.visibilityState !== 'hidden';
+  updateRunning();
+});
+if ('IntersectionObserver' in window) {
+  new IntersectionObserver((entries) => {
+    onScreen = entries[entries.length - 1].isIntersecting;
+    updateRunning();
+  }).observe(canvas);
+}
+
+// Still mode (screenshots and measurements): window.renderStill({yaw, pitch, zoom, time, focus})
+// draws one frame at the resolution given by ?scale= and waits for it to finish.
 function renderStill(options) {
   camera.yaw = camera.targetYaw = options.yaw ?? 0.75;
   camera.pitch = camera.targetPitch = options.pitch ?? 0.2;
   camera.zoom = camera.targetZoom = options.zoom ?? 1.0;
   camera.lookAt = (options.focus === 'face' ? FACE_TARGET : DEFAULT_TARGET).slice();
-  drawFrame(options.time ?? 1.0);
-  gl.finish();
-  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));   // wait for the GPU
-  return true;
+  return timedFrame(options.time ?? 1.0);
 }
 
-if (gl) {
-  if (stillMode) {
-    window.renderStill = renderStill;
-    document.body.dataset.ready = '1';
-  } else {
-    requestAnimationFrame(animationLoop);
-  }
+// ==============================================================================================
+// H. Start-up, and recovery if the browser takes the GPU away (after a too-long frame, or when the
+//    system needs it): pause, show the poster again, and rebuild when the context comes back.
+// ==============================================================================================
+if (!gl) {
+  showFallback('This demo needs WebGL, which this browser does not offer.');
+} else {
+  // Start compiling only after the poster has had a chance to appear on screen.
+  requestAnimationFrame(() => setTimeout(startCompiling, 0));
+  canvas.addEventListener('webglcontextlost', (event) => {
+    event.preventDefault();                       // tells the browser we want the context back
+    contextLost = true;
+    programReady = false;
+    document.body.classList.remove('ready');
+    updateRunning();
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    contextLost = false;
+    msPerMegapixel = null;                        // the device may behave differently now: re-measure
+    startCompiling();
+  });
 }
 </script>
 </body>
