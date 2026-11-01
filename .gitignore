@@ -5,3 +5,4 @@ dist/*.apk
 dist/*.idsig
 *.keystore
 *signing_key.pem
+node_modules
