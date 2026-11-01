@@ -975,6 +975,24 @@ module.exports = [
   T.ok(r.n === 5 && r.orbs === 50, 'restored the 5-creature cloud save: ' + JSON.stringify(r));
   T.ok(!r.pushedFresh, 'the fresh 1-creature game was never written over the cloud save');
 }},
+{name: '29 the first screen can load a save code instead of picking a starter', timeout: 40000, fn: async T => {
+  await T.until(() => document.readyState === 'complete' && __TT.vis('#sStart'), null, 'starter picker visible');
+  // a 3-creature save, encoded the way Settings → Save code → Copy does
+  const code = await T.ev(() => { const o = {v:2, items:{orb:33,great:1,ultra:0,berry:2}, col:[1,2,3].map(i => ({id:i, sp:i, lvl:7, xp:0, hp:40})), badges:[], place:0, stayed:[0], visited:[0], mode:'arrived', spawned:0, nextId:4, wild:[], travelTo:0, travelT:0, savedAt:5, caught:[1,2,3]};
+    return 'CC1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o)))); });
+  T.ok(await T.ev(() => document.getElementById('stImpBox').hidden), 'the paste box starts hidden');
+  await T.page.click('#stImpBtn');
+  T.ok(await T.ev(() => !document.getElementById('stImpBox').hidden), 'tapping "I have a save code" shows the paste box');
+  await T.page.fill('#stImpText', 'not a code');
+  await T.page.click('#stImpLoad');
+  T.ok(await T.ev(() => S.col.length === 0), 'a bad code changes nothing');
+  await T.page.fill('#stImpText', code);
+  await Promise.all([T.page.waitForNavigation({timeout: 10000}), T.page.click('#stImpLoad')]);
+  await T.until(() => document.readyState === 'complete' && typeof S !== 'undefined' && S.col && S.col.length === 3, null, 'the imported game is loaded after the reload', 10000);
+  T.ok(await T.ev(() => S.items.orb === 33 && document.getElementById('sStart').hidden), 'imported save is the game now, and the starter picker is gone');
+  await T.sleep(1500);
+  T.ok(await T.ev(() => !!(S.talked && S.talked.intro_neighbor) && !LOGBUF.some(e => e.type === 'talk_start' && /intro_neighbor/.test(JSON.stringify(e)))), 'the opening conversation does not play for an imported game');
+}},
 {name: "27 a creature past both evolution levels evolves twice; little kids get no level choice and no mic button; unfound book cards keep the mystery", talk: ['visit_weather'], timeout: 60000, fn: async T => {
   await T.start();
   await T.fastSpeech();
