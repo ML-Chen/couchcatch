@@ -88,7 +88,7 @@ body{overflow:hidden;padding-block:max(8px,env(safe-area-inset-top,0px)) 0}
 #app{height:100%;gap:7px}
 header{gap:6px}
 h1{font-size:1.25rem!important}
-.chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:5px}.chips::-webkit-scrollbar{display:none}
+.chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:5px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent)}.chips::-webkit-scrollbar{display:none}
 .chip{font-size:.72rem;padding:3px 8px;white-space:nowrap;flex:none}
 #scene{flex:1 1 0;min-height:150px;aspect-ratio:auto;height:0}
 #status{font-size:.82rem;min-height:0;line-height:1.25}
@@ -147,7 +147,7 @@ h1{font-size:1.25rem!important}
 /* stable layout: nothing below or around the canvases changes height */
 .scenewrap{position:relative;flex:1 1 0;min-height:150px}
 #scene{position:absolute!important;inset:0;width:100%!important;height:100%!important;flex:none!important}
-.banners{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px;z-index:3;pointer-events:none}
+.banners{position:absolute;left:8px;right:8px;top:8px;display:flex;flex-direction:column;gap:6px;z-index:3;pointer-events:none}
 .banners>*{pointer-events:auto}
 .banners .raid{padding:6px 8px;font-size:.8rem;box-shadow:0 6px 18px rgba(0,0,0,.4)}
 .banners .knock{position:static;transform:none}
@@ -10703,7 +10703,7 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
     sctx.globalAlpha=.35+.15*Math.sin(T*4);el(sctx,px,py,R0*.45,R0*.6,'#ffffff');sctx.globalAlpha=1}
   if(raidHere()){const bx=w*.5,by=h*.5,pulse=.5+.5*Math.sin(T*3);if((window.FX&&FX.attack)){try{FX.raidBeacon(sctx,bx,0,by,w*.12,T)}catch(e){}}else{sctx.fillStyle=`rgba(255,80,120,${.12+.1*pulse})`;sctx.fillRect(bx-w*.06,0,w*.12,by)}
     const bs=Math.min(h*.09,h*.3/(2.6*SP[S.raid.sp].sz));dc(sctx,S.raid.sp,bx,by,bs,T,{titan:true,shiny:S.raid.shiny,awake:true});
-    const lab=`团体战 tuántǐ zhàn · RAID · Lv ${S.raid.lvl}`;sctx.font=`400 ${h*.045}px 'Sora',sans-serif`;sctx.textAlign='center';sctx.lineWidth=4;sctx.strokeStyle='#1a1424';sctx.strokeText(lab,bx,by+h*.06);sctx.fillStyle='#ffd23f';sctx.fillText(lab,bx,by+h*.06)}
+  }
   if(S.mode==='staying'&&!sheetOpen()&&!C&&!B&&T-lastVisit>150&&typeof DIALOGUES!=='undefined'&&!document.getElementById('knock')){lastVisit=T;const phone=Math.random()<.5,keys=Object.keys(DIALOGUES).filter(k=>k.startsWith(phone?'phone_':'visit_'));if(keys.length){const wt=k=>/grand/.test(k)?3:1,k=(()=>{const pool=keys.map(k=>({k,w:wt(k)/(1+((S.talked||{})[k]||0))}));let r=Math.random()*pool.reduce((s,x)=>s+x.w,0);for(const x of pool){r-=x.w;if(r<=0)return x.k}return pool[0].k})();const kb=document.createElement('button');kb.id='knock';kb.className='raid knock';kb.innerHTML=phone?'Your phone is ringing!'+zw('电话来了！','diànhuà lái le!'):'Someone is at the door!'+zw('有人来了！','yǒu rén lái le!');kb.onclick=()=>{kb.remove();if(S.mode!=='travel'&&!B&&!C)runTalk(k)};document.getElementById('banners').appendChild(kb);sfx(phone?'item':'spawn');if(phone)setTimeout(()=>sfx('item'),400);speak(phone?'电话来了！':'有人来了！');LOG(phone?'phone_ring':'door_knock',{k});setTimeout(()=>kb.remove(),45000)}}
   if(T-lastIdle>.8&&!idleHold&&!sheetOpen()&&!C&&!B&&!E&&S.mode!=='travel'){lastIdle=T;const k=nextTalk();if(k)runTalk(k);else if(evoQueue.length)runEvoQueue()}
   if(S.mode==='staying'&&!B&&T-lastHeal>3){lastHeal=T;for(const c of party()){const m=stats(c).maxhp;if(c.hp>0&&c.hp<m)c.hp=Math.min(m,c.hp+Math.ceil(m*.08))}}
@@ -10826,12 +10826,12 @@ function arrive(){S.place=travelTo;S.mode='arrived';S.spawned=0;wild=[];makeProp
   LOG('arrive',{place:PLACES[S.place].n,rw});{const z=ZP(PLACES[S.place].n);toast(`Arrived at ${PLACES[S.place].n} · 到达${z.zh} (dàodá ${z.py}). Found ${rwTxt(rw)}.`);holdIdle(window.speakAsync?speakAsync('到达'+z.zh):speak('到达'+z.zh))}save();updateUI()}
 
 function updateUI(){const p=PLACES[S.place];
-  document.getElementById('cOrbs').textContent=`${S.items.orb} orbs · 球 qiú`;
+  document.getElementById('cOrbs').textContent=`${S.items.orb} 球 qiú`;
   const cs=document.getElementById('cStreak');cs.hidden=(S.streak||0)<2;cs.textContent=`Streak ×${S.streak}`;
   document.getElementById('bRift').hidden=!riftHere();
   const rb=document.getElementById('bRaid');rb.hidden=!raidHere();if(raidHere()){const z=ZS(SP[S.raid.sp].n);rb.innerHTML=`Giant ${S.raid.shiny?'shiny ':''}${SP[S.raid.sp].n} raid · Lv ${S.raid.lvl} · Fight it!`+zw(`巨大的${z.zh}！开战！`,`jùdà de ${z.py}! kāi zhàn!`)}
-  document.getElementById('cBadges').textContent=`★ ${S.badges.filter(i=>!PLACES[i].rift).length}/${NORMAL.length} badges · 徽章 huīzhāng${S.badges.includes(6)?' + Rift':''}`;
-  document.getElementById('cDex').textContent=`${new Set(S.col.map(c=>c.sp)).size}/${SP.length} kinds · 种 zhǒng`;
+  document.getElementById('cBadges').textContent=`★ ${S.badges.filter(i=>!PLACES[i].rift).length}/${NORMAL.length} 徽章 huīzhāng${S.badges.includes(6)?' +✦':''}`;
+  document.getElementById('cDex').textContent=`${new Set(S.col.map(c=>c.sp)).size}/${SP.length} 种 zhǒng`;
   const st=document.getElementById('status'),m=document.getElementById('meter');
   const nextQ=Math.min(15,5+2*(S.stayed.length-(S.stayed.includes(S.place)?1:0)));
   if(S.mode==='travel'){st.innerHTML=(!PLACES[travelTo].rift&&!p.rift&&PLACES[travelTo].region!==p.region)?`<b>Flying to ${PLACES[travelTo].n}…</b>`:(PLACES[travelTo].rift||p.rift)?`<b>Warping to ${PLACES[travelTo].n}…</b>`:`<b>Traveling to ${PLACES[travelTo].n}…</b>`}
@@ -10841,7 +10841,7 @@ function updateUI(){const p=PLACES[S.place];
   else if(p.rift&&S.mode==='arrived'){m.style.width='0%';st.innerHTML=`<b>Starveil Rift</b> · shinies are common here`}
   else{m.style.width='0%';st.innerHTML=`<b>${p.n}</b> · stay and ${nextQ} creatures will come`}
   st.innerHTML=`<span class="en sten">${st.innerHTML}</span>`;
-  {const z=ZP(p.n);let zl='';if(S.mode==='travel'){const q2=PLACES[travelTo],zq=ZP(q2.n);zl=zw(`出发去${zq.zh}`,`chūfā qù ${zq.py}`)}else if(S.mode==='staying')zl=zw(`留在${z.zh}。生物会来找你！`,`liú zài ${z.py}. shēngwù huì lái zhǎo nǐ!`);else zl=zw(`你在${z.zh}。`,`nǐ zài ${z.py}.`);st.insertAdjacentHTML('beforeend',`<div class="zhline">${zl}</div>`)}
+  {const z=ZP(p.n);let zl='';if(S.mode==='travel'){const q2=PLACES[travelTo],zq=ZP(q2.n);zl=zw(`出发去${zq.zh}`,`chūfā qù ${zq.py}`)}else if(S.mode==='staying')zl=zw(`留在${z.zh}。生物会来找你！`,`liú zài ${z.py}. shēngwù huì lái zhǎo nǐ!`);else zl=zw(`你在${z.zh}。`,`nǐ zài ${z.py}.`);st.insertAdjacentHTML('beforeend',`<div class="zhline">${zl}</div>`);/* long place names: shrink the lines until the box fits (wrap the Chinese first, as the observer would) */try{biWrap(st)}catch(e){}const zle=st.lastElementChild,over=()=>{const bb=st.getBoundingClientRect().bottom;return [...st.querySelectorAll('*')].some(e=>e.getBoundingClientRect().bottom>bb+1)||st.scrollHeight>st.clientHeight+1};st.style.fontSize='';for(let k=1;k<5&&over();k++){if(k<3)zle.style.fontSize=(1-.08*k)+'em';else st.style.fontSize=(1-.06*(k-2))+'em'}}
   document.getElementById('bStay').disabled=S.mode!=='arrived';
   document.getElementById('bMove').disabled=S.mode==='travel';
   document.getElementById('bGym').disabled=S.mode==='travel'||!S.col.length;document.getElementById('bRaid').disabled=!S.col.length}
