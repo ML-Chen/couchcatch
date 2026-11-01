@@ -412,6 +412,8 @@ const PLACES=[
  {n:'San Francisco',key:'sanfrancisco',region:'California',sky:['#8fa7bd','#dfe7ee'],ground:'#7fa36a',hill:'#6b8a9e',amb:'leaves',prop:'none',types:['water','frost','spark'],leader:'Engineer Mae',lv:30},
  {n:'Yosemite',key:'yosemite',region:'California',sky:['#6fb2e8','#e3f3ff'],ground:'#7fae5a',hill:'#9aa6ad',amb:'leaves',prop:'none',types:['stone','leaf','frost'],leader:'Ranger Elm',lv:34},
 ];
+// Asia regions (Hong Kong, Thailand, Singapore) are appended here from places_asia.js
+//@@PLACES_ASIA@@
 const REGIONS=['Home','California'];
 const NORMAL=PLACES.map((p,i)=>p.rift?-1:i).filter(i=>i>=0);
 
@@ -569,7 +571,7 @@ const GRASS=Array.from({length:26},(_,i)=>({x:(i*0.457)%1,y:.5+((i*0.291)%1)*.48
 const PAINT={};
 function painted(key,w,h){const d=devicePixelRatio||1,id=key+'|'+Math.round(w)+'x'+Math.round(h)+'@'+d;if(PAINT[id])return PAINT[id];
   const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(w*d));cv.height=Math.max(1,Math.round(h*d));const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);
-  try{SCENES[key].paint(c,w,h)}catch(e){console.error(e)}const ks=Object.keys(PAINT);if(ks.length>24)delete PAINT[ks[0]];return PAINT[id]=cv}
+  try{SCENES[key].paint(c,w,h)}catch(e){console.error(e)}const ks=Object.keys(PAINT);if(ks.length>48)delete PAINT[ks[0]];return PAINT[id]=cv}
 function hasScene(p){return!!(window.SCENES&&p&&p.key&&SCENES[p.key]&&SCENES[p.key].paint)}
 function bg(ctx,w,h,p,full=h){if(hasScene(p)){ctx.drawImage(painted(p.key,w,full),0,0,w,full);try{SCENES[p.key].overlay&&SCENES[p.key].overlay(ctx,w,full,T)}catch(e){}return}
   bgOld(ctx,w,h,p,full)}
@@ -700,7 +702,7 @@ function cloudStrip(w,h,seed,tint,shade,density){const key=[w,h,seed,tint].join(
   // wrap seam: copy left edge to right
   c.fillStyle='rgba(0,0,0,0)';return FLY[key]=cv}
 function drawFlight(ctx,w,h,T,p,dest){
-  const warm=dest.region==='California';const k=Math.min(1,p*1.2);
+  const warm=dest.region!=='Home';const k=Math.min(1,p*1.2);
   const g=ctx.createLinearGradient(0,0,0,h);const top=warm?['#2c5fa8','#4a7cc4'][0]:'#2f5d9e';
   g.addColorStop(0,top);g.addColorStop(.45,warm?`rgb(${120+80*k|0},${170+30*k|0},${230-40*k|0})`:'#8fb8e6');g.addColorStop(.75,warm?`rgb(255,${214-20*k|0},${170-40*k|0})`:'#dcebf8');g.addColorStop(1,'#f6f1ea');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
   // sun with bloom
@@ -755,7 +757,7 @@ function drawRoad(ctx,w,h,T,pl){const hy=h*.47,vx=w*.5,speed=7;
   // haze where the road meets the horizon
   const hz=ctx.createLinearGradient(0,hy-h*.02,0,hy+h*.08);hz.addColorStop(0,'rgba(230,225,215,.5)');hz.addColorStop(1,'rgba(230,225,215,0)');ctx.fillStyle=hz;ctx.fillRect(0,hy-h*.02,w,h*.1);
   // roadside trees/palms/posts passing by (far to near)
-  const palm=pl.region==='California',pine=pl.prop==='pine',items=[];
+  const palm=pl.region==='California'||!!pl.palm,pine=pl.prop==='pine',items=[];
   for(let i=0;i<14;i++){const z=((i*1.7-T*speed*.5)%24+24)%24+.7;for(const s of[-1,1])items.push({z,s,i})}
   items.sort((a,b)=>b.z-a.z);
   for(const it of items){const z=it.z,y=zY(z),x=vx+it.s*(half(z)*1.35+w*.25/z),sc=h*.9/z;if(y<hy||x<-sc||x>w+sc)continue;ctx.globalAlpha=Math.min(1,(24-z)/6);
@@ -777,7 +779,7 @@ function startStay(){if(S.mode!=='arrived')return;
   if(!S.raid){S.staysNoRaid++;if(Math.random()<.35||S.staysNoRaid>=3){S.staysNoRaid=0;S.raid=pickBoss();raidAt=T+R(5,9)}}
   for(const c of S.col)c.hp=stats(c).maxhp;
   toast(`Staying at ${PLACES[S.place].n}. Your team rested.`);save();updateUI()}
-async function travel(i){close('sMap');if(i===S.place)return;{const from=PLACES[S.place],to=PLACES[i];if(!from.rift&&!to.rift&&from.region!==to.region){const ak=to.region==='California'?'airport_out':'airport_home';if(hasTalk(ak)){const ok=await runTalk(ak);if(!ok)return}}}LOG('travel',{from:PLACES[S.place].n,to:PLACES[i].n});if(S.rift&&S.rift.place===S.place&&!S.rift.story)S.rift=null;if(S.raid){const was=raidHere();S.raid=null;if(was)toast('You left, so the raid ended.')}
+async function travel(i){close('sMap');if(i===S.place)return;{const from=PLACES[S.place],to=PLACES[i];if(!from.rift&&!to.rift&&from.region!==to.region){const ak=(window.AIRPORT_TALK&&AIRPORT_TALK(from,to))||(to.region==='California'?'airport_out':'airport_home');if(hasTalk(ak)){const ok=await runTalk(ak);if(!ok)return}}}LOG('travel',{from:PLACES[S.place].n,to:PLACES[i].n});if(S.rift&&S.rift.place===S.place&&!S.rift.story)S.rift=null;if(S.raid){const was=raidHere();S.raid=null;if(was)toast('You left, so the raid ended.')}
   {const kb=document.getElementById('knock');if(kb)kb.remove()}travelTo=i;travelT=0;S.mode='travel';wild=[];roadSpawns=(PLACES[i].rift||PLACES[S.place].rift)?[]:[{at:.3},{at:.65}];makeProps(i);save();updateUI()}
 function arrive(){S.place=travelTo;S.mode='arrived';S.spawned=0;wild=[];makeProps(S.place);
   // the place's welcome chat is owed until it has been played through (see owedTalks), so a reload never loses it
@@ -842,7 +844,7 @@ let toastTimer;function toast(msg){const t=document.getElementById('toast');t.te
 document.getElementById('bStay').onclick=startStay;
 document.getElementById('bMove').onclick=()=>{const L=document.getElementById('mapList');L.innerHTML='';
   let lastReg=null;PLACES.forEach((p,i)=>{if(p.rift&&i!==S.place)return;if(p.region!==lastReg){lastReg=p.region;const hh=document.createElement('div');hh.className='reghead';const fl=p.region!==PLACES[S.place].region&&!PLACES[S.place].rift?' · flight 飞行 fēixíng':''; // leaving the Rift is a warp, not a flight
-      hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+fl:'Home · 家乡 jiāxiāng'+fl;L.appendChild(hh)}const c=document.createElement('div');c.className='card';
+      hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+fl:(window.REGION_LABEL||{})[p.region]?REGION_LABEL[p.region]+fl:'Home · 家乡 jiāxiāng'+fl;L.appendChild(hh)}const c=document.createElement('div');c.className='card';
     // name in Chinese with pinyin, English and levels under it, then the creature types (no awkward wrapping on narrow phones)
     const z=ZP(p.n);c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||p.n}</b><span class="tpy">${z.py}</span>${S.badges.includes(i)?'<span class="mbadge">★</span>':''}</div><div class="ten">${p.n} · Lv ${wildRange(i).join('–')}</div><div class="tmeta">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join('')}</div></div>`;
     const b=document.createElement('button');b.className='small'+(i===S.place?'':' big');b.textContent=i===S.place?'Here':'Go';b.disabled=i===S.place;b.onclick=()=>travel(i);c.appendChild(b);L.appendChild(c)});L.querySelectorAll('canvas.mapthumb').forEach(cv=>{try{const pl=PLACES[+cv.dataset.place],d=devicePixelRatio||1;cv.width=92*d;cv.height=62*d;const cx=cv.getContext('2d');cx.setTransform(d,0,0,d,0,0);if(hasScene(pl))cx.drawImage(painted(pl.key,160,108),0,0,160,108,0,0,92,62);else bgOld(cx,92,62,pl)}catch(e){}});open('sMap')};
@@ -1517,6 +1519,9 @@ connectCloud();
 </script>
 <script>
 //@@DEX@@
+</script>
+<script>
+//@@ASIA@@
 </script>
 <style>/*@@THEME@@*/
 .ptiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px}.pt{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border-radius:14px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);text-align:center}

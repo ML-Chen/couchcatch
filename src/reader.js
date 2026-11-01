@@ -72,7 +72,7 @@ $('rdDone').onclick=()=>{if(!cur)return closeReading();const {r,fresh}=cur;S.rea
 window.openReading=openReading;
 // ---- papers lying around in the scene ----
 let paper=null,nextAt=null;
-function placeTag(){const p=PLACES[S.place];if(p.rift)return['rift'];return[p.region==='California'?p.n:'home',p.key,p.n,p.region].filter(Boolean)}
+function placeTag(){const p=PLACES[S.place];if(p.rift)return['rift'];return[p.region==='Home'?'home':p.n,p.key,p.n,p.region].filter(Boolean)}
 function pickReading(){const read=S.read||{},nRead=Object.keys(read).length,tags=placeTag();
   const ok=r=>(r.level||1)<=(window.isYoung&&isYoung()?1:nRead>=10?3:nRead>=4?2:1)&&(!r.place||tags.includes(r.place))&&(!r.chapter||((S.story&&S.story.ch)||0)>=r.chapter);
   let pool=READINGS.filter(r=>ok(r)&&!read[r.id]);

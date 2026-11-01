@@ -19,7 +19,9 @@ const HAN = /[㐀-鿿]/;
 const BASE_FILES = ['vocab.js', 'phrases.js', 'zh_names.js'];
 // ...plus every dialogues*.js in the game root (dialogues.js, dialogues_a.js, dialogues_b.js, ...).
 // every *dialogues*.js (dialogues.js, story_dialogues.js, ...) and the graded-reader texts
-const files = root => BASE_FILES.concat(fs.readdirSync(root).filter(f => /dialogues.*\.js$/.test(f)).sort(), ['readings.js', 'story_readings.js'].filter(f => fs.existsSync(path.join(root, f))));
+// places_*.js add place names to ZH_PLACES; *readings*.js are the graded readers (readings.js first: it creates READINGS)
+const files = root => BASE_FILES.concat(fs.readdirSync(root).filter(f => /^places_.*\.js$/.test(f)).sort(), fs.readdirSync(root).filter(f => /dialogues.*\.js$/.test(f)).sort(),
+  ['readings.js'].concat(fs.readdirSync(root).filter(f => /readings.*\.js$/.test(f) && f !== 'readings.js').sort()).filter(f => fs.existsSync(path.join(root, f))));
 
 function loadGame(root) {
   const sb = { console: { log() {}, warn() {}, error() {} }, setTimeout() {}, document: undefined };
