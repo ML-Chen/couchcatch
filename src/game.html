@@ -637,12 +637,16 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
   for(let i=0;i<wild.length;i++)for(let j=i+1;j<wild.length;j++){const a=wild[i],b=wild[j];if(a.road||b.road)continue;const dx=a.x-b.x,dy=(a.y-b.y)*1.6,d=Math.hypot(dx,dy);if(d<.16){const f=(.16-d)*dt*.8*(dx<0?-1:1);a.x=Math.min(.9,Math.max(.1,a.x+f));b.x=Math.min(.9,Math.max(.1,b.x-f));if(d<.06){a.vx=Math.abs(a.vx||.02)*(dx<0?-1:1);b.vx=-a.vx}}}
   for(const wd of wild){wd.x+=wd.vx*dt;if(!wd.road&&(wd.x<.1||wd.x>.9))wd.vx=Math.abs(wd.vx)*(wd.x<.5?1:-1);if(!wd.road&&Math.random()<.004)wd.vx=R(-.03,.03)}}
   if(S.mode!=='travel'&&window.Reader){try{Reader.frame(sctx,w,h)}catch(e){console.error(e)}}
-  for(const wd of [...wild].sort((a,b)=>a.y-b.y)){if(C&&C.wd===wd)continue;const pop=Math.min(1,(T-wd.born)*3);const s=h*.11*(.75+(wd.y-.55)*1.3)*pop;
+  const labs=[];for(const wd of [...wild].sort((a,b)=>a.y-b.y)){if(C&&C.wd===wd)continue;const pop=Math.min(1,(T-wd.born)*3);const s=h*.11*(.75+(wd.y-.55)*1.3)*pop;
     const age=T-wd.born;if(age<.8&&window.FX&&FX.spawnRing){try{FX.spawnRing(sctx,wd.x*w,wd.y*h,age/.8,s*1.6)}catch(e){}}else if(age<.8){const k=age/.8;sctx.strokeStyle=`rgba(255,240,170,${1-k})`;sctx.lineWidth=3;sctx.beginPath();sctx.ellipse(wd.x*w,wd.y*h,s*2.2*k+4,s*.6*k+2,0,0,7);sctx.stroke();
       for(let i=0;i<6;i++){const a=i*1.05+wd.ph;el(sctx,wd.x*w+Math.cos(a)*s*1.6*k,wd.y*h-s*.8-Math.sin(a)*s*1.2*k-k*s,3*(1-k)+.5,3*(1-k)+.5,'#fff6c2')}}
     dc(sctx,wd.sp,wd.x*w,wd.y*h,s,T,{ethereal:inRift(),shiny:wd.shiny,flip:wd.vx<0,ph:wd.ph,hop:Math.abs(Math.sin(T*5+wd.ph))*s*.15});
     const zz=ZS(SP[wd.sp].n),lab=(zz.zh?zz.zh+' ':'')+'Lv '+wd.lvl,lab2=zz.py||'';sctx.font=`700 ${Math.max(10,h*.032)}px 'Noto Sans SC',Manrope,sans-serif`;const tw=Math.max(sctx.measureText(lab).width,lab2?sctx.measureText(lab2).width*.85:0);
-    const lh=h*.042,bh=lab2?lh*1.85:lh;sctx.fillStyle='rgba(16,18,22,.62)';sctx.beginPath();sctx.roundRect(wd.x*w-tw/2-7,wd.y*h+4,tw+14,bh,6);sctx.fill();sctx.strokeStyle='rgba(255,255,255,.18)';sctx.lineWidth=1;sctx.stroke();sctx.fillStyle='#fff';sctx.textAlign='center';sctx.textBaseline='middle';sctx.fillText(lab,wd.x*w,wd.y*h+4+lh*.55);if(lab2){sctx.font=`600 ${Math.max(9,h*.027)}px Manrope,sans-serif`;sctx.fillStyle='rgba(255,255,255,.82)';sctx.fillText(lab2,wd.x*w,wd.y*h+4+lh*1.35)}}
+    const lh=h*.042;labs.push({x:wd.x*w,y:wd.y*h+4,tw,lh,bh:lab2?lh*1.85:lh,lab,lab2})}
+  // name tags go on top, and a tag that would cover another one moves down (or above its creature at the bottom edge)
+  {const placed=[];for(const L of labs){const hit=(y)=>placed.find(o=>Math.abs(o.x-L.x)<(o.tw+L.tw)/2+16&&y<o.y+o.bh+2&&y+L.bh+2>o.y);let y=L.y,o,n=0;while((o=hit(y))&&n++<8)y=o.y+o.bh+2;
+    if(y+L.bh>h-2){y=L.y-L.bh-h*.12;n=0;while((o=hit(y))&&n++<8)y=o.y-L.bh-2}L.y=y;placed.push(L)}
+  for(const L of labs){sctx.font=`700 ${Math.max(10,h*.032)}px 'Noto Sans SC',Manrope,sans-serif`;sctx.fillStyle='rgba(16,18,22,.62)';sctx.beginPath();sctx.roundRect(L.x-L.tw/2-7,L.y,L.tw+14,L.bh,6);sctx.fill();sctx.strokeStyle='rgba(255,255,255,.18)';sctx.lineWidth=1;sctx.stroke();sctx.fillStyle='#fff';sctx.textAlign='center';sctx.textBaseline='middle';sctx.fillText(L.lab,L.x,L.y+L.lh*.55);if(L.lab2){sctx.font=`600 ${Math.max(9,h*.027)}px Manrope,sans-serif`;sctx.fillStyle='rgba(255,255,255,.82)';sctx.fillText(L.lab2,L.x,L.y+L.lh*1.35)}}}
   if(S.mode!=='travel')for(const f of (window.SCENE_HOOKS||[])){try{f(sctx,w,h)}catch(e){console.error(e)}}
   if(S.mode!=='travel'&&ambOK(p))ambient(sctx,w,h,p);vignette(sctx,w,h);
   if(S.mode==='travel')document.getElementById('meter').style.width=(travelT*100)+'%';
@@ -843,7 +847,9 @@ function evoFrame(){if(!E)return;const {w,h,d}=sizeCanvas(ecv);ectx.setTransform
   if(el_<dur){const f=Math.pow(el_/dur,2)*22;const showNew=Math.sin(el_*f)>0&&el_>.6;const sp=showNew?E.to:E.from;
     for(let i=0;i<14;i++){const a=i/14*Math.PI*2+el_*1.5,r=w*.32*(1-(el_*.4+i*.07)%1);el(ectx,w/2+Math.cos(a)*r,h*.5+Math.sin(a)*r*.6,3,3,'#fff6c2')}
     dc(ectx,sp,w/2,h*.9,fitS(w,h,sp,.8),T,{silhouette:'#fff8de',awake:true})}
-  else{if(!E.done){E.done=true;const c=E.c,old=stats(c);c.sp=E.to;S.caught=[...new Set([...(S.caught||[]),E.to])];const nw=stats(c);c.hp=c.hp>0?Math.max(1,Math.round(c.hp/old.maxhp*nw.maxhp)):0;save();
+  else{if(!E.done){E.done=true;const c=E.c,old=stats(c);c.sp=E.to;S.caught=[...new Set([...(S.caught||[]),E.to])];const nw=stats(c);c.hp=c.hp>0?Math.max(1,Math.round(c.hp/old.maxhp*nw.maxhp)):0;
+      // already past the next stage's level too (e.g. a Lv 40 first stage): evolve again right after this one
+      {const ns=SP[c.sp];if(ns.next!=null&&c.lvl>=ns.evoLv&&!evoQueue.includes(c.id))evoQueue.unshift(c.id)}save();
       document.getElementById('eTitle').textContent='Evolution complete';{const a=ZS(SP[E.from].n),b2=ZS(SP[E.to].n);document.getElementById('elog').innerHTML=`${SP[E.from].n} evolved into ${SP[E.to].n}!`+zw(`${a.zh}进化成了${b2.zh}！`,`${a.py} jìnhuà chéng le ${b2.py}!`);speak(`${a.zh}进化成了${b2.zh}！`)}document.getElementById('bEvoOk').hidden=false;document.getElementById('bEvoOk').focus()}
     const k=Math.min(1,(el_-dur)*3);el(ectx,w/2,h*.55,w*.5*(1-k)+1,w*.5*(1-k)+1,`rgba(255,250,220,${1-k})`);
     dc(ectx,E.to,w/2,h*.9,fitS(w,h,E.to,.8),T,{awake:true,shiny:E.c.shiny})}
@@ -1027,9 +1033,12 @@ function giantFX(ctx,w,h,stage){const g=B.grow;if(!g||!B.pos)return;const k=(T-g
   // shockwave rings on the ground
   if(k>.4&&k<1.2){for(const d of[0,.12]){const q=(k-.4-d)/.7;if(q<0||q>1)continue;ctx.strokeStyle=`rgba(255,140,200,${1-q})`;ctx.lineWidth=4*(1-q)+1;ctx.beginPath();ctx.ellipse(x,feet,s*.5+q*w*.5,(s*.5+q*w*.5)*.22,0,0,7);ctx.stroke()}}
   // screen shake
-  if(k>.38&&k<.75){const a=(1-(k-.38)/.37)*6;bcv.style.transform=`translate(${(Math.random()-.5)*a}px,${(Math.random()-.5)*a}px)`}else bcv.style.transform='';
+
   if(window.FX&&FX.crit&&k>.4&&k<.9)try{FX.crit(ctx,x,y,(k-.4)/.5,s*1.4)}catch(e){}}
-function battleFrame(){if(!B)return;const {w,h,d}=sizeCanvas(bcv);bctx.setTransform(d,0,0,d,0,0);bg(bctx,w,h,PLACES[S.place]);
+// the screen shake when something goes Giant happens inside the canvas (a slight zoom hides the edges), so the sheet never gets wider than the screen
+function giantShake(){const g=B&&B.grow;if(!g)return 0;const k=(T-g.t0)/1.5;return k>.38&&k<.75?(1-(k-.38)/.37)*6:0}
+function battleFrame(){if(!B)return;const {w,h,d}=sizeCanvas(bcv);const sa=giantShake();
+  if(sa){const z=1.03;bctx.setTransform(d*z,0,0,d*z,d*(w*(1-z)/2+(Math.random()-.5)*sa),d*(h*(1-z)/2+(Math.random()-.5)*sa))}else bctx.setTransform(d,0,0,d,0,0);bg(bctx,w,h,PLACES[S.place]);
   if((window.FX&&FX.attack)){try{FX.platform(bctx,w*.72,h*.52,w*.22,h*.07,PLACES[S.place].ground);FX.platform(bctx,w*.28,h*.92,w*.24,h*.08,PLACES[S.place].ground)}catch(e){}}else{el(bctx,w*.72,h*.52,w*.22,h*.07,'rgba(255,255,255,.18)','rgba(255,255,255,.35)',2);el(bctx,w*.28,h*.92,w*.24,h*.08,'rgba(255,255,255,.18)','rgba(255,255,255,.35)',2)}
   const foe=B.foes[Math.min(B.fi,B.foes.length-1)],me=party()[B.pi];
   const shk=t0=>T-t0<.35?Math.sin((T-t0)*60)*8:0,lun=t0=>T-t0<.3?Math.sin((T-t0)/.3*Math.PI)*30:0;
