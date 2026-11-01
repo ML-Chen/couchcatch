@@ -605,8 +605,10 @@ let last=0;
 function frame(ts){requestAnimationFrame(frame);try{sceneFrame(ts)}catch(e){console.error(e)}}
 function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,h,d}=sizeCanvas(scene);sctx.setTransform(d,0,0,d,0,0);
   const p=PLACES[S.place];
+  // a trip (and the creatures crossing the road) waits while a trace, a catch or any sheet is open
+  const paused=S.mode==='travel'&&sheetOpen()!==null;
   if(S.mode==='travel'){
-    const q=PLACES[travelTo],fly=!q.rift&&!p.rift&&q.region!==p.region;if(sheetOpen()===null)travelT+=dt/(fly?9:6);
+    const q=PLACES[travelTo],fly=!q.rift&&!p.rift&&q.region!==p.region;if(!paused)travelT+=dt/(fly?9:6);
     if(fly){drawFlight(sctx,w,h,T,travelT,q);if(travelT>=1)arrive()}else
     if(q.rift||p.rift){sctx.fillStyle='#0b0626';sctx.fillRect(0,0,w,h);
       for(let i=0;i<14;i++){const k=((T*.6+i/14)%1),r=k*k*w*.9;sctx.strokeStyle=['#b48cff','#5fe3ff','#ff8ce0'][i%3];sctx.globalAlpha=k*(1-k)*2.5;sctx.lineWidth=2+k*6;sctx.beginPath();sctx.ellipse(w/2,h/2,r,r*.7,0,0,7);sctx.stroke()}
@@ -627,9 +629,9 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
   if(S.mode==='staying'&&!sheetOpen()&&!C&&!B&&T-lastVisit>150&&typeof DIALOGUES!=='undefined'&&!document.getElementById('knock')){lastVisit=T;const phone=Math.random()<.5,keys=Object.keys(DIALOGUES).filter(k=>k.startsWith(phone?'phone_':'visit_'));if(keys.length){const wt=k=>/grand/.test(k)?3:1,k=(()=>{const pool=keys.map(k=>({k,w:wt(k)/(1+((S.talked||{})[k]||0))}));let r=Math.random()*pool.reduce((s,x)=>s+x.w,0);for(const x of pool){r-=x.w;if(r<=0)return x.k}return pool[0].k})();const kb=document.createElement('button');kb.id='knock';kb.className='raid knock';kb.innerHTML=phone?'Your phone is ringing!'+zw('电话来了！','diànhuà lái le!'):'Someone is at the door!'+zw('有人来了！','yǒu rén lái le!');kb.onclick=()=>{kb.remove();if(S.mode!=='travel'&&!B&&!C)runTalk(k)};document.getElementById('banners').appendChild(kb);sfx(phone?'item':'spawn');if(phone)setTimeout(()=>sfx('item'),400);speak(phone?'电话来了！':'有人来了！');LOG(phone?'phone_ring':'door_knock',{k});setTimeout(()=>kb.remove(),45000)}}
   if(T-lastIdle>.8&&!idleHold&&!sheetOpen()&&!C&&!B&&!E&&S.mode!=='travel'){lastIdle=T;const k=nextTalk();if(k)runTalk(k);else if(evoQueue.length)runEvoQueue()}
   if(S.mode==='staying'&&!B&&T-lastHeal>3){lastHeal=T;for(const c of party()){const m=stats(c).maxhp;if(c.hp>0&&c.hp<m)c.hp=Math.min(m,c.hp+Math.ceil(m*.08))}}
-  wild=wild.filter(wd=>!(wd.road&&wd.x<-.15));
+  if(!paused){wild=wild.filter(wd=>!(wd.road&&wd.x<-.15));
   for(let i=0;i<wild.length;i++)for(let j=i+1;j<wild.length;j++){const a=wild[i],b=wild[j];if(a.road||b.road)continue;const dx=a.x-b.x,dy=(a.y-b.y)*1.6,d=Math.hypot(dx,dy);if(d<.16){const f=(.16-d)*dt*.8*(dx<0?-1:1);a.x=Math.min(.9,Math.max(.1,a.x+f));b.x=Math.min(.9,Math.max(.1,b.x-f));if(d<.06){a.vx=Math.abs(a.vx||.02)*(dx<0?-1:1);b.vx=-a.vx}}}
-  for(const wd of wild){wd.x+=wd.vx*dt;if(!wd.road&&(wd.x<.1||wd.x>.9))wd.vx=Math.abs(wd.vx)*(wd.x<.5?1:-1);if(!wd.road&&Math.random()<.004)wd.vx=R(-.03,.03)}
+  for(const wd of wild){wd.x+=wd.vx*dt;if(!wd.road&&(wd.x<.1||wd.x>.9))wd.vx=Math.abs(wd.vx)*(wd.x<.5?1:-1);if(!wd.road&&Math.random()<.004)wd.vx=R(-.03,.03)}}
   if(S.mode!=='travel'&&window.Reader){try{Reader.frame(sctx,w,h)}catch(e){console.error(e)}}
   for(const wd of [...wild].sort((a,b)=>a.y-b.y)){if(C&&C.wd===wd)continue;const pop=Math.min(1,(T-wd.born)*3);const s=h*.11*(.75+(wd.y-.55)*1.3)*pop;
     const age=T-wd.born;if(age<.8&&window.FX&&FX.spawnRing){try{FX.spawnRing(sctx,wd.x*w,wd.y*h,age/.8,s*1.6)}catch(e){}}else if(age<.8){const k=age/.8;sctx.strokeStyle=`rgba(255,240,170,${1-k})`;sctx.lineWidth=3;sctx.beginPath();sctx.ellipse(wd.x*w,wd.y*h,s*2.2*k+4,s*.6*k+2,0,0,7);sctx.stroke();
@@ -837,7 +839,7 @@ document.getElementById('bEvoOk').onclick=()=>{E=null;document.getElementById('s
 // ---------- catching: drag-and-flick orb throw ----------
 const ccv=document.getElementById('ccv'),cctx=ccv.getContext('2d');
 const RING_MIN=.3;
-function openCatch(wd){if(C)return;LOG('catch_open',{sp:SP[wd.sp].n,lvl:wd.lvl,shiny:!!wd.shiny,raid:!!wd.raid});C={throws:0,berry:false,kind:pickKind(),wd,phase:'aim',t0:T,drag:null,orb:null,spin:0,turn:0,curve:0,dodge:R(0,6),visible:true,msgT:0,parts:[]};
+function openCatch(wd){if(C||!wd||(!wd.raid&&!wild.includes(wd)))return;LOG('catch_open',{sp:SP[wd.sp].n,lvl:wd.lvl,shiny:!!wd.shiny,raid:!!wd.raid});C={throws:0,berry:false,kind:pickKind(),wd,phase:'aim',t0:T,drag:null,orb:null,spin:0,turn:0,curve:0,dodge:R(0,6),visible:true,msgT:0,parts:[]};
   const z=ZS(SP[wd.sp].n),wname=(wd.raid?'巨大的':'野生的')+z.zh,wpy=(wd.raid?'jùdà de ':'yěshēng de ')+z.py;
   document.getElementById('catchTitle').innerHTML=`<span class="ctz" data-say="${wname}">${wname}${wd.shiny?' <b class="ctag">★</b>':''}${SP[wd.sp].leg?' <b class="ctag">传说</b>':''}</span><span class="ctp">${wpy}</span><span class="cte">${wd.raid?'Giant':'Wild'} ${SP[wd.sp].n} · Lv ${wd.lvl}${wd.shiny?' · Shiny':''}${SP[wd.sp].leg?' · Legendary':''}</span>`;if(wd.shiny)sfx('shiny');if(SP[wd.sp].leg)sfx('legend');
   msg(orbsLeft()?'Drag the orb up and let go.':'You are out of orbs. Travel to a place to find more.');updOrbs();renderSpell();
