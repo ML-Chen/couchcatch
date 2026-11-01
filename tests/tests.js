@@ -935,9 +935,10 @@ module.exports = [
         const done = document.getElementById('rdDone'); if (!done.hidden) { if (done.getBoundingClientRect().bottom > innerHeight + 1) bad.push(`reading ${rd.id}: Done below the screen`); break; }
         document.getElementById('rdNext').click(); await sleep(5); }
       document.getElementById('rdClose').click(); }
-    const st = document.getElementById('status');
-    for (let f = 0; f < PLACES.length; f++) for (let t = 0; t < PLACES.length; t++) { if (f === t) continue; S.place = f; travelTo = t; S.mode = 'travel'; updateUI(); if (over(st)) bad.push(`status cut: ${PLACES[f].n} to ${PLACES[t].n}`); }
-    for (const m of ['arrived', 'staying']) for (let f = 0; f < PLACES.length; f++) { S.place = f; S.mode = m; S.spawned = 3; S.stayed = [0, 1, 2, 3, 4, 5]; updateUI(); if (over(st)) bad.push(`status cut: ${m} at ${PLACES[f].n}`); }
+    // the status box clips: everything in it must end above its bottom edge (measured on the elements after the bilingual wrapper ran)
+    const st = document.getElementById('status'), cut = () => { const b = st.getBoundingClientRect().bottom; let lb = 0; for (const e of st.querySelectorAll('*')) { const r = e.getBoundingClientRect(); if (r.height) lb = Math.max(lb, r.bottom); } return over(st) || lb > b + 1; };
+    for (let f = 0; f < PLACES.length; f++) for (let t = 0; t < PLACES.length; t++) { if (f === t) continue; S.place = f; travelTo = t; S.mode = 'travel'; updateUI(); await sleep(0); if (cut()) bad.push(`status cut: ${PLACES[f].n} to ${PLACES[t].n}`); }
+    for (const m of ['arrived', 'staying']) for (let f = 0; f < PLACES.length; f++) { S.place = f; S.mode = m; S.spawned = 3; S.stayed = [0, 1, 2, 3, 4, 5]; updateUI(); await sleep(0); if (cut()) bad.push(`status cut: ${m} at ${PLACES[f].n}`); }
     S.mode = 'arrived'; S.place = 0; S.stayed = [0]; updateUI();
     for (let i = 0; i < PLACES.length; i++) { S.place = i; S.badges = [i]; startGym(); await sleep(10); const h = document.getElementById('bTitle'); if (h.scrollWidth > h.clientWidth + 1) bad.push('battle title cut: ' + h.textContent);
       if (i === 0) { toast('A toast in a battle'); below('battle', '#sBattle [data-toast]'); } B = null; close('sBattle'); }

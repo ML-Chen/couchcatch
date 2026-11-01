@@ -764,7 +764,7 @@ function updateUI(){const p=PLACES[S.place];
   else if(S.mode==='staying'){const q=quota();m.style.width=(S.spawned/q*100)+'%';
     st.innerHTML=S.spawned<q?`<b>Staying at ${p.n}</b> · ${S.spawned} of ${q} creatures`:
       wild.length?`<b>All ${q} creatures are here!</b>`:`<b>${p.n} is quiet now.</b> Move on for more.`}
-  else if(p.rift&&S.mode==='arrived'){m.style.width='0%';st.innerHTML=`<b>Starveil Rift</b> · shinies and legendaries are common here`}
+  else if(p.rift&&S.mode==='arrived'){m.style.width='0%';st.innerHTML=`<b>Starveil Rift</b> · shinies are common here`}
   else{m.style.width='0%';st.innerHTML=`<b>${p.n}</b> · stay and ${nextQ} creatures will come`}
   st.innerHTML=`<span class="en sten">${st.innerHTML}</span>`;
   {const z=ZP(p.n);let zl='';if(S.mode==='travel'){const q2=PLACES[travelTo],zq=ZP(q2.n);zl=zw(`出发去${zq.zh}`,`chūfā qù ${zq.py}`)}else if(S.mode==='staying')zl=zw(`留在${z.zh}。生物会来找你！`,`liú zài ${z.py}. shēngwù huì lái zhǎo nǐ!`);else zl=zw(`你在${z.zh}。`,`nǐ zài ${z.py}.`);st.insertAdjacentHTML('beforeend',`<div class="zhline">${zl}</div>`)}
