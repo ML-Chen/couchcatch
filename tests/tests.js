@@ -485,6 +485,24 @@ module.exports = [
   await T.until(() => wild.length >= 1, null, 'play continues: a creature arrives', 5000);
 }},
 
+{name: '14b every conversation and reading line plays from recordings, never the device voice', fn: async T => {
+  const r = await T.ev(() => {
+    const lines = [];
+    const walk = (node, where) => { if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) { node.forEach((x, i) => walk(x, where)); return; }
+      if (node.ok === false) return; // wrong options are never shown, so never spoken
+      if (typeof node.zh === 'string' && /[\u3400-\u9fff]/.test(node.zh)) lines.push([where, node.zh]);
+      for (const [k, v] of Object.entries(node)) if (k !== 'zh') walk(v, where); };
+    for (const [id, d] of Object.entries(window.DIALOGUES || {})) walk(d, 'dialogue ' + id);
+    for (const rd of [].concat(window.READINGS || [])) for (const l of rd.lines || []) lines.push(['reading ' + rd.id, l.w.map(t => t[0]).join('')]);
+    const plans = {}; const device = [];
+    for (const [where, zh] of lines) { const p = zhPlan(zh); plans[p] = (plans[p] || 0) + 1; if (p === 'device') device.push(where + ': ' + zh); }
+    return {n: lines.length, plans, device: device.slice(0, 20), nDevice: device.length};
+  });
+  T.note(r.n + ' lines: ' + JSON.stringify(r.plans));
+  T.ok(r.n > 500, 'found the conversation and reading lines (' + r.n + ')');
+  T.ok(!r.nDevice, r.nDevice + ' lines would use the device voice: ' + r.device.join(' / '));
+}},
 {name: '14 Chinese audio: ZH_AUDIO has 你好 and every species name', fn: async T => {
   const r = await T.ev(async () => {
     const norm = s => String(s).replace(/[\s，。！？、…!?,.·:：；;"“”'‘’()（）「」\-—]/g, '');

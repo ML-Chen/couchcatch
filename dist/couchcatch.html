@@ -11310,8 +11310,10 @@ const norm=s=>String(s).replace(/[\s，。！？、…!?,.·:：；;"“”'‘�
 let NIDX=null;
 function nidx(){if(NIDX)return NIDX;NIDX={};if(typeof ZH_AUDIO!=='undefined')for(const k in ZH_AUDIO)NIDX[norm(k)]=k;return NIDX}
 function clip(s){if(typeof ZH_AUDIO==='undefined')return null;const k=nidx()[norm(s)];return k?ZH_AUDIO[k]:null}
-// split text into the fewest known clips (whole sentence first)
-function pieces(text){const out=[];for(const part of String(text).split(/[，。！？、…!?,.·:：；;「」]+/).filter(x=>norm(x))){
+// the text's clauses, split at punctuation ("我很好！你呢？" -> ["我很好", "你呢"])
+const clauses=text=>String(text).split(/[，。！？、…!?,.·:：；;「」]+/).filter(x=>norm(x));
+// split text into the fewest known clips: the whole line if it was recorded as one clip, else clause by clause, else word by word
+function pieces(text){if(clip(text))return[String(text)];const out=[];for(const part of clauses(text)){
   if(clip(part)){out.push(part);continue}const p=norm(part);let i=0;
   while(i<p.length){let f=null;for(let j=p.length;j>i;j--){if(clip(p.slice(i,j))){f=p.slice(i,j);break}}if(f){out.push(f);i+=f.length}else{out.push(null);i++}}}return out}
 let tok=0,cur=null,AC=null,live=[];const BUF={};
@@ -11335,9 +11337,11 @@ window.stopSpeech=()=>{tok++;stopAll()};
 window.speakAsync=function(zh){return new Promise(async res=>{try{
   if(!zh||S.zhVoice===false){setTimeout(res,250);return}
   const my=++tok;stopAll();const ps=pieces(zh),known=ps.filter(Boolean),whole=ps.length===1&&known.length===1;
+  // every clause has its own whole recording (e.g. "火，火山"): play them one after another with a natural pause
+  const byClause=!whole&&clauses(zh).every(c=>clip(c));
   const dev=window.speechSynthesis&&typeof zhVoice!=='undefined'&&zhVoice;
-  // a whole-sentence recording plays as is; anything else goes to the device's Chinese voice when there is one (fluent, no stitching)
-  if(!whole&&dev){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(zh);u.lang='zh-CN';u.voice=zhVoice;u.rate=.85;let fin=false;const end=()=>{if(fin)return;fin=true;res()};u.onend=end;u.onerror=end;speechSynthesis.speak(u);setTimeout(end,900+zh.length*330);return}catch(e){}}
+  // recordings play as is; only lines that would need word-by-word stitching go to the device's Chinese voice (fluent, but robotic)
+  if(!whole&&!byClause&&dev){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(zh);u.lang='zh-CN';u.voice=zhVoice;u.rate=.85;let fin=false;const end=()=>{if(fin)return;fin=true;res()};u.onend=end;u.onerror=end;speechSynthesis.speak(u);setTimeout(end,900+zh.length*330);return}catch(e){}}
   if(!known.length||ps.some(x=>!x)){ // no recording: browser voice if it has one
     try{if(window.speechSynthesis&&typeof zhVoice!=='undefined'&&zhVoice){const u=new SpeechSynthesisUtterance(zh);u.lang='zh-CN';u.voice=zhVoice;u.rate=.85;u.onend=()=>res();u.onerror=()=>res();speechSynthesis.speak(u);setTimeout(res,600+zh.length*320);return}}catch(e){}
     setTimeout(res,300);return} // never play half a sentence: wait for its recording instead
@@ -11347,10 +11351,12 @@ window.speakAsync=function(zh){return new Promise(async res=>{try{
     let t0=c.currentTime+.02;const many=bufs.length>1;for(const b of bufs){const [st,en]=many?trim(b):[0,b.duration],dur=Math.max(.05,en-st);
       const s=c.createBufferSource();s.buffer=b;const g=c.createGain();s.connect(g);g.connect(c.destination);
       if(many){g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(1,t0+.012);g.gain.setValueAtTime(1,t0+dur-.02);g.gain.linearRampToValueAtTime(0,t0+dur)}
-      s.start(t0,st,dur);live.push(s);t0+=dur+(many?.03:.04)}
+      s.start(t0,st,dur);live.push(s);t0+=dur+(byClause?.16:many?.03:.04)}
     const ms=(t0-c.currentTime)*1000;setTimeout(()=>{if(my===tok)live=[];res()},ms+40);return}
   // last resort: HTML audio, one after another
   let i=0;const next=()=>{if(my!==tok||i>=known.length){res();return}const a=new Audio(clip(known[i++]));cur=a;let d=false;const go=()=>{if(d)return;d=true;next()};a.onended=go;a.onerror=go;setTimeout(go,4500);const pr=a.play();if(pr&&pr.catch)pr.catch(go)};next()}catch(e){res()}})};
+// how a line will sound: 'whole' (one recording), 'clauses' (one recording per clause), or 'device' (device voice / word stitching); used by the tests
+window.zhPlan=function(zh){const ps=pieces(zh),whole=ps.length===1&&!!ps[0];return whole?'whole':clauses(zh).every(c=>clip(c))?'clauses':'device'};
 // make the old speak() use the new player too
 window.speak=function(zh){speakAsync(zh)};
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
