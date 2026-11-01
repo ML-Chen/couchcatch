@@ -1,27 +1,38 @@
-# Creates a GitHub Release for the Android app when a tag like android-v1.0 is pushed.
-# Tags can only be pushed by people with write access to this repository. The workflow attaches the APK that is
-# committed at android/release/couchcatch.apk, after checking it against the SHA-256 in android/release/CHECKSUMS.txt.
+# Attaches the Android APK to a GitHub Release whose tag starts with android-v.
+# Start it by publishing a release on GitHub (Releases > Draft a new release > tag android-v1.0 > Publish),
+# or by pushing such a tag. Only people with write access to this repository can do either.
+# The APK attached is the one committed at android/release/couchcatch.apk, checked against CHECKSUMS.txt first.
 name: Release Android APK
 on:
+  release:
+    types: [published]
   push:
     tags: ['android-v*']
 permissions:
   contents: write
 jobs:
   release:
-    if: github.repository == 'ML-Chen/couchcatch'
+    if: github.repository == 'ML-Chen/couchcatch' && startsWith(github.event.release.tag_name || github.ref_name, 'android-v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
       - name: Check the APK against its recorded checksum
         run: |
           sum="$(sha256sum android/release/couchcatch.apk | cut -d' ' -f1)"
           grep -q "$sum" android/release/CHECKSUMS.txt || { echo "::error::couchcatch.apk does not match CHECKSUMS.txt"; exit 1; }
-      - name: Create the release with the APK attached
+      - name: Attach the APK (and the notes, if the release has none)
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" android/release/couchcatch.apk \
-            --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "Couchcatch for Android ${GITHUB_REF_NAME#android-v}" \
-            --notes-file android/release/NOTES.md
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" android/release/couchcatch.apk --repo "$GITHUB_REPOSITORY" --clobber
+            if [ -z "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body)" ]; then
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file android/release/NOTES.md
+            fi
+          else
+            gh release create "$TAG" android/release/couchcatch.apk --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Couchcatch for Android ${TAG#android-v}" --notes-file android/release/NOTES.md
+          fi
