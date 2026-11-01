@@ -447,7 +447,9 @@ async function connectCloud(){
     const snap=await Promise.race([db.doc('data/users/'+id+'/'+rdoc()).get(),new Promise((_,r)=>setTimeout(()=>r('timeout'),10000))]);
     DB=db;UID=id;LOG('cloud_connected',{hadRemote:!!(snap.exists),player:PID});setTimeout(flushLog,3000);if(PL.list.length>1||curPlayer().name)writePlayers();renderWho();
     const d=snap.exists?snap.data():null,remote=d&&parse(d.json);
-    if(remote&&remote.savedAt>(S.savedAt||0)&&!C&&!B){LOG('load_remote_save');S=remote;restore();close('sStart');updateUI();toast('Your saved game is back')}
+    // the cloud copy wins when it is newer, and also when this device only has a brand-new game (a cleared browser where the child picked a starter before the cloud answered): a fresh start must never overwrite real progress
+    const freshHere=(S.col||[]).length<=2&&remote&&(remote.col||[]).length>(S.col||[]).length;
+    if(remote&&(remote.savedAt>(S.savedAt||0)||freshHere)&&!C&&!B){LOG('load_remote_save',{fresh:freshHere});S=remote;restore();close('sStart');updateUI();toast('Your saved game is back')}
     else if(S.col.length)pushRemote();
     setSave('Saved');
   }catch(e){}

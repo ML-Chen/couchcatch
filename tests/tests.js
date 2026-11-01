@@ -956,6 +956,25 @@ module.exports = [
   T.ok(await T.ev(() => document.getElementById('toast').getBoundingClientRect().top >= document.querySelector('#sCatch .inner>.row').getBoundingClientRect().bottom - 1), 'the toast is below the catch title');
 }},
 
+{name: '28 a cleared browser never overwrites the cloud: picking a starter before the cloud answers still restores the richer cloud save', timeout: 40000,
+ init: `(() => {
+   // A fake Claude cloud that answers slowly and holds an older save with 5 creatures (as after a private browser wiped this device).
+   const remote = {v:2, items:{orb:50,great:5,ultra:1,berry:4}, col:[1,2,3,4,5].map(i => ({id:i, sp:i, lvl:10+i, xp:0, hp:60})), badges:[0], place:0, stayed:[0], visited:[0], mode:'arrived', spawned:0, nextId:6, wild:[], travelTo:0, travelT:0, savedAt:1000, caught:[1,2,3,4,5]};
+   window.__cloudWrites = [];
+   const doc = p => ({
+     get: () => new Promise(r => setTimeout(() => r(p.endsWith('/save') ? {exists:true, data: () => ({json: JSON.stringify(remote), savedAt: remote.savedAt})} : {exists:false, data: () => null}), 2500)),
+     set: async o => { window.__cloudWrites.push({p, o}); }, update: async o => { window.__cloudWrites.push({p, o}); }
+   });
+   window.claude = {use: async name => name === 'db' ? {doc} : name === 'user' ? {id: async () => 'u_test'} : null};
+ })();`,
+ fn: async T => {
+  await T.start();
+  T.ok(await T.ev(() => S.col.length === 1), 'a fresh local game exists first');
+  await T.until(() => S.col.length === 5, null, 'the cloud save replaces the fresh game', 8000);
+  const r = await T.ev(() => ({n: S.col.length, orbs: S.items.orb, pushedFresh: __cloudWrites.some(w => w.p.endsWith('/save') && w.o && w.o.json && JSON.parse(w.o.json).col.length < 5)}));
+  T.ok(r.n === 5 && r.orbs === 50, 'restored the 5-creature cloud save: ' + JSON.stringify(r));
+  T.ok(!r.pushedFresh, 'the fresh 1-creature game was never written over the cloud save');
+}},
 {name: "27 a creature past both evolution levels evolves twice; little kids get no level choice and no mic button; unfound book cards keep the mystery", talk: ['visit_weather'], timeout: 60000, fn: async T => {
   await T.start();
   await T.fastSpeech();
