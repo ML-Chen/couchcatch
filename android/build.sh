@@ -27,6 +27,8 @@ done
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 VERSION="$(git -C "$ROOT" log -1 --format=%ct -- src 2>/dev/null || date +%s)"
+# The app's own version (for Android's "is this an update?" check) also moves when only the Android code changes.
+APP_VERSION="$(git -C "$ROOT" log -1 --format=%ct -- src android 2>/dev/null || date +%s)"
 
 # 1. The game, as an asset, with a small manifest giving its version and hash.
 mkdir -p "$WORK/assets/game"
@@ -36,7 +38,7 @@ python3 "$ROOT/tools/update_manifest.py" "$WORK/assets/game/index.html" --versio
 # 2. Resources (the launcher icon) and the manifest, compiled with aapt2.
 "$BT/aapt2" compile --dir "$HERE/res" -o "$WORK/res.zip"
 "$BT/aapt2" link -o "$WORK/unsigned.apk" -I "$ANDROID_JAR" --manifest "$HERE/AndroidManifest.xml" \
-  --version-code "$(( (VERSION - 1700000000) / 60 ))" --version-name "$(date -u -d "@$VERSION" +%Y.%m.%d.%H%M)" \
+  --version-code "$(( (APP_VERSION - 1700000000) / 60 ))" --version-name "$(date -u -d "@$APP_VERSION" +%Y.%m.%d.%H%M)" \
   -A "$WORK/assets" "$WORK/res.zip" --auto-add-overlay
 
 # 3. Java -> class files -> Android bytecode (classes.dex).

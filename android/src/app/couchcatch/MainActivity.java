@@ -12,6 +12,10 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.widget.FrameLayout;
 
 import java.io.ByteArrayInputStream;
 import java.util.HashMap;
@@ -45,14 +49,52 @@ public class MainActivity extends Activity {
         + "connect-src 'self' data: blob: https://cdn.jsdelivr.net; "
         + "frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 
+    private static final int BACKGROUND = Color.parseColor("#eef3fb"); // the game's light page colour
+
     private WebView web;
+
+    /** Dark status-bar and navigation icons, readable on the game's light background. */
+    @SuppressWarnings("deprecation")
+    private void useDarkSystemBarIcons() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                int light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(light, light);
+            }
+        } else {
+            int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (Build.VERSION.SDK_INT >= 26) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+            getWindow().setStatusBarColor(BACKGROUND);
+            if (Build.VERSION.SDK_INT >= 26) getWindow().setNavigationBarColor(BACKGROUND);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         web = new WebView(this);
-        web.setBackgroundColor(Color.parseColor("#eef3fb"));
-        setContentView(web);
+        web.setBackgroundColor(BACKGROUND);
+        // Android 15+ draws apps edge to edge, under the status bar and the navigation buttons. The game sits in a
+        // frame that is padded by exactly the space those bars (and any camera cut-out) take, so nothing is hidden.
+        FrameLayout frame = new FrameLayout(this);
+        frame.setBackgroundColor(BACKGROUND);
+        frame.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        frame.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override public WindowInsets onApplyWindowInsets(View view, WindowInsets insets) {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                    view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                } else {
+                    view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+                }
+                return insets;
+            }
+        });
+        setContentView(frame);
+        useDarkSystemBarIcons();
 
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);          // the game is JavaScript
