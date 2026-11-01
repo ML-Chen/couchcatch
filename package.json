@@ -1,0 +1,17 @@
+{
+  "name": "couchcatch",
+  "private": true,
+  "description": "A stay-at-home creature game for learning everyday Mandarin. Build: cd src && python3 build.py draw.js ../dist/couchcatch.html",
+  "scripts": {
+    "build": "cd src && python3 build.py draw.js ../dist/couchcatch.html",
+    "check": "tools/build_and_check.sh src dist/couchcatch.html /tmp/couchcatch-shots --tests",
+    "test": "node tests/run.js dist/couchcatch.html",
+    "shots": "node tools/shots.js dist/couchcatch.html /tmp/couchcatch-shots && python3 tools/compose_shots.py /tmp/couchcatch-shots",
+    "stroke-data": "node tools/make_hanzi.js node_modules src/trace.js src/hanzi_writer.js src/hsk_chars.js src/types_ext.js"
+  },
+  "devDependencies": {
+    "hanzi-writer": "3.5.0",
+    "hanzi-writer-data": "2.0.1",
+    "playwright": "^1.48.0"
+  }
+}
