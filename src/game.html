@@ -1166,18 +1166,21 @@ const QPOOL=[
  {k:'type',g:[2,3],txt:(n,t)=>`Catch ${n} ${t}-type creatures`,rw:{orb:8,berry:2}},
  {k:'win',g:[1,1],txt:()=>'Win a gym battle or a raid',rw:{ultra:1}},
  {k:'stay',g:[2,2],txt:n=>`Stay at ${n} places`,rw:{orb:6,great:1}},
- {k:'words',g:[8,12],txt:n=>`Answer ${n} Chinese word challenges correctly · 答对${n}个中文问题`,rw:{great:3,ultra:1}}];
+ // counts what the child actually does in Chinese: lines said in the Speak lesson and in conversations, and traced characters
+ {k:'words',g:[8,12],txt:n=>`Say or write ${n} things in Chinese · 说一说，写一写 (shuō yi shuō, xiě yi xiě)`,rw:{great:3,ultra:1}}];
+// a quest's text comes from its definition, so a wording change also reaches quests saved earlier today
+function qText(x){const d=QPOOL.find(qq=>qq.k===x.k);try{return d?d.txt(x.goal,x.t):x.txt}catch(e){return x.txt}}
 function today(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`}
 function ensureQuests(){const day=today();if(S.quests&&S.quests.day===day)return;const pool=[QPOOL.find(x=>x.k==='words'),...QPOOL.filter(x=>x.k!=='words').sort(()=>Math.random()-.5).slice(0,2)];
   S.quests={day,bonus:false,list:pool.map(qq=>{const goal=RI(qq.g[0],qq.g[1]),tp=qq.k==='type'?pick(Object.keys(TYPES)):null;return{k:qq.k,t:tp,goal,prog:0,done:false,txt:qq.txt(goal,tp),rw:qq.rw}})}}
 function q(k,tp){try{qInner(k,tp)}catch(e){console.error(e)}}
 function questEv(k,tp){q(k,tp)}
 function qInner(k,tp){ensureQuests();for(const x of S.quests.list){if(x.done||x.k!==k||(k==='type'&&x.t!==tp))continue;x.prog++;
-    if(x.prog>=x.goal){x.done=true;LOG('quest_done',{txt:x.txt});give(x.rw);sfx('quest');setTimeout(()=>toast(`Quest done · 任务完成 rènwu wánchéng: ${x.txt}. You got ${rwTxt(x.rw)}.`),600)}}
+    if(x.prog>=x.goal){x.done=true;LOG('quest_done',{txt:qText(x)});give(x.rw);sfx('quest');setTimeout(()=>toast(`Quest done · 任务完成 rènwu wánchéng: ${qText(x)}. You got ${rwTxt(x.rw)}.`),600)}}
   if(!S.quests.bonus&&S.quests.list.every(x=>x.done)){S.quests.bonus=true;give({ultra:2,great:2});setTimeout(()=>toast('All daily quests done! Bonus: 2 Ultra Orbs and 2 Great Orbs.'),2600)}save()}
 document.getElementById('bQuest').onclick=()=>{ensureQuests();const L=document.getElementById('questList');L.innerHTML='';
   if(window.storyGoalHTML){const sg=storyGoalHTML();if(sg){L.insertAdjacentHTML('beforeend',sg);const cv=L.querySelector('canvas[data-star]');if(cv&&window.drawLittleStar){const d=devicePixelRatio||1;cv.width=72*d;cv.height=72*d;const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);drawLittleStar(x,36,38,20,T,true)}}}
-  for(const x of S.quests.list){const d=document.createElement('div');d.className='card';d.innerHTML=`<div class="info"><div class="nm">${x.done?'✓ ':''}${x.txt}</div><div class="sub">${Math.min(x.prog,x.goal)}/${x.goal} · Reward: ${rwTxt(x.rw)}</div><div class="qbar"><i style="width:${Math.min(1,x.prog/x.goal)*100}%"></i></div></div>`;L.appendChild(d)}
+  for(const x of S.quests.list){const d=document.createElement('div');d.className='card';d.innerHTML=`<div class="info"><div class="nm">${x.done?'✓ ':''}${qText(x)}</div><div class="sub">${Math.min(x.prog,x.goal)}/${x.goal} · Reward: ${rwTxt(x.rw)}</div><div class="qbar"><i style="width:${Math.min(1,x.prog/x.goal)*100}%"></i></div></div>`;L.appendChild(d)}
   const b=document.createElement('div');b.className='card';b.innerHTML=`<div class="info"><div class="nm">${S.quests.bonus?'✓ ':''}Daily bonus</div><div class="sub">2 Ultra Orbs · 2 Great Orbs</div></div>`;L.appendChild(b);
   const st=document.createElement('div');st.className='card';st.innerHTML=`<div class="info"><div class="nm">Catch streak ×${S.streak||0}</div></div>`;L.appendChild(st);
   save();open('sQuest')};
@@ -1191,7 +1194,9 @@ document.getElementById('bBag').onclick=()=>{const L=document.getElementById('ba
 const GROUPS={number:'Numbers 数字 shùzì',color:'Colors 颜色 yánsè',nature:'Nature 自然 zìrán',animal:'Animals 动物 dòngwù',action:'Actions 动作 dòngzuò',thing:'Things 东西 dōngxi',describe:'Describing 形容 xíngróng',phrase:'Phrases 短语 duǎnyǔ',place:'Places 地方 dìfang',type:'Types 属性 shǔxìng',creature:'Your creatures 你的生物 nǐ de shēngwù'};
 const UNITS={1:'Hello 你好',2:'About me 我',3:'I want 我要',4:'I like 我喜欢',5:'Let’s play 一起玩',6:'What and where 什么·哪里',7:'Feelings 心情',8:'Everyday 每天'};
 // a small progress overview (what a parent wants to see at a glance)
-function progressHTML(){const tt=window.traceTotals?traceTotals():{learned:0,total:0},ph=Object.values(S.ph||{}).filter(v=>v.intro).length,talks=Object.values(S.talked||{}).reduce((a,b)=>a+b,0),
+// phrasebook phrases the child has said (the same count as the phrase list below the tiles)
+const phrasesSaid=()=>typeof PHRASEBOOK==='undefined'?0:PHRASEBOOK.filter(p=>((S.ph||{})[p.zh]||{}).intro).length;
+function progressHTML(){const tt=window.traceTotals?traceTotals():{learned:0,total:0},ph=phrasesSaid(),talks=Object.values(S.talked||{}).reduce((a,b)=>a+b,0),
   reads=Object.keys(S.read||{}).length,found=new Set([...(S.caught||[]),...S.col.map(c=>c.sp)]).size,mins=Math.round((S.playMs||0)/60000),days=Object.keys(S.days||{}).length;
   const t=(n,en,zh,py)=>`<div class="pt"><b>${n}</b><span>${en}</span><i data-say="${zh}">${zh} ${py}</i></div>`;
   return `<div class="ptiles">${t(tt.learned,'characters','汉字','hànzì')}${t(ph,'phrases said','句子','jùzi')}${t(talks,'conversations','对话','duìhuà')}${t(reads,'things read','读过','dú guò')}${t(found+'/'+SP.length,'creatures','生物','shēngwù')}${t(mins+' min','played · '+days+(days===1?' day':' days'),'玩了','wán le')}</div>`}

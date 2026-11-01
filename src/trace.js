@@ -91,7 +91,7 @@ window.traceChar=function(kind,opts){if(typeof opts==='string')opts={title:opts}
     writer.quiz({showHintAfterMisses:1,markStrokeCorrectAfterMisses:young()?1:3,highlightOnComplete:true,leniency:young()?1.9:1.35,
     onMistake:()=>{msgEl.innerHTML='Try that stroke again. Follow the glow.'+zw('再试一次','zài shì yí cì')},
     onCorrectStroke:(d)=>{msgEl.innerHTML=`${d.strokeNum+1} / ${d.strokeNum+1+d.strokesRemaining}`+zw('很好！','hěn hǎo!')},
-    onComplete:(s)=>{if(a.done)return;const perfect=s.totalMistakes===0;tr[ch]=(tr[ch]||0)+(s.totalMistakes<=2?1:0);try{save()}catch(e){}
+    onComplete:(s)=>{if(a.done)return;const perfect=s.totalMistakes===0;tr[ch]=(tr[ch]||0)+(s.totalMistakes<=2?1:0);try{questEv('words')}catch(e){}try{save()}catch(e){}
       const good=purpose==='spell'?(perfect?'Perfect spell!':'Spell ready!'):purpose==='giant'?'Giant power!':(perfect?'Perfect! Critical hit!':'Done!');
       const gz=perfect?['太棒了！','tài bàng le!']:['写好了！','xiě hǎo le!'];
       msgEl.innerHTML=good+zw(gz[0],gz[1]);try{sfx(perfect?'super':'quest')}catch(e){}
