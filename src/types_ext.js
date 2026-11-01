@@ -33,7 +33,7 @@
       sanfrancisco:['wind','metal'],yosemite:['bug','wind','dragon']};
     for(const p of PLACES){const a=ADD[p.key];if(!a)continue;for(const t of a)if(!p.types.includes(t))p.types.push(t)}
     // never leave a place type without a spawnable base form
-    if(typeof BASES!=='undefined'&&typeof SP!=='undefined')for(const p of PLACES)p.types=p.types.filter(t=>BASES.some(i=>SP[i].t===t));
+    if(typeof BASES!=='undefined'&&typeof SP!=='undefined')for(const p of PLACES)p.types=p.types.filter(t=>BASES.some(i=>SP[i].t===t||SP[i].t2===t));
   }catch(e){if(typeof console!=='undefined')console.warn('types_ext',e)}
   // character-tracing ladders: [character, pinyin, English, example word, word pinyin, word English], simplest first
   window.EXTRA_TRACE_SETS={

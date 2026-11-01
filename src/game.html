@@ -58,6 +58,7 @@ button.small{font-size:.95rem;padding:8px 10px;border-radius:10px}
 .reghead{font-family:var(--display);font-weight:600;font-size:.8rem;letter-spacing:.04em;color:var(--muted);margin-top:8px}
 .sub{color:var(--muted);font-size:.85rem}
 .type{display:inline-block;border-radius:6px;padding:1px 7px;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#151515}
+.types{display:inline-flex;gap:3px;flex-wrap:wrap;vertical-align:middle}.types .type{margin:0;white-space:nowrap;letter-spacing:0 !important;padding-left:4px !important;padding-right:4px !important}
 .hp{height:7px;background:#0d1326;border-radius:6px;overflow:hidden;margin-top:4px}
 .hp i{display:block;height:100%;background:var(--good);transition:width .4s}
 canvas.mini{width:72px;height:72px;flex:none}
@@ -390,6 +391,9 @@ SP.forEach((s,i)=>{if(s.next!=null)SP[s.next].prev=i});
 SP.forEach(s=>{if(s.next!=null)s.evoLv=s.stage===2?36:(SP[s.next].next!=null?18:28)});
 const BASES=SP.map((s,i)=>s.stage===1&&!s.leg?i:-1).filter(i=>i>=0);
 const LEGS=SP.map((s,i)=>s.leg?i:-1).filter(i=>i>=0);
+// up to two types per creature (types come from the species data, never from a save)
+SP.forEach(s=>{s.ts=s.t2?[s.t,s.t2]:[s.t]});
+const hasT=(i,t)=>SP[i].ts.includes(t),inTypes=(i,list)=>SP[i].ts.some(t=>list.includes(t));
 const ITEMS={orb:{n:'Stay Orb',d:'A basic orb for catching creatures.'},great:{n:'Great Orb',d:'Better catch chance (+15%).'},ultra:{n:'Ultra Orb',d:'Much better catch chance (+30%).'},berry:{n:'Calm Berry',d:'Feed one to a creature before a throw. It moves much less and is easier to catch.'}};
 const PLACES=[
  {n:'Backyard',key:'backyard',region:'Home',sky:['#7cc8ff','#d8f1ff'],ground:'#5fbf5f',hill:'#3f9a55',amb:'leaves',prop:'tree',types:['leaf','spark','water'],leader:'Coach Mira',lv:5},
@@ -485,6 +489,9 @@ function bw(k,inl){const w=W[k];return w[0]+zw(w[1],w[2],inl)}
 function nmB(spi,inl){const s=SP[spi],z=ZS(s.n);return s.n+zw(z.zh,z.py,inl)}
 function plB(i,inl){const p=PLACES[i],z=ZP(p.n);return p.n+zw(z.zh,z.py,inl)}
 function tyB(k){const z=ZT(k);return `${k} ${z.zh} ${z.py}`}
+// a creature's type chips (two for a dual type, kept together so they wrap as one piece)
+function tyChips(spi){const ts=SP[spi].ts,ch=t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`;return ts.length>1?`<span class="types">${ts.map(ch).join('')}</span>`:ch(ts[0])}
+const tyEn=spi=>SP[spi].ts.join('/');
 let zhVoice=null;function pickVoice(){try{const vs=speechSynthesis.getVoices();zhVoice=vs.find(v=>/zh[-_]CN/i.test(v.lang))||vs.find(v=>/^zh/i.test(v.lang))||vs.find(v=>/^cmn/i.test(v.lang))||null}catch(e){}}
 try{speechSynthesis.onvoiceschanged=pickVoice;pickVoice()}catch(e){}
 const hasClips=()=>typeof ZH_AUDIO!=='undefined';
@@ -512,6 +519,8 @@ function stats(c){const s=SP[c.sp];return{maxhp:Math.round((s.hp*.5+c.lvl*4+10)*
 function mk(sp,lvl,shiny){const c={id:S.nextId++,sp,lvl,xp:0};if(shiny)c.shiny=true;c.hp=stats(c).maxhp;return c}
 function quota(){return Math.min(15,5+2*Math.max(0,S.stayed.length-1))}
 function eff(a,d){return STRONG[a].includes(d)?2:STRONG[d].includes(a)?.5:1}
+// a move against a creature: the effect multiplies across both of its types (2 x 2 = 4, 2 x 0.5 = 1)
+function effOn(a,spi){return SP[spi].ts.reduce((e,d)=>e*eff(a,d),1)}
 function grown(sp,lvl,chance){while(SP[sp].next!=null&&lvl>=SP[sp].evoLv&&Math.random()<chance)sp=SP[sp].next;return sp}
 function hueRot(hex,deg){if(!hex)return hex;const n=parseInt(hex.slice(1),16);let r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;
   if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60}
@@ -590,8 +599,8 @@ function drawProp(ctx,pr,w,h,dx=0){const x=((pr.x*w+dx)%(w+80)+w+80)%(w+80)-40,y
 function spawnWild(road){const p=PLACES[S.place];
   const lvl=Math.max(2,p.lv-3+RI(0,3));let spi;
   const local=BASES.filter(i=>SP[i].hab&&SP[i].hab.includes(p.key));
-  if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const nat=t=>BASES.filter(i=>SP[i].t===t&&(!SP[i].hab||SP[i].hab.includes(p.key)));let t=pick(p.types);if(!nat(t).length){const ok=p.types.filter(x=>nat(x).length);if(ok.length&&Math.random()<.8)t=pick(ok)}
-    spi=pick(BASES.filter(i=>SP[i].t===t&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.2)))??pick(BASES.filter(i=>SP[i].t===t))}
+  if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const nat=t=>BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)));let t=pick(p.types);if(!nat(t).length){const ok=p.types.filter(x=>nat(x).length);if(ok.length&&Math.random()<.8)t=pick(ok)}
+    spi=pick(BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.2)))??pick(BASES.filter(i=>hasT(i,t)))}
   spi=grown(spi,lvl,.35);
   if(!road&&LEGS.length&&Math.random()<(inRift()?1/25:1/250)){spi=pick(LEGS)}
   let bx=R(.12,.88),by=R(.6,.9);if(!road){let best=-1;for(let k=0;k<14;k++){const cx=R(.12,.88),cy=R(.6,.9);let md=9;for(const o of wild)md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6));if(md>best){best=md;bx=cx;by=cy}}}
@@ -822,7 +831,7 @@ function renderTeam(){const L=document.getElementById('teamList');L.innerHTML=''
     if(i===6){const h=document.createElement('div');h.className='sub';h.style.marginTop='6px';h.textContent='In storage (not used in battles)';L.appendChild(h)}
     const d=document.createElement('div');d.className='card';
     const evo=s.next!=null?`Evolves into ${SP[s.next].n} at Lv ${s.evoLv}`:(s.stage>1?'Fully evolved':'Does not evolve');
-    const z=ZS(s.n);d.classList.add('team');d.innerHTML=`<canvas class="mini"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||s.n}</b><span class="tpy">${z.py}</span>${tags(c)}</div><div class="ten">${s.n}${z.mean?' · '+z.mean:''}</div><div class="tmeta"><span class="type" style="background:${TYPES[s.t]}">${tyB(s.t)}</span><span>Lv ${c.lvl}</span><span>HP ${c.hp}/${st.maxhp}</span></div><div class="hp"><i style="width:${c.hp/st.maxhp*100}%"></i></div><div class="tevo">${evo}</div></div>`;
+    const z=ZS(s.n);d.classList.add('team');d.innerHTML=`<canvas class="mini"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||s.n}</b><span class="tpy">${z.py}</span>${tags(c)}</div><div class="ten">${s.n}${z.mean?' · '+z.mean:''}</div><div class="tmeta">${tyChips(c.sp)}<span>Lv ${c.lvl}</span><span>HP ${c.hp}/${st.maxhp}</span></div><div class="hp"><i style="width:${c.hp/st.maxhp*100}%"></i></div><div class="tevo">${evo}</div></div>`;
     if(i>0){const b=document.createElement('button');b.className='small lead';b.innerHTML='Lead'+zw('领队','lǐngduì');b.onclick=()=>{S.col.splice(i,1);S.col.unshift(c);save();renderTeam()};d.appendChild(b)}
     L.appendChild(d);drawMini(d.querySelector('canvas'),c.sp,c.shiny)});
   const seen=new Set([...(S.caught||[]),...S.col.map(c=>c.sp)]);
@@ -977,7 +986,7 @@ function decideCatch(){const s=SP[C.wd.sp],avg=party().reduce((a,c)=>a+c.lvl,0)/
   C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2);renderSpell()}
 function finishCatch(){const wd=C.wd,s=SP[wd.sp];
   if(C.caught){sfx('catch');C.burstT=T;const c=mk(wd.sp,wd.lvl,wd.shiny);S.col.push(c);S.caught=[...new Set([...(S.caught||[]),wd.sp])];wild=wild.filter(x=>x!==wd);burst(C.hit.x,C.hit.y,'#ffd23f');burst(C.hit.x,C.hit.y,'#45dc9a');
-    S.streak=(S.streak||0)+1;streakReward();q('catch');q('type',s.t);if(C.throws===1)q('first');
+    S.streak=(S.streak||0)+1;streakReward();q('catch');for(const t of s.ts)q('type',t);if(C.throws===1)q('first');
     const mult=1+.05*Math.min(S.streak,10)+(C.throws===1?.25:0);let ups=[];for(const p of party())if(p!==c&&p.hp>0&&gainXP(p,Math.round(wd.lvl*2*mult)))ups.push(SP[p.sp].n);
     {const z=ZS(s.n);msg(`Caught ${s.n}!${S.col.length>6?' It went to storage.':' It joined your team.'}${ups.length?' '+ups.join(', ')+' leveled up!':''}`,`抓到了${z.zh}！`,`zhuā dào le ${z.py}!`,true)}
     save();const cur=C;setTimeout(()=>{if(C===cur)endCatch()},1800)}
@@ -1010,12 +1019,15 @@ document.getElementById('bGym').onclick=async()=>{const gk='gym_'+PLACES[S.place
 function startGym(){
   if(!party().some(c=>c.hp>0)){toast('Your team is worn out. Stay somewhere to heal.');return}
   const p=PLACES[S.place],had=S.badges.includes(S.place);
-  const pool=BASES.filter(i=>p.types.includes(SP[i].t));const lv=p.lv+(had?4:0);
+  const pool=BASES.filter(i=>inTypes(i,p.types));const lv=p.lv+(had?4:0);
   const f=l=>{const c=mk(grown(pick(pool),l,1),l);S.nextId--;return c};
   LOG('battle_start',{kind:'gym',place:p.n,party:snap().party});
   B={foes:[f(lv-1),f(lv),f(lv+1)],fi:0,pi:party().findIndex(c=>c.hp>0),pm:0,pt:0,pused:false,ft:0,busy:true,hitP:-9,hitF:-9,lungeP:-9,lungeF:-9};
   document.getElementById('bTitle').textContent=`${p.leader} · ${p.n} Gym${had?' (rematch)':''}`;open('sBattle');fitText(document.getElementById('bTitle'),11);requestAnimationFrame(battleLoop);
   (async()=>{renderBattle();await say(`${p.leader} wants to battle! They have 3 creatures.`);await say(`${p.leader} sends out ${SP[B.foes[0].sp].n}!`);B.busy=false;renderBattle()})()};
+// a long name and two types on a narrow phone: the level label shrinks a little before the name's pinyin gets cut
+function fitLv(id){const lv=document.getElementById(id),nm=lv&&lv.previousElementSibling;if(!nm)return;biWrap(nm);lv.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(lv).fontSize)||11;
+  while(nm.scrollWidth>nm.clientWidth+1&&fs>8.5){fs-=.5;lv.style.setProperty('font-size',fs+'px','important')}}
 // shrink a one-line title until it fits its box (long gym names on a narrow phone)
 function fitText(el,min){if(!el)return;el.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(el).fontSize)||16;
   while(el.scrollWidth>el.clientWidth+1&&fs>min){fs-=.5;el.style.setProperty('font-size',fs+'px','important')}}
@@ -1061,27 +1073,29 @@ function battleFrame(){if(!B)return;const {w,h,d}=sizeCanvas(bcv);const sa=giant
 }
 function renderBattle(){if(!B)return;const foe=B.foes[Math.min(B.fi,2)],me=party()[B.pi];
   const fs=stats(foe),ms=me?stats(me):{maxhp:1};
-  document.getElementById('fName').innerHTML=nmB(foe.sp,true);document.getElementById('fLv').textContent=B.raid?`Lv ${foe.lvl} · ${SP[foe.sp].t} · raid boss`:`Lv ${foe.lvl} · ${SP[foe.sp].t} · ${B.foes.length-B.fi} left`;
-  document.getElementById('fBar').style.width=(foe.hp/fs.maxhp*100)+'%';document.getElementById('fTitan').textContent=B.ft?'GIANT':'';
+  document.getElementById('fName').innerHTML=nmB(foe.sp,true);document.getElementById('fLv').textContent=B.raid?`Lv ${foe.lvl} · ${tyEn(foe.sp)} · raid boss`:`Lv ${foe.lvl} · ${tyEn(foe.sp)} · ${'●'.repeat(B.foes.length-B.fi)}${'○'.repeat(B.fi)}`;
+  fitLv('fLv');document.getElementById('fBar').style.width=(foe.hp/fs.maxhp*100)+'%';document.getElementById('fTitan').textContent=B.ft?'GIANT':'';
   if(me){document.getElementById('pName').innerHTML=nmB(me.sp,true);document.getElementById('pHp').textContent=`Lv ${me.lvl} · HP ${me.hp}/${ms.maxhp}`;document.getElementById('pBar').style.width=(me.hp/ms.maxhp*100)+'%'}
   document.getElementById('pTitan').textContent=B.pt?'GIANT':'';
   const bb=document.getElementById('bBtns');bb.innerHTML='';
   const mv=(label,cls,fn,dis)=>{const b=document.createElement('button');b.className=cls;b.innerHTML=label;b.disabled=B.busy||dis;b.onclick=fn;bb.appendChild(b)};
   const sp=SP[me.sp],gp=B.pt?'Giant ':'';
+  // one move per type; a single-type creature has Bonk as its second button
   mv(`${gp}${MOVES[sp.t]}${zw(ZM(MOVES[sp.t]).zh,ZM(MOVES[sp.t]).py)}`,'big',()=>turn(1));
-  mv(`${gp}Bonk${zw(ZM('Bonk').zh,ZM('Bonk').py)}`,'',()=>turn(0));
+  if(sp.t2)mv(`${gp}${MOVES[sp.t2]}${zw(ZM(MOVES[sp.t2]).zh,ZM(MOVES[sp.t2]).py)}`,'big',()=>turn(2));
+  else mv(`${gp}Bonk${zw(ZM('Bonk').zh,ZM('Bonk').py)}`,'',()=>turn(0));
   mv(B.pused?(B.pt?`Giant: ${B.pt} turns left`:'Giant used'):`Go Giant ${'●'.repeat(B.pm)}${'○'.repeat(3-B.pm)}`+zw('巨大化','jùdà huà'),'hot',goGiant,B.pused||B.pm<3);
   mv('Switch'+zw('换人','huàn rén'),'',openSwitch,party().filter(c=>c.hp>0).length<2)}
 function goGiant(){if(B.busy||B.pused||B.pm<3)return;B.busy=true;renderBattle();(async()=>{if(S.trace!==false&&window.traceChar){await traceChar('giant',{purpose:'giant'});if(!B)return}B.pused=true;B.pt=3;B.grow={side:'p',t0:T};sfx('giant');LOG('giant',{side:'player'});renderBattle();await sleep(1500);if(!B)return;{const z=ZS(SP[party()[B.pi].sp].n);await say(`${SP[party()[B.pi].sp].n} grew GIANT! Its moves hit much harder for 3 turns.`,z.zh+W.giant[1],z.py+' '+W.giant[2],true)}B.busy=false;renderBattle()})()}
 async function attack(a,d,mi,side){const A=stats(a),D=stats(d),as=SP[a.sp],ds=SP[d.sp];
   const titanA=side==='p'?B.pt>0:B.ft>0,titanD=side==='p'?(B.ft>0&&!B.raid):B.pt>0;
-  const mt=mi?as.t:null,pow=mi?62:40,e=mt?eff(mt,ds.t):1;
+  const mt=mi===2?as.t2:mi?as.t:null,pow=mi?62:40,e=mt?effOn(mt,d.sp):1;
   const crit=side==='p'&&B.crit;if(side==='p')B.crit=false;const dmg=Math.max(1,Math.round((crit?1.5:1)*pow*(A.atk/D.def)*(.3+a.lvl*.05)*e*R(.85,1)*(titanA?(side==='f'&&B.raid?1.2:1.7):1)*(titanD?.6:1)*(side==='f'&&isYoung()?.5:1)));
-  const atype=mi?as.t:'normal';B.anim={type:atype,side,t0:T,dur:.42};
+  const atype=mt||'normal';B.anim={type:atype,side,t0:T,dur:.42};
   if(side==='p'){B.lungeP=T;setTimeout(()=>B&&(B.hitF=T),420)}else{B.lungeF=T;setTimeout(()=>B&&(B.hitP=T),420)}
-  sfx(e>1||titanA?'super':'attack');await sleep(430);if(!B)return;B.imp={type:atype,side,t0:T,crit};const hpB=d.hp;d.hp=Math.max(0,d.hp-dmg);LOG('attack',{side,att:as.n,def:ds.n,move:mi?MOVES[as.t]:'Bonk',dmg,defHp:`${hpB}->${d.hp}/${D.maxhp}`,atkHp:a.hp,giantA:titanA,giantD:titanD});B.fx=B.fx||[];B.fx.push({x:side==='p'?.72:.28,y:side==='p'?.25:.6,txt:'-'+dmg,t0:T,col:e>1?'#ffc93d':e<1?'#a7b0d6':'#ffffff',big:e>1||titanA});renderBattle();
-  {const mvn=mi?MOVES[as.t]:'Bonk',zm=ZM(mvn),za=ZS(as.n);await say(`${crit?'Critical hit! ':''}${side==='f'?'Foe ':''}${as.n} used ${titanA?'Giant ':''}${mvn}!${e>1?' It hit super hard!':e<1?' It barely hurt.':''} (${dmg} damage)`,`${crit?'暴击！':''}${za.zh}使用了${zm.zh}！${e>1?W.super[1]:e<1?W.weak[1]:''}`,`${crit?'bàojī! ':''}${za.py} shǐyòng le ${zm.py}! ${e>1?W.super[2]:e<1?W.weak[2]:''}`,side==='p')}}
-async function turn(mi){if(B.busy)return;B.busy=true;renderBattle();if(S.trace!==false&&window.traceChar){const r=await traceChar(mi?SP[party()[B.pi].sp].t:'normal',{purpose:'move'});if(!B)return;B.crit=!r.skipped&&r.mistakes===0}else if(S.qBattle===true){B.crit=await askQuiz('battle');if(!B)return}const me=party()[B.pi],foe=B.foes[B.fi];
+  sfx(e>1||titanA?'super':'attack');await sleep(430);if(!B)return;B.imp={type:atype,side,t0:T,crit};const hpB=d.hp;d.hp=Math.max(0,d.hp-dmg);LOG('attack',{side,att:as.n,def:ds.n,move:mt?MOVES[mt]:'Bonk',eff:e,dmg,defHp:`${hpB}->${d.hp}/${D.maxhp}`,atkHp:a.hp,giantA:titanA,giantD:titanD});B.fx=B.fx||[];B.fx.push({x:side==='p'?.72:.28,y:side==='p'?.25:.6,txt:'-'+dmg,t0:T,col:e>1?'#ffc93d':e<1?'#a7b0d6':'#ffffff',big:e>1||titanA});renderBattle();
+  {const mvn=mt?MOVES[mt]:'Bonk',zm=ZM(mvn),za=ZS(as.n);await say(`${crit?'Critical hit! ':''}${side==='f'?'Foe ':''}${as.n} used ${titanA?'Giant ':''}${mvn}!${e>1?' It hit super hard!':e<1?' It barely hurt.':''} (${dmg} damage)`,`${crit?'暴击！':''}${za.zh}使用了${zm.zh}！${e>1?W.super[1]:e<1?W.weak[1]:''}`,`${crit?'bàojī! ':''}${za.py} shǐyòng le ${zm.py}! ${e>1?W.super[2]:e<1?W.weak[2]:''}`,side==='p')}}
+async function turn(mi){if(B.busy)return;B.busy=true;renderBattle();if(S.trace!==false&&window.traceChar){const ms=SP[party()[B.pi].sp],r=await traceChar(mi===2?ms.t2:mi?ms.t:'normal',{purpose:'move'});if(!B)return;B.crit=!r.skipped&&r.mistakes===0}else if(S.qBattle===true){B.crit=await askQuiz('battle');if(!B)return}const me=party()[B.pi],foe=B.foes[B.fi];
   if(!B.pused)B.pm=Math.min(3,B.pm+1);
   await attack(me,foe,mi,'p');
   if(foe.hp<=0){sfx('faint');LOG('faint',{side:'foe',sp:SP[foe.sp].n});{const z=ZS(SP[foe.sp].n);await say(`Foe ${SP[foe.sp].n} fainted!`,z.zh+W.fainted[1],z.py+' '+W.fainted[2],true)}if(gainXP(me,foe.lvl*6))await say(`${SP[me.sp].n} grew to Lv ${me.lvl}!`);
@@ -1091,7 +1105,7 @@ async function turn(mi){if(B.busy)return;B.busy=true;renderBattle();if(S.trace!=
     if(B.pt)B.pt--;B.busy=false;renderBattle();save();return}
   await foeTurn();if(B){B.busy=false;renderBattle()}save()}
 async function foeTurn(){const me=party()[B.pi],foe=B.foes[B.fi];
-  await attack(foe,me,Math.random()<.65?1:0,'f');
+  await attack(foe,me,Math.random()<.65?(SP[foe.sp].t2&&Math.random()<.5?2:1):0,'f');
   if(B.ft&&!B.raid)B.ft--;if(B.pt)B.pt--;renderBattle();
   if(me.hp<=0){B.pt=0;sfx('faint');LOG('faint',{side:'player',sp:SP[me.sp].n,party:snap().party});await say(`${SP[me.sp].n} fainted!`);const nx=party().findIndex(c=>c.hp>0);if(nx<0)return lose();B.pi=nx;await say(`Go, ${SP[party()[nx].sp].n}!`)}}
 function openSwitch(){const bb=document.getElementById('bBtns');bb.innerHTML='';
@@ -1103,7 +1117,7 @@ async function win(){sfx('win');if(!B.raid&&!S.badges.includes(S.place))S.pendin
   if(first&&!PLACES[S.place].rift){const reg=PLACES[S.place].region,inReg=NORMAL.filter(i=>PLACES[i].region===reg);if(inReg.every(i=>S.badges.includes(i)))await say(`You have every ${reg} badge. You are the ${reg} Champion!`)}
   endBattle()}
 async function lose(){LOG('battle_end',{result:'lose',raid:!!B.raid,party:snap().party});if(B.raid){S.raid=null;await say('Your whole team fainted, and the giant boss left. Move somewhere and stay there to heal your team.')}else await say('Your whole team fainted. Move somewhere and stay there to heal your team, then try again.');endBattle()}
-function pickBoss(){const p=PLACES[S.place];let pool=SP.map((s,i)=>!s.leg&&s.next==null&&s.stage>=2&&p.types.includes(s.t)?i:-1).filter(i=>i>=0);
+function pickBoss(){const p=PLACES[S.place];let pool=SP.map((s,i)=>!s.leg&&s.next==null&&s.stage>=2&&inTypes(i,p.types)?i:-1).filter(i=>i>=0);
   if(LEGS.length&&Math.random()<(p.rift?.35:.12))pool=LEGS;return{place:S.place,sp:pick(pool),lvl:p.lv+4,shiny:Math.random()<shinyRate(),shown:false}}
 function startRaid(){if(!raidHere()||B)return;if(!party().some(c=>c.hp>0)){toast('Your team is worn out. Stay a little longer to heal.');return}
   const r=S.raid,boss=mk(r.sp,r.lvl,r.shiny);S.nextId--;boss.hpMul=4;boss.hp=stats(boss).maxhp;
@@ -1340,7 +1354,7 @@ function restore(){migrate();wild=(S.wild||[]).map(w=>({...w,born:-10}));travelT
   if(S.rift&&!S.rift.shown)riftAt=T+6;
   for(const c of S.col){const s=SP[c.sp];if(s.next!=null&&c.lvl>=s.evoLv&&!evoQueue.includes(c.id))evoQueue.push(c.id)}}
 function starters(){const L=document.getElementById('starterList');L.innerHTML='';[IDX.Smoldy,IDX.Otterpip,IDX.Clovehop].forEach(i=>{const b=document.createElement('button');
-  b.innerHTML=`<canvas></canvas><span>${nmB(i)}</span><span class="type" style="background:${TYPES[SP[i].t]}">${tyB(SP[i].t)}</span>`;
+  b.innerHTML=`<canvas></canvas><span>${nmB(i)}</span>${tyChips(i)}`;
   b.onclick=()=>{LOG('starter',{sp:SP[i].n});S.col.push(mk(i,5));save();close('sStart');updateUI();toast(`${SP[i].n} joined you! Now tap “Stay here”.`);queueTalk('intro_neighbor')};L.appendChild(b);
   requestAnimationFrame(()=>drawMini(b.querySelector('canvas'),i))});open('sStart')}
 const muteBtn=document.getElementById('cMute');const showMute=()=>muteBtn.textContent=window.SFX&&SFX.muted?'Sound off':'Sound on';
