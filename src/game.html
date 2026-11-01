@@ -520,6 +520,20 @@ const party=()=>S.col.slice(0,6);
 function stats(c){const s=SP[c.sp];return{maxhp:Math.round((s.hp*.5+c.lvl*4+10)*(c.hpMul||1)),atk:s.atk*.3+c.lvl*2+5,def:s.def*.3+c.lvl*2+5}}
 function mk(sp,lvl,shiny){const c={id:S.nextId++,sp,lvl,xp:0};if(shiny)c.shiny=true;c.hp=stats(c).maxhp;return c}
 function quota(){return Math.min(15,5+2*Math.max(0,S.stayed.length-1))}
+// ---------- progress: wild creatures, raids and gyms follow the player's progress, not the place ----------
+// team = the average of the party's 4 best levels; milestones = 5 + 3 per gym badge + ½ per story chapter;
+// progress = 60% team + 40% milestones, kept from 5 below to 3 above the team (little kids: 6 below to 1 above).
+// Wild levels fall from 3 below to 1 above it (1 in 10 is 2 above, up to 4 once badges are won); a place only nudges them (0 to +2), so a new team
+// that flies to Yosemite meets creatures near its own level. Raids are 4 above. Gyms follow progress too (so the nth gym is
+// harder than the first wherever it is): the first gym's team is at it, later ones 1 above, rematches 3 more.
+function teamLv(){const ls=party().map(c=>c.lvl).sort((a,b)=>b-a).slice(0,4);return ls.length?ls.reduce((a,b)=>a+b,0)/ls.length:5}
+function progress(){const t=teamLv(),y=isYoung(),m=5+3*Math.min(11,(S.badges||[]).length)+.5*Math.min(8,(S.story&&S.story.ch)||0);
+  return Math.max(t-(y?6:5),Math.min(t+(y?1:3),.6*t+.4*m))}
+const LVMAX=99,nudge=pi=>Math.min(isYoung()?1:2,Math.max(0,Math.round((PLACES[pi].lv-5)/14)));
+function wildRange(pi){const c=Math.round(progress())+nudge(pi),y=isYoung();return[Math.max(2,c-(y?4:3)),Math.max(3,Math.min(LVMAX,c+(y?0:1)))]}
+function wildLv(pi){const [a,b]=wildRange(pi),y=isYoung(),up=y?1:1+Math.min(2,(S.badges||[]).length);return Math.min(LVMAX,Math.random()<(y?.04:.1)?b+RI(1,up):RI(a,b))}
+const raidLv=pi=>Math.min(LVMAX,Math.round(progress())+nudge(pi)+(isYoung()?2:4));
+const gymLv=rematch=>Math.max(3,Math.min(LVMAX,Math.round(progress())+((S.badges||[]).length&&!isYoung()?1:0)+(rematch?3:0)));
 function eff(a,d){return STRONG[a].includes(d)?2:STRONG[d].includes(a)?.5:1}
 // a move against a creature: the effect multiplies across both of its types (2 x 2 = 4, 2 x 0.5 = 1)
 function effOn(a,spi){return SP[spi].ts.reduce((e,d)=>e*eff(a,d),1)}
@@ -599,7 +613,7 @@ function drawProp(ctx,pr,w,h,dx=0){const x=((pr.x*w+dx)%(w+80)+w+80)%(w+80)-40,y
   else if(pr.kind==='rock'){el(ctx,x,y-s*.25,s*.55,s*.35,'#7d6e60');el(ctx,x-s*.15,y-s*.35,s*.25,s*.15,'#9a8b7c')}
   else{el(ctx,x,y+s*.1,s*1.1,s*.25,'#4aa3e0');el(ctx,x-s*.2,y+s*.05,s*.4,s*.06,'#bfe6ff')}}
 function spawnWild(road){const p=PLACES[S.place];
-  const lvl=Math.max(2,p.lv-3+RI(0,3));let spi;
+  const lvl=wildLv(S.place);let spi;
   const local=BASES.filter(i=>SP[i].hab&&SP[i].hab.includes(p.key));
   if(local.length&&Math.random()<.45)spi=pick(local);else if(Math.random()<.12)spi=pick(BASES);else{const nat=t=>BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)));let t=pick(p.types);if(!nat(t).length){const ok=p.types.filter(x=>nat(x).length);if(ok.length&&Math.random()<.8)t=pick(ok)}
     spi=pick(BASES.filter(i=>hasT(i,t)&&(!SP[i].hab||SP[i].hab.includes(p.key)||Math.random()<.2)))??pick(BASES.filter(i=>hasT(i,t)))}
@@ -753,7 +767,7 @@ function drawRoad(ctx,w,h,T,pl){const hy=h*.47,vx=w*.5,speed=7;
 // ---------- actions ----------
 function startStay(){if(S.mode!=='arrived')return;
   if(!S.stayed.includes(S.place))S.stayed.push(S.place);
-  S.mode='staying';S.spawned=0;lastSpawn=T-1;LOG('stay',{place:PLACES[S.place].n});q('stay');
+  S.mode='staying';S.spawned=0;lastSpawn=T-1;LOG('stay',{place:PLACES[S.place].n,prog:+progress().toFixed(1)});q('stay');
   if(!PLACES[S.place].rift&&!S.rift){S.staysNoRift=(S.staysNoRift||0)+1;if(Math.random()<.3||S.staysNoRift>=4){S.staysNoRift=0;S.rift={place:S.place,shown:false};riftAt=T+R(9,14)}}
   if(!S.raid){S.staysNoRaid++;if(Math.random()<.35||S.staysNoRaid>=3){S.staysNoRaid=0;S.raid=pickBoss();raidAt=T+R(5,9)}}
   for(const c of S.col)c.hp=stats(c).maxhp;
@@ -825,7 +839,7 @@ document.getElementById('bMove').onclick=()=>{const L=document.getElementById('m
   let lastReg=null;PLACES.forEach((p,i)=>{if(p.rift&&i!==S.place)return;if(p.region!==lastReg){lastReg=p.region;const hh=document.createElement('div');hh.className='reghead';const fl=p.region!==PLACES[S.place].region&&!PLACES[S.place].rift?' · flight 飞行 fēixíng':''; // leaving the Rift is a warp, not a flight
       hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+fl:'Home · 家乡 jiāxiāng'+fl;L.appendChild(hh)}const c=document.createElement('div');c.className='card';
     // name in Chinese with pinyin, English and levels under it, then the creature types (no awkward wrapping on narrow phones)
-    const z=ZP(p.n);c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||p.n}</b><span class="tpy">${z.py}</span>${S.badges.includes(i)?'<span class="mbadge">★</span>':''}</div><div class="ten">${p.n} · Lv ${Math.max(2,p.lv-3)}–${p.lv}</div><div class="tmeta">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join('')}</div></div>`;
+    const z=ZP(p.n);c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||p.n}</b><span class="tpy">${z.py}</span>${S.badges.includes(i)?'<span class="mbadge">★</span>':''}</div><div class="ten">${p.n} · Lv ${wildRange(i).join('–')}</div><div class="tmeta">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join('')}</div></div>`;
     const b=document.createElement('button');b.className='small'+(i===S.place?'':' big');b.textContent=i===S.place?'Here':'Go';b.disabled=i===S.place;b.onclick=()=>travel(i);c.appendChild(b);L.appendChild(c)});L.querySelectorAll('canvas.mapthumb').forEach(cv=>{try{const pl=PLACES[+cv.dataset.place],d=devicePixelRatio||1;cv.width=92*d;cv.height=62*d;const cx=cv.getContext('2d');cx.setTransform(d,0,0,d,0,0);if(hasScene(pl))cx.drawImage(painted(pl.key,160,108),0,0,160,108,0,0,92,62);else bgOld(cx,92,62,pl)}catch(e){}});open('sMap')};
 document.getElementById('bTeam').onclick=renderTeam;
 function renderTeam(){const L=document.getElementById('teamList');L.innerHTML='';
@@ -1022,7 +1036,7 @@ document.getElementById('bGym').onclick=async()=>{const gk='gym_'+PLACES[S.place
 function startGym(){
   if(!party().some(c=>c.hp>0)){toast('Your team is worn out. Stay somewhere to heal.');return}
   const p=PLACES[S.place],had=S.badges.includes(S.place);
-  const pool=BASES.filter(i=>inTypes(i,p.types));const lv=p.lv+(had?4:0);
+  const pool=BASES.filter(i=>inTypes(i,p.types));const lv=gymLv(had);
   const f=l=>{const c=mk(grown(pick(pool),l,1),l);S.nextId--;return c};
   LOG('battle_start',{kind:'gym',place:p.n,party:snap().party});
   B={foes:[f(lv-1),f(lv),f(lv+1)],fi:0,pi:party().findIndex(c=>c.hp>0),pm:0,pt:0,pused:false,ft:0,busy:true,hitP:-9,hitF:-9,lungeP:-9,lungeF:-9};
@@ -1121,7 +1135,7 @@ async function win(){sfx('win');if(!B.raid&&!S.badges.includes(S.place))S.pendin
   endBattle()}
 async function lose(){LOG('battle_end',{result:'lose',raid:!!B.raid,party:snap().party});if(B.raid){S.raid=null;await say('Your whole team fainted, and the giant boss left. Move somewhere and stay there to heal your team.')}else await say('Your whole team fainted. Move somewhere and stay there to heal your team, then try again.');endBattle()}
 function pickBoss(){const p=PLACES[S.place];let pool=SP.map((s,i)=>!s.leg&&s.next==null&&s.stage>=2&&inTypes(i,p.types)?i:-1).filter(i=>i>=0);
-  if(LEG_TOPS.length&&Math.random()<(p.rift?.35:.12))pool=LEG_TOPS;return{place:S.place,sp:pick(pool),lvl:p.lv+4,shiny:Math.random()<shinyRate(),shown:false}}
+  if(LEG_TOPS.length&&Math.random()<(p.rift?.35:.12))pool=LEG_TOPS;return{place:S.place,sp:pick(pool),lvl:raidLv(S.place),shiny:Math.random()<shinyRate(),shown:false}}
 function startRaid(){if(!raidHere()||B)return;if(!party().some(c=>c.hp>0)){toast('Your team is worn out. Stay a little longer to heal.');return}
   const r=S.raid,boss=mk(r.sp,r.lvl,r.shiny);S.nextId--;boss.hpMul=4;boss.hp=stats(boss).maxhp;
   LOG('battle_start',{kind:'raid',boss:SP[r.sp].n,lvl:r.lvl,party:snap().party});
