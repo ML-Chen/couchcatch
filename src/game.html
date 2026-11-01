@@ -785,7 +785,7 @@ function renderTeam(){const L=document.getElementById('teamList');L.innerHTML=''
   const seen=new Set([...(S.caught||[]),...S.col.map(c=>c.sp)]);
   const hd=document.createElement('h2');hd.textContent=`Creature book · ${seen.size}/${SP.length}`;hd.style.marginTop='14px';L.appendChild(hd);
   const gr=document.createElement('div');gr.className='book';L.appendChild(gr);
-  SP.forEach((s,i)=>{const cell=document.createElement('div');cell.className='bookcell';const got=seen.has(i);
+  SP.forEach((s,i)=>{const cell=document.createElement('div');cell.className='bookcell';const got=seen.has(i);cell.dataset.i=i;cell.dataset.got=got?'1':'0';
     cell.innerHTML=`<canvas class="mini"></canvas><div class="sub">${got?s.n+zw(ZS(s.n).zh,ZS(s.n).py):'???'}</div>`;gr.appendChild(cell);
     const cv=cell.querySelector('canvas');const ctx=cv.getContext('2d'),dpr=devicePixelRatio||1,w=72;cv.width=w*dpr;cv.height=w*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
     dc(ctx,i,w/2,w*.94,fitS(w,w,i,.9),0,got?{awake:true}:{silhouette:'#3a466f'})});
@@ -913,8 +913,8 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
   C.parts=C.parts.filter(p=>T-p.t0<.9);for(const p of C.parts){const tt=T-p.t0;cctx.globalAlpha=1-tt/.9;el(cctx,p.x+p.vx*tt,p.y+p.vy*tt+200*tt*tt,4,4,p.col)}cctx.globalAlpha=1;
 }
 function decideCatch(){const s=SP[C.wd.sp],avg=party().reduce((a,c)=>a+c.lvl,0)/Math.max(1,party().length)||5;
-  const kb=({orb:0,great:.15,ultra:.3}[C.kind]||0)+(C.power?.15:0)+(C.spell===2?.25:C.spell?.15:0);C.power=false;C.rollSpell=C.spell||0;C.spell=0;C.spellCh=null;
-  const chance=Math.max(s.leg?.1:.25,Math.min(.95,.66-(C.wd.lvl-avg)*.02-(s.stage-1)*.08+(C.bonus||0)+kb+(C.berry?.1:0)+(C.wd.raid?.1:0)+(isYoung()?.25:0)-(s.leg?.35:0)));C.berry=false;
+  const kb=({orb:0,great:.15,ultra:.3}[C.kind]||0)+(C.power?.15:0)+(C.spell===2?.15:C.spell?.08:0);C.power=false;C.rollSpell=C.spell||0;C.spell=0;C.spellCh=null;
+  const chance=Math.max(s.leg?.1:.25,Math.min(.92,.66-(C.wd.lvl-avg)*.02-(s.stage-1)*.08+(C.bonus||0)+kb+(C.berry?.1:0)+(C.wd.raid?.1:0)+(isYoung()?.25:0)-(s.leg?.35:0)));C.berry=false;
   C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2)}
 function finishCatch(){const wd=C.wd,s=SP[wd.sp];
   if(C.caught){sfx('catch');C.burstT=T;const c=mk(wd.sp,wd.lvl,wd.shiny);S.col.push(c);S.caught=[...new Set([...(S.caught||[]),wd.sp])];wild=wild.filter(x=>x!==wd);burst(C.hit.x,C.hit.y,'#ffd23f');burst(C.hit.x,C.hit.y,'#45dc9a');
@@ -1285,7 +1285,11 @@ connectCloud();
 <script>
 //@@STORY@@
 </script>
+<script>
+//@@DEX@@
+</script>
 <style>/*@@THEME@@*/
+html,body{margin:0!important}
 header{position:relative}#bWho{position:absolute;right:0;top:2px;max-width:9.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .whol{display:flex;flex-direction:column;gap:8px}.card.who{display:flex;align-items:center;gap:10px}.card.who .wpic{font-size:1.8rem;width:44px;text-align:center}.card.who .info{flex:1;min-width:0}.card.who.on{outline:2px solid var(--accent)}
 .card.who input,.addp input{font:inherit;padding:6px 8px;border-radius:10px;border:1px solid rgba(0,0,0,.15);width:7.5em}

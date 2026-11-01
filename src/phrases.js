@@ -14,7 +14,7 @@ const PHRASEBOOK=[
  {unit:2,zh:'你叫什么名字？',py:'nǐ jiào shénme míngzi?',en:"What's your name?",pic:'🏷️',build:[['名字','míngzi'],['什么名字','shénme míngzi'],['你叫什么名字','nǐ jiào shénme míngzi']]},
  {unit:2,zh:'我叫小美。',py:'wǒ jiào Xiǎoměi.',en:"My name is Xiaomei.",pic:'🙋‍♀️',build:[['小美','Xiǎoměi'],['我叫小美','wǒ jiào Xiǎoměi']]},
  {unit:2,zh:'你几岁？',py:'nǐ jǐ suì?',en:'How old are you?',pic:'🎂',build:[['几岁','jǐ suì'],['你几岁','nǐ jǐ suì']]},
- {unit:2,zh:'我八岁。',py:'wǒ bā suì.',en:"I'm eight.",pic:'8️⃣',build:[['八岁','bā suì'],['我八岁','wǒ bā suì']]},
+ {unit:2,zh:'我十岁。',py:'wǒ shí suì.',en:"I'm ten.",pic:'🔟',build:[['十岁','shí suì'],['我十岁','wǒ shí suì']]},
  {unit:2,zh:'很高兴认识你！',py:'hěn gāoxìng rènshi nǐ!',en:'Nice to meet you!',pic:'🤝',build:[['认识你','rènshi nǐ'],['高兴认识你','gāoxìng rènshi nǐ'],['很高兴认识你','hěn gāoxìng rènshi nǐ']]},
  // Unit 3 — I want
  {unit:3,zh:'我要水。',py:'wǒ yào shuǐ.',en:'I want water.',pic:'💧',build:[['水','shuǐ'],['要水','yào shuǐ'],['我要水','wǒ yào shuǐ']]},

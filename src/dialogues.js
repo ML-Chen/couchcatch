@@ -20,7 +20,7 @@ Object.assign(window.DIALOGUES, {
         {zh:"我饿了。", py:"wǒ è le.", en:"I'm hungry.", ok:false}]},
       {npc:{zh:"你几岁？", py:"nǐ jǐ suì?", en:"How old are you?"}},
       {you:[
-        {zh:"我八岁。", py:"wǒ bā suì.", en:"I'm eight.", ok:true, reply:{zh:"八岁！真棒！", py:"bā suì! zhēn bàng!", en:"Eight! Wonderful!"}},
+        {zh:"我十岁。", py:"wǒ shí suì.", en:"I'm ten.", ok:true, reply:{zh:"十岁！真棒！", py:"shí suì! zhēn bàng!", en:"Ten! Wonderful!"}},
         {zh:"我十岁。", py:"wǒ shí suì.", en:"I'm ten.", ok:false},
         {zh:"我很好！", py:"wǒ hěn hǎo!", en:"I'm great!", ok:false}]},
       {npc:{zh:"你喜欢小动物吗？", py:"nǐ xǐ huan xiǎo dòng wù ma?", en:"Do you like little creatures?"}},
@@ -252,7 +252,7 @@ Object.assign(window.DIALOGUES, {
       {you:[
         {zh:"我很好！你呢？", py:"wǒ hěn hǎo! nǐ ne?", en:"I'm great! And you?", ok:true, reply:{zh:"我也很好！", py:"wǒ yě hěn hǎo!", en:"I'm great too!"}},
         {zh:"我很好吗？", py:"wǒ hěn hǎo ma?", en:"Am I great?", ok:false},
-        {zh:"我八岁。", py:"wǒ bā suì.", en:"I'm eight.", ok:false}]},
+        {zh:"我十岁。", py:"wǒ shí suì.", en:"I'm ten.", ok:false}]},
       {npc:{zh:"你喜欢吃什么？", py:"nǐ xǐ huan chī shén me?", en:"What do you like to eat?"}},
       {you:[
         {zh:"我喜欢吃面条！", py:"wǒ xǐ huan chī miàn tiáo!", en:"I like noodles!", ok:true, reply:{zh:"我也喜欢面条！", py:"wǒ yě xǐ huan miàn tiáo!", en:"I like noodles too!"}},
@@ -380,9 +380,9 @@ Object.assign(window.DIALOGUES, {
         {zh:"再见！", py:"zài jiàn!", en:"Goodbye!", ok:false},
         {zh:"晚安！", py:"wǎn ān!", en:"Good night!", ok:false}]},
       {you:[
-        {zh:"我八岁。", py:"wǒ bā suì.", en:"I'm eight.", ok:true, reply:{zh:"八岁就是冠军！", py:"bā suì jiù shì guàn jūn!", en:"Only eight and already a champion!"}},
-        {zh:"我十八岁。", py:"wǒ shí bā suì.", en:"I'm eighteen.", ok:false},
-        {zh:"我八点。", py:"wǒ bā diǎn.", en:"(mixed-up word) I'm eight o'clock.", ok:false}]},
+        {zh:"我十岁。", py:"wǒ shí suì.", en:"I'm ten.", ok:true, reply:{zh:"十岁就是冠军！", py:"shí suì jiù shì guàn jūn!", en:"Only ten and already a champion!"}},
+        {zh:"我二十岁。", py:"wǒ èrshí suì.", en:"I'm twenty.", ok:false},
+        {zh:"我十点。", py:"wǒ shí diǎn.", en:"(mixed-up word) I'm ten o'clock.", ok:false}]},
       {npc:{zh:"你长大想做什么？", py:"nǐ zhǎng dà xiǎng zuò shén me?", en:"What do you want to be when you grow up?"}},
       {you:[
         {zh:"我想当老师！", py:"wǒ xiǎng dāng lǎo shī!", en:"I want to be a teacher!", ok:true, reply:{zh:"好老师！真棒！", py:"hǎo lǎo shī! zhēn bàng!", en:"A great teacher! Wonderful!"}},
@@ -500,7 +500,7 @@ Object.assign(window.DIALOGUES, {
       {you:[
         {zh:"我很好！你呢？", py:"wǒ hěn hǎo! nǐ ne?", en:"I'm great! And you?", ok:true, reply:{zh:"奶奶也很好！", py:"nǎi nai yě hěn hǎo!", en:"Grandma's great too!"}},
         {zh:"我不好。", py:"wǒ bù hǎo.", en:"I'm not good.", ok:false},
-        {zh:"我八岁。", py:"wǒ bā suì.", en:"I'm eight.", ok:false}]},
+        {zh:"我十岁。", py:"wǒ shí suì.", en:"I'm ten.", ok:false}]},
       {npc:{zh:"你吃饭了吗？", py:"nǐ chī fàn le ma?", en:"Have you eaten yet?"}},
       {you:[
         {zh:"我吃了！", py:"wǒ chī le!", en:"I ate!", ok:true, reply:{zh:"真乖！", py:"zhēn guāi!", en:"Good kid!"}},
@@ -592,7 +592,7 @@ Object.assign(window.DIALOGUES, {
       {you:[
         {zh:"我很开心！", py:"wǒ hěn kāi xīn!", en:"I'm really happy!", ok:true, reply:{zh:"太好了！今天吃了什么？", py:"tài hǎo le! jīn tiān chī le shén me?", en:"Wonderful! What did you eat today?"}},
         {zh:"我不开心。", py:"wǒ bù kāi xīn.", en:"I'm not happy.", ok:false},
-        {zh:"我八岁。", py:"wǒ bā suì.", en:"I'm eight.", ok:false}]},
+        {zh:"我十岁。", py:"wǒ shí suì.", en:"I'm ten.", ok:false}]},
       {you:[
         {zh:"我吃了面条！", py:"wǒ chī le miàn tiáo!", en:"I ate noodles!", ok:true, reply:{zh:"真好！今天冷不冷？", py:"zhēn hǎo! jīn tiān lěng bu lěng?", en:"Good! Is it cold today?"}},
         {zh:"我吃了饺子！", py:"wǒ chī le jiǎo zi!", en:"I ate dumplings!", ok:true, reply:{zh:"真好！今天冷不冷？", py:"zhēn hǎo! jīn tiān lěng bu lěng?", en:"Good! Is it cold today?"}},
@@ -1141,7 +1141,7 @@ Object.assign(window.DIALOGUES, {
       {you:[
         {zh:"他很高！", py:"tā hěn gāo!", en:"He's very tall!", ok:true, reply:{zh:"对！还有我的小狗！", py:"duì! hái yǒu wǒ de xiǎo gǒu!", en:"Yes! And here's my puppy!"}},
         {zh:"他很矮！", py:"tā hěn ǎi!", en:"He's very short!", ok:false},
-        {zh:"他八岁！", py:"tā bā suì!", en:"He's eight!", ok:false}]},
+        {zh:"他十岁！", py:"tā shí suì!", en:"He's ten!", ok:false}]},
       {you:[
         {zh:"好可爱！", py:"hǎo kě ài!", en:"So cute!", ok:true, reply:{zh:"它叫豆豆！", py:"tā jiào Dòu dou!", en:"Its name is Doudou!"}},
         {zh:"好吃！", py:"hǎo chī!", en:"Yummy!", ok:false},
@@ -1226,8 +1226,8 @@ Object.assign(window.DIALOGUES, {
         {zh:"生日好！", py:"shēng rì hǎo!", en:"(not quite) Birthday good!", ok:false}]},
       {npc:{zh:"你几岁？", py:"nǐ jǐ suì?", en:"How old are you?"}},
       {you:[
-        {zh:"我八岁。", py:"wǒ bā suì.", en:"I'm eight.", ok:true, reply:{zh:"我比你大一岁！", py:"wǒ bǐ nǐ dà yí suì!", en:"I'm one year older than you!"}},
-        {zh:"我八点。", py:"wǒ bā diǎn.", en:"(mixed-up word) I'm eight o'clock.", ok:false},
+        {zh:"我十岁。", py:"wǒ shí suì.", en:"I'm ten.", ok:true, reply:{zh:"我比你大一岁！", py:"wǒ bǐ nǐ dà yí suì!", en:"I'm one year older than you!"}},
+        {zh:"我十点。", py:"wǒ shí diǎn.", en:"(mixed-up word) I'm ten o'clock.", ok:false},
         {zh:"我很好。", py:"wǒ hěn hǎo.", en:"I'm fine.", ok:false}]},
       {you:[
         {zh:"今天几号？", py:"jīn tiān jǐ hào?", en:"What's the date today?", ok:true, reply:{zh:"今天五月十号！", py:"jīn tiān wǔ yuè shí hào!", en:"Today is May tenth!"}},
