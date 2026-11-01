@@ -653,4 +653,342 @@ module.exports = [
   await T.ok(!bad.length, 'bad visible text: ' + bad.join(' || '));
 }},
 
+
+{name: '18 owed conversations survive a reload: the intro, a first-arrival chat and the badge interview come back (B1/W5/W9)', talk: ['intro_neighbor', 'arrive_sandiego', 'interview_1'], timeout: 100000, fn: async T => {
+  const has = await T.ev(() => ['intro_neighbor', 'arrive_sandiego', 'interview_1'].every(k => DIALOGUES[k]));
+  if (!has) { T.note('build lacks one of the dialogues; skipped'); return; }
+  const talking = () => T.ev(() => { const t = document.querySelector('.sheet.talk'); return t && !t.hidden ? __TT.lastLog('talk_start').key : null; });
+  await T.fastSpeech();
+  await T.start();
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'the intro opens after the starter', 5000);
+  T.eq(await talking(), 'intro_neighbor', 'first conversation');
+  // the app is closed in the middle of the chat
+  await T.ev(() => flush());
+  await T.reload(); await T.fastSpeech();
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'after a reload the intro comes back', 6000);
+  T.eq(await talking(), 'intro_neighbor', 'conversation after the reload');
+  await T.talkThrough();
+  T.eq(await T.ev(() => (S.talked || {}).intro_neighbor), 1, 'the intro is recorded once finished');
+  // first arrival in San Diego: the chat waits for "到达…" to finish, and stays owed until played through
+  await T.ev(() => { window.speakAsync = z => /^到达/.test(z) ? new Promise(r => setTimeout(() => { window.__arrEnd = Date.now(); r(); }, 1200)) : Promise.resolve(); });
+  await goTo(T, 7);
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'the San Diego welcome chat opens', 6000);
+  T.eq(await talking(), 'arrive_sandiego', 'arrival chat');
+  const tm = await T.ev(() => ({end: window.__arrEnd, start: __TT.lastLog('talk_start').at}));
+  T.ok(tm.end && tm.start >= tm.end, `the chat starts after the arrival line ends (line ended ${tm.end}, chat ${tm.start})`);
+  await T.ev(() => flush());
+  await T.reload(); await T.fastSpeech();
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'after a reload the arrival chat comes back', 6000);
+  T.eq(await talking(), 'arrive_sandiego', 'arrival chat after the reload');
+  await T.talkThrough();
+  T.eq(await T.ev(() => (S.talked || {}).arrive_sandiego), 1, 'arrival chat recorded');
+  // the interview after a new badge
+  await T.ev(() => { S.pendingInterview = true; S.interviews = 0; endBattle(); });
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'the interview opens after the badge', 5000);
+  T.eq(await talking(), 'interview_1', 'interview');
+  await T.ev(() => flush());
+  await T.reload(); await T.fastSpeech();
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'after a reload the interview comes back', 6000);
+  T.eq(await talking(), 'interview_1', 'interview after the reload');
+  await T.talkThrough();
+  const s = await T.ev(() => ({p: S.pendingInterview, n: S.interviews, t: S.talked.interview_1}));
+  T.ok(!s.p && s.n === 1 && s.t === 1, 'the interview is done once played through: ' + JSON.stringify(s));
+  await T.sleep(1500);
+  T.ok(!(await T.ev(() => __TT.vis('.sheet.talk'))), 'nothing more is owed');
+}},
+
+{name: '19 a road trip waits while the catch spell or the catch is open; a catch never opens for a creature that left (W1)', timeout: 50000, fn: async T => {
+  await T.start();
+  await T.ev(() => { window.traceChar = window.__realTrace; });
+  await T.ev(() => { travel(1); });
+  await T.until(() => S.mode === 'travel', null, 'the trip starts');
+  await T.ev(() => { travelT = .5; roadSpawns.forEach(r => { r.done = true; }); const w = spawnWild(true); w.x = .6; w.vx = -.07; wild.push(w); window.__wd = w; openCatch(w); });
+  await T.until(() => !!document.querySelector('.tracewrap'), null, 'a road creature opens the catch spell first', 3000);
+  const a = await T.ev(() => ({t: travelT, x: __wd.x}));
+  await T.sleep(1500);
+  const b = await T.ev(() => ({t: travelT, x: __wd.x, mode: S.mode, open: sheetOpen()}));
+  T.eq(b.t, a.t, 'trip progress while the trace is open');
+  T.eq(b.x, a.x, 'the road creature waits too');
+  T.eq(b.mode, 'travel', 'still on the road');
+  T.eq(b.open, 'trace', 'sheetOpen() reports the trace');
+  await T.ev(() => document.querySelectorAll('.tracewrap').forEach(x => x.remove()));
+  await T.until(() => C && __TT.vis('#sCatch'), null, 'the catch screen opens after the spell', 3000);
+  const c0 = await T.ev(() => travelT);
+  await T.sleep(800);
+  T.eq(await T.ev(() => travelT), c0, 'trip progress while the catch screen is open');
+  await T.ev(() => endCatch());
+  await T.until(t => travelT > t, c0, 'the trip goes on once the catch is closed', 3000);
+  // the creature leaves the field while its spell is traced: no catch screen for it
+  await T.ev(() => { const w = spawnWild(true); w.x = .5; w.vx = 0; wild.push(w); window.__wd2 = w; openCatch(w); });
+  await T.until(() => !!document.querySelector('.tracewrap'), null, 'the second spell opens', 3000);
+  await T.ev(() => { wild = wild.filter(x => x !== __wd2); document.querySelectorAll('.tracewrap').forEach(x => x.remove()); });
+  await T.sleep(1000);
+  const d = await T.ev(() => ({C: !!C, open: __TT.vis('#sCatch'), gone: __TT.countLog('catch_gone')}));
+  T.ok(!d.C && !d.open && d.gone === 1, 'no catch screen for a creature that left the field: ' + JSON.stringify(d));
+  T.ok(!(await T.ev(() => { openCatch({sp: 0, lvl: 3, x: .5, y: .7, vx: 0, ph: 0}); return !!C; })), 'openCatch ignores a creature that is not on the field');
+}},
+
+{name: '20 importing a save code replaces everything, including the field and the trip; "Tap again" times out (W2/W15)', timeout: 60000, fn: async T => {
+  await T.start();
+  // the saved game: on the road to Lakeshore with a creature crossing
+  await T.ev(() => { travel(1); });
+  await T.until(() => S.mode === 'travel', null, 'the trip starts');
+  await T.ev(() => { travelT = .4; roadSpawns.forEach(r => { r.done = true; }); wild = []; const w = spawnWild(true); w.x = .7; wild.push(w); S.items.orb = 77; });
+  await T.page.click('#bSet');
+  await T.page.click('#svCopy');
+  const code = await T.ev(() => document.getElementById('svText').value);
+  const exp = await T.ev(() => ({to: travelTo, t: travelT, wild: wild.map(w => w.sp + ':' + w.lvl)}));
+  T.ok(/^CC1:/.test(code), 'save code made');
+  await T.page.click('#sSet [data-close]');
+  // this device: arrived and staying, other creatures on the field
+  await T.ev(() => { travelT = 1; });
+  await T.until(() => S.mode === 'arrived' && S.place === 1, null, 'arrived');
+  await T.ev(() => { S.items.orb = 5; });
+  await T.stay(); await T.spawn(3);
+  const here = await T.ev(() => wild.map(w => w.sp + ':' + w.lvl));
+  await T.page.click('#bSet');
+  await T.page.fill('#svText', code);
+  await T.page.click('#svLoad');
+  T.eq(await T.ev(() => document.getElementById('svLoad').textContent), 'Tap again', 'the first tap asks');
+  await T.sleep(4400);
+  T.eq(await T.ev(() => document.getElementById('svLoad').textContent), 'Load', 'the button goes back to "Load" after 4 s');
+  await T.page.click('#svLoad');
+  await T.waitReload(() => T.page.click('#svLoad'));
+  await T.sleep(200);
+  const r = await T.ev(() => ({mode: S.mode, to: travelTo, t: travelT, wild: wild.map(w => w.sp + ':' + w.lvl), orbs: S.items.orb, st: document.getElementById('status').innerText}));
+  T.eq(r.mode, 'travel', 'mode from the save');
+  T.eq(r.to, exp.to, 'trip destination from the save');
+  T.ok(Math.abs(r.t - exp.t) < .2, `trip progress from the save (${r.t} vs ${exp.t})`);
+  T.eq(r.wild.join(','), exp.wild.join(','), `field from the save, not this device's (${here.join(',')})`);
+  T.eq(r.orbs, 77, 'items from the save');
+  T.ok(/Traveling to Lakeshore/.test(r.st), 'status: ' + r.st);
+}},
+
+{name: '21 Stop ends the Speak lesson at once: no more audio and nothing more recorded (W3)', timeout: 45000, fn: async T => {
+  await T.start();
+  await T.ev(() => { window.__calls = []; window.speakAsync = z => { __calls.push([performance.now(), z]); return new Promise(r => setTimeout(r, 300)); }; });
+  await T.ev(() => { runLesson(); });
+  await T.until(() => /whole thing/.test((document.querySelector('#lsStage') || {}).innerText || ''), null, 'the lesson reaches "say the whole thing"', 25000);
+  await T.sleep(200);
+  const said = () => Object.keys(S.ph || {}).filter(k => S.ph[k].intro).length;
+  const before = await T.ev(said);
+  await T.page.click('.sheet.lesson [data-a=quit]');
+  const t0 = await T.ev(() => performance.now());
+  await T.sleep(5000);
+  const after = await T.ev(({t0, said}) => ({calls: __calls.filter(c => c[0] > t0).map(c => c[1]), said: Object.keys(S.ph || {}).filter(k => S.ph[k].intro).length, hidden: document.querySelector('.sheet.lesson').hidden}), {t0});
+  T.ok(after.hidden, 'the lesson is closed');
+  T.eq(after.calls.length, 0, 'audio after Stop: ' + after.calls.join(' '));
+  T.eq(after.said, before, 'phrases recorded as said after Stop');
+  // a new lesson starts cleanly and records its first phrase
+  await T.skipRings();
+  await T.ev(() => { runLesson(); });
+  await T.until(n => Object.keys(S.ph || {}).filter(k => S.ph[k].intro).length > n, before, 'a new lesson after Stop works', 15000);
+  await T.page.click('.sheet.lesson [data-a=quit]');
+}},
+
+{name: '22 story: the Starveil rift stays open at Yosemite until Little Star is home; no goal toast for a goal already met (W4/W10)', timeout: 50000, fn: async T => {
+  await T.start();
+  await T.ev(() => { window.__toasts = []; const o = window.toast; window.toast = toast = m => { __toasts.push(m); return o(m); }; });
+  // W10: the Backyard badge is already won when the neighbor's chapter ends
+  await T.ev(() => { S.col.push(mk(IDX.Barkpup, 8), mk(IDX.Clovehop, 8)); S.badges = [0]; S.talked = {intro_neighbor: 1, story_1: 1}; S.story = {ch: 0, t: {}}; });
+  await T.until(() => S.story.ch === 1, null, 'chapter 1 counted as done', 3000);
+  await T.sleep(300);
+  T.ok(!(await T.ev(() => __toasts.some(m => /New goal: Beat Coach Mira/.test(m)))), 'no "Beat Coach Mira" goal when that badge is already won');
+  await T.ev(() => { S.talked.story_2 = 1; });
+  await T.until(() => __toasts.some(m => /New goal: Go to the Lakeshore/.test(m)), null, 'a goal still to do is announced', 3000);
+  // W4: after chapter 7 the rift is at Yosemite, and leaving does not close it
+  await T.ev(() => { for (let i = 1; i <= 7; i++) S.talked['story_' + i] = 1; S.place = 10; S.mode = 'arrived'; S.rift = null; updateUI(); });
+  await T.until(() => S.story.ch === 7 && S.rift && S.rift.place === 10, null, 'the story rift is at Yosemite', 3000);
+  await T.until(() => riftHere() && __TT.vis('#bRift'), null, 'rift banner at Yosemite', 2000);
+  await goTo(T, 9);
+  T.ok(await T.ev(() => !!(S.rift && S.rift.place === 10)), 'the rift stays after leaving Yosemite');
+  await goTo(T, 10);
+  T.ok(await T.ev(() => riftHere()), 'back at Yosemite the way into the Starveil is still open');
+  // a save where leaving Yosemite had already closed it gets it back
+  await T.ev(() => { S.rift = null; });
+  await T.until(() => S.rift && S.rift.place === 10 && S.rift.story, null, 'a lost story rift comes back', 3000);
+  // once Little Star is home it is an ordinary rift again
+  await T.ev(() => { S.talked.story_8 = 1; });
+  await T.until(() => S.story.ch === 8 && S.rift && !S.rift.story, null, 'an ordinary rift after chapter 8', 3000);
+}},
+
+{name: '23 catch screen: hints in Chinese with recordings, spoken; the spell button resets after a throw; no spell without orbs (V1/W7/W17)', timeout: 50000, fn: async T => {
+  await T.start();
+  const plans = await T.ev(() => ['drag', 'flick', 'spin', 'again', 'spellagain', 'noorbs', 'broke', 'fled', 'short', 'over', 'wide'].map(k => [k, W[k][1], zhPlan(W[k][1]), W[k][2]]));
+  for (const [k, zh, plan, py] of plans) { T.ok(plan === 'whole' || plan === 'clauses', `catch hint "${k}" ${zh} plays from recordings (plan: ${plan})`); T.ok(/[a-zü]/i.test(py || ''), `catch hint "${k}" has pinyin`); }
+  await T.stay(); await T.spawn(2);
+  await T.ev(() => { window.__said = []; window.speakAsync = z => { __said.push(z); return Promise.resolve(); }; });
+  await T.openCatchOn(0);
+  let r = await T.ev(() => ({spell: C.spell, btn: document.getElementById('bSpell').innerText}));
+  T.ok(r.spell && /ready/.test(r.btn), 'the spell is ready before the throw: ' + r.btn);
+  // let go without flicking up: the Chinese hint shows, is spoken, and the swipe cue is drawn
+  const g = await T.ev(() => { const g = cGeom(), rc = ccv.getBoundingClientRect(); return {x: rc.left + g.rest.x, y: rc.top + g.rest.y}; });
+  await T.page.mouse.move(g.x, g.y); await T.page.mouse.down(); await T.page.mouse.move(g.x + 30, g.y + 6, {steps: 3}); await T.page.mouse.up();
+  await T.until(() => /然后往上扔/.test(document.getElementById('catchMsg').innerText), null, 'the flick hint shows in Chinese', 2000);
+  T.ok(await T.ev(() => __said.includes(W.flick[1]) && C.hintT > 0), 'the flick hint is spoken and the swipe cue is on');
+  // no throw for a while: the drag hint comes by itself
+  await T.ev(() => { C.aimT = T - 20; C.hinted = false; C.hintSaid = -9; __said.length = 0; });
+  await T.until(() => /往上，扔/.test(document.getElementById('catchMsg').innerText), null, 'after a while without a throw the drag hint shows', 3000);
+  await T.until(() => __said.includes(W.drag[1]), null, 'and is spoken', 3000);
+  // V1: once the throw lands, the spell is used up and the button says so
+  await forceCatch(T);
+  await T.ev(() => ccv.focus());
+  await T.page.keyboard.press('Space');
+  await T.until(() => C && (C.phase === 'shake' || C.phase === 'result'), null, 'the throw lands', 4000);
+  r = await T.ev(() => ({spell: C.spell, btn: document.getElementById('bSpell').innerText}));
+  T.ok(!r.spell && !/ready/.test(r.btn), 'spell button after the throw: ' + r.btn);
+  await T.until(() => C === null, null, 'the catch screen closes', 5000);
+  // W7: no orbs, no spell
+  await T.ev(() => { S.items.orb = 0; S.items.great = 0; S.items.ultra = 0; __said.length = 0; window.__tr = 0; const t = window.traceChar; window.traceChar = (...a) => { __tr++; return t(...a); }; openCatch(wild[0]); });
+  await T.until(() => C && __TT.vis('#sCatch'), null, 'the catch screen opens without orbs', 3000);
+  r = await T.ev(() => ({dis: document.getElementById('bSpell').disabled, msg: document.getElementById('catchMsg').innerText, tr: __tr}));
+  T.ok(r.dis, 'Spell is disabled with no orbs');
+  T.eq(r.tr, 0, 'spell traces opened with no orbs');
+  T.ok(/没有。出发/.test(r.msg), 'the out-of-orbs line is in Chinese: ' + r.msg);
+  await T.ev(() => castSpell());
+  T.eq(await T.ev(() => __tr + (document.querySelector('.tracewrap') ? 1 : 0)), 0, 'casting does nothing without orbs');
+  await T.until(() => __said.includes(W.noorbs[1]), null, 'the out-of-orbs line is spoken', 3000);
+}},
+
+{name: '24 the daily Chinese quest counts lines said in conversations and lessons and traced characters (W8); phrase counts agree (W16)', talk: ['intro_neighbor'], timeout: 80000, fn: async T => {
+  await T.fastSpeech();
+  await T.start();
+  await T.ev(() => { ensureQuests(); const w = S.quests.list.find(x => x.k === 'words'); w.goal = 99; w.prog = 0; });
+  const txt = await T.ev(() => qText(S.quests.list.find(x => x.k === 'words')));
+  T.ok(/Say or write 99 things in Chinese/.test(txt) && /shuō yi shuō/.test(txt), 'the quest says what counts: ' + txt);
+  const prog = () => T.ev(() => S.quests.list.find(x => x.k === 'words').prog);
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'the intro opens', 5000);
+  const tr = await T.talkThrough();
+  T.eq(await prog(), tr.answered, 'one per answer said in the conversation');
+  let p = await prog();
+  await T.skipRings();
+  await T.ev(() => { runLesson(); });
+  await T.until(p => S.quests.list.find(x => x.k === 'words').prog > p, p, 'a phrase said in the Speak lesson counts', 20000);
+  await T.page.click('.sheet.lesson [data-a=quit]');
+  p = await prog();
+  await T.ev(() => { window.__realTrace('fire', {purpose: 'move'}); });
+  await T.traceReal();
+  T.eq(await prog(), p + 1, 'a traced character counts');
+  await T.page.click('#bLearn');
+  const r = await T.ev(() => ({tile: [...document.querySelectorAll('.ptiles .pt')].find(e => /phrases said/.test(e.innerText)).querySelector('b').textContent,
+    head: [...document.querySelectorAll('#learnList .reghead')].map(h => h.innerText).find(t => /说过的句子/.test(t))}));
+  T.ok(+r.tile >= 1 && r.head && r.head.includes('· ' + r.tile + ' /'), `the "phrases said" tile (${r.tile}) agrees with the phrase list ("${r.head}")`);
+}},
+
+{name: '25 small fixes: raid toast, Rift map labels, door knock on a trip, player names, plurals (W6/W11-W14/W18)', timeout: 60000, fn: async T => {
+  await T.start();
+  await T.ev(() => { window.__toasts = []; const o = window.toast; window.toast = toast = m => { __toasts.push(m); return o(m); }; });
+  await T.stay();
+  await T.ev(() => { S.raid = pickBoss(); S.raid.shown = false; raidAt = 1e9; });
+  await goTo(T, 1);
+  T.ok(!(await T.ev(() => __toasts.some(m => /raid ended/.test(m)))), 'no "the raid ended" for a raid that never showed up');
+  await T.stay();
+  await T.ev(() => { S.raid = pickBoss(); S.raid.shown = true; updateUI(); });
+  await goTo(T, 0);
+  T.ok(await T.ev(() => __toasts.some(m => /raid ended/.test(m))), 'leaving a raid that showed up says so');
+  await T.stay();
+  await T.ev(() => { lastVisit = -1000; });
+  await T.until(() => !!document.getElementById('knock'), null, 'someone knocks or calls', 4000);
+  await T.ev(() => { travel(1); });
+  await T.until(() => S.mode === 'travel', null, 'the trip starts');
+  T.ok(!(await T.ev(() => !!document.getElementById('knock'))), 'the knock banner is gone on the road');
+  await T.ev(() => { travelT = 1; });
+  await T.until(() => S.mode === 'arrived', null, 'arrived');
+  await goTo(T, 6);
+  await T.page.click('#bMove');
+  const heads = await T.ev(() => [...document.querySelectorAll('#mapList .reghead')].map(h => h.innerText));
+  T.ok(heads.length >= 2 && !heads.some(h => /flight/.test(h)), 'no "flight" labels from the Rift: ' + heads.join(' | '));
+  await T.page.click('#sMap [data-close]');
+  await T.ev(() => { flush(); PL.list.push({id: 'p2', name: '', young: false}, {id: 'p3', name: 'A<b>B</b> & "C"', young: false}); });
+  await T.page.click('#bWho');
+  const who = await T.ev(() => [...document.querySelectorAll('#whoList .card.who .nm')].map(e => e.innerText));
+  T.eq(who[1], 'Player 2', 'an unnamed second player');
+  T.eq(who[2], 'A<b>B</b> & "C"', 'a name shows as typed, not as HTML');
+  await T.page.click('#sWho [data-close]');
+  await T.ev(() => switchPlayer('p2'));
+  await T.until(() => PID === 'p2', null, 'player 2 plays');
+  const h = await T.ev(() => ({btn: document.getElementById('bWho').textContent, toast: __toasts.filter(m => /is playing/.test(m)).pop()}));
+  T.ok(/Player 2/.test(h.btn), 'the header names the unnamed second player: ' + h.btn);
+  T.ok(/^Player 2 is playing/.test(h.toast || ''), 'toast: ' + h.toast);
+  const pl = await T.ev(() => ({rw: rwTxt({berry: 2, orb: 1, great: 3}), sum: playerSummary({id: 'p1'})}));
+  T.eq(pl.rw, '2 Calm Berries, 1 Stay Orb, 3 Great Orbs', 'reward text');
+  T.ok(/^1 creature ·/.test(pl.sum), 'one creature, singular: ' + pl.sum);
+}},
+
+{name: '26 layout at 360x629 and 336x560: Settings, readings (Done without scrolling), status lines, map, battle titles; toasts below sheet headers (V2-V5)', talk: ['visit_weather'], timeout: 120000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  const probe = () => T.ev(async () => {
+    const bad = [], sleep = ms => new Promise(r => setTimeout(r, ms)), over = el => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
+    const below = (label, hdSel) => { const t = document.getElementById('toast').getBoundingClientRect(), h = document.querySelector(hdSel).getBoundingClientRect(); if (t.top < h.bottom - 1) bad.push(`${label}: toast top ${t.top.toFixed(0)} over the header (bottom ${h.bottom.toFixed(0)})`); };
+    toast('A toast before a sheet opens');
+    document.getElementById('bSet').click(); await sleep(80);
+    if (over(document.getElementById('sSet'))) bad.push('Settings needs scrolling');
+    below('Settings', '#sSet .inner>.row');
+    document.querySelector('#sSet [data-close]').click();
+    document.getElementById('bMove').click(); await sleep(80);
+    if (document.getElementById('sMap').scrollWidth > innerWidth) bad.push('map is wider than the screen');
+    for (const c of document.querySelectorAll('#mapList .card')) { const r = c.getBoundingClientRect(); for (const e of c.querySelectorAll('*')) { const q = e.getBoundingClientRect(); if (q.width && (q.right > r.right + .5 || q.left < r.left - .5)) { bad.push('map card content sticks out: ' + c.innerText.split('\n')[0]); break; } } }
+    document.querySelector('#sMap [data-close]').click();
+    for (const rd of READINGS) { openReading(rd.id); await sleep(10); let n = 0;
+      while (n++ < 20) { const paper = document.getElementById('rdPaper'); if (over(document.getElementById('sRead')) || paper.scrollHeight > paper.clientHeight + 1) { bad.push(`reading ${rd.id} page ${n} needs scrolling`); break; }
+        const done = document.getElementById('rdDone'); if (!done.hidden) { if (done.getBoundingClientRect().bottom > innerHeight + 1) bad.push(`reading ${rd.id}: Done below the screen`); break; }
+        document.getElementById('rdNext').click(); await sleep(5); }
+      document.getElementById('rdClose').click(); }
+    const st = document.getElementById('status');
+    for (let f = 0; f < PLACES.length; f++) for (let t = 0; t < PLACES.length; t++) { if (f === t) continue; S.place = f; travelTo = t; S.mode = 'travel'; updateUI(); if (over(st)) bad.push(`status cut: ${PLACES[f].n} to ${PLACES[t].n}`); }
+    for (const m of ['arrived', 'staying']) for (let f = 0; f < PLACES.length; f++) { S.place = f; S.mode = m; S.spawned = 3; S.stayed = [0, 1, 2, 3, 4, 5]; updateUI(); if (over(st)) bad.push(`status cut: ${m} at ${PLACES[f].n}`); }
+    S.mode = 'arrived'; S.place = 0; S.stayed = [0]; updateUI();
+    for (let i = 0; i < PLACES.length; i++) { S.place = i; S.badges = [i]; startGym(); await sleep(10); const h = document.getElementById('bTitle'); if (h.scrollWidth > h.clientWidth + 1) bad.push('battle title cut: ' + h.textContent);
+      if (i === 0) { toast('A toast in a battle'); below('battle', '#sBattle [data-toast]'); } B = null; close('sBattle'); }
+    S.place = 0; S.badges = [];
+    return bad; });
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, async () => { const bad = await probe(); T.ok(!bad.length, `${w}x${h}: ` + bad.slice(0, 6).join(' | ')); });
+  // toasts over the conversation sheet and the catch sheet stay below the speaker's name / the creature's name
+  await T.ev(() => { runTalk('visit_weather'); });
+  await T.until(() => __TT.vis('.sheet.talk'), null, 'a conversation opens', 3000);
+  await T.ev(() => toast('Quest done'));
+  T.ok(await T.ev(() => document.getElementById('toast').getBoundingClientRect().top >= document.querySelector('.sheet.talk .talkhead').getBoundingClientRect().bottom - 1), 'the toast is below the speaker');
+  await T.ev(() => stopTalk());
+  await T.stay(); await T.spawn(1); await T.openCatchOn(0);
+  await T.ev(() => toast('Streak lost'));
+  T.ok(await T.ev(() => document.getElementById('toast').getBoundingClientRect().top >= document.querySelector('#sCatch .inner>.row').getBoundingClientRect().bottom - 1), 'the toast is below the catch title');
+}},
+
+{name: "27 a creature past both evolution levels evolves twice; little kids get no level choice and no mic button; unfound book cards keep the mystery", talk: ['visit_weather'], timeout: 60000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  await T.ev(() => { evoQueue.length = 0; const c = mk(IDX.Smoldy, 40); S.col.push(c); window.__c = c; evoQueue.push(c.id); runEvoQueue(); });
+  for (const to of ['Smolderox', 'Pyrothane']) {
+    await T.until(() => E && !E.done && __TT.vis('#sEvo'), null, `evolution into ${to} starts`, 5000);
+    await T.ev(() => { E.t0 = T - 5; });
+    await T.until(() => !document.getElementById('bEvoOk').hidden, null, `evolution into ${to} finishes`, 3000);
+    T.eq(await T.ev(() => SP[__c.sp].n), to, 'species');
+    await T.page.click('#bEvoOk');
+  }
+  // a big kid: level choice, and the mic button when the browser can listen
+  await T.page.click('#bSet');
+  T.ok(await T.ev(() => __TT.vis('#lvlSeg')), 'a big kid can choose the Chinese level');
+  await T.page.click('#sSet [data-close]');
+  await T.ev(() => { runTalk('visit_weather'); });
+  await T.until(() => document.querySelectorAll('.sheet.talk .talkopts button').length > 0, null, 'answer options', 8000);
+  const big = await T.ev(() => ({mic: !!document.querySelector('.sheet.talk .talkopts .mic'), can: canListen()}));
+  if (big.can) T.ok(big.mic, 'a big kid gets the mic button'); else T.note('no speech recognition here; mic control skipped');
+  await T.ev(() => stopTalk());
+  // a little kid
+  await T.ev(() => { PL.list[0].young = true; applyYoung(); });
+  await T.page.click('#bSet');
+  T.ok(!(await T.ev(() => __TT.vis('#lvlSeg'))), 'a little kid has no level choice (Chinese, pinyin and English stay shown)');
+  await T.page.click('#sSet [data-close]');
+  await T.ev(() => { runTalk('visit_weather'); });
+  await T.until(() => document.querySelectorAll('.sheet.talk .talkopts button').length > 0, null, 'little-kid answer option', 10000);
+  const young = await T.ev(() => ({mic: !!document.querySelector('.sheet.talk .talkopts .mic'), n: document.querySelectorAll('.sheet.talk .talkopts button').length}));
+  T.ok(!young.mic && young.n === 1, 'a little kid gets one answer to tap and no mic button: ' + JSON.stringify(young));
+  await T.ev(() => stopTalk());
+  // the creature book
+  await T.ev(() => { const i = SP.findIndex((s, i) => !S.col.some(c => c.sp === i) && !(S.caught || []).includes(i) && s.next != null); openDex(i, false); });
+  const dex = await T.ev(() => { const d = document.querySelector('.dexcard'); return {type: !!d.querySelector('.type'), places: d.querySelectorAll('.dplace').length, evo: !!d.querySelector('.devo'), txt: d.innerText}; });
+  T.ok(!dex.type && !dex.places && !dex.evo && /？？？/.test(dex.txt), 'an unfound creature shows only its silhouette: ' + JSON.stringify(dex));
+}},
+
 ];

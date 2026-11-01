@@ -208,6 +208,29 @@ function mkHelpers(page, state) {
       }
       throw new TestFail(`conversation ${key} did not finish within ${timeout} ms (answered ${answered})`);
     },
+    // Trace the character in the open trace overlay for real with the mouse, along its stroke medians (Hanzi Writer's coordinates).
+    async traceReal(timeout = 15000) {
+      await T.until(() => { const w = document.querySelector('.tracewrap'); return w && /Trace the strokes/.test(w.querySelector('.tracemsg').innerText); }, null, 'trace overlay ready for tracing', timeout);
+      const info = await T.ev(() => { const w = document.querySelector('.tracewrap'), ch = w.querySelector('.tracehead b').textContent, r = w.querySelector('.hw').getBoundingClientRect();
+        return {ch, rect: {x: r.left, y: r.top, w: r.width, h: r.height}, medians: TRACE_DATA[ch].medians}; });
+      const W = 240, pad = 18, eff = W - 2 * pad, sc = eff / 1024, xo = pad + (eff - sc * 1024) / 2, yo = 124 * sc + pad + (eff - sc * 1024) / 2;
+      const scr = ([x, y]) => ({x: info.rect.x + (xo + x * sc) * info.rect.w / W, y: info.rect.y + ((W - yo) - y * sc) * info.rect.h / W});
+      for (const m of info.medians) {
+        const pts = m.map(scr);
+        await page.mouse.move(pts[0].x, pts[0].y); await page.mouse.down();
+        for (let k = 1; k < pts.length; k++) { const a = pts[k - 1], b = pts[k], n = Math.max(2, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 6)); for (let j = 1; j <= n; j++) await page.mouse.move(a.x + (b.x - a.x) * j / n, a.y + (b.y - a.y) * j / n); await T.sleep(8); }
+        await page.mouse.up(); await T.sleep(260);
+      }
+      await T.until(() => !document.querySelector('.tracewrap'), null, `traced ${info.ch}: the overlay closes`, 8000);
+      return info.ch;
+    },
+    // Wait for a page reload that the game itself starts (e.g. after importing a save code).
+    async waitReload(action) {
+      await Promise.all([page.waitForEvent('load', {timeout: 15000}), action()]);
+      await T.until(() => typeof S !== 'undefined' && typeof window.runTalk === 'function', null, 'game reloaded');
+    },
+    // Run the checks at another screen size (e.g. the 336x560 phone), then go back to 360x629.
+    async atSize(w, h, fn) { await page.setViewportSize({width: w, height: h}); try { await T.sleep(150); await fn(); } finally { await page.setViewportSize(VIEWPORT); await T.sleep(100); } },
     async layoutOk(sel, label) {
       const L = await T.ev(sel => __TT.layout(sel), sel);
       const probs = [];

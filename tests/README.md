@@ -39,7 +39,7 @@ A full run takes about 2 minutes. Playwright is preinstalled, so do not install 
 ## Files
 
 - `run.js`: the runner, the in-page helpers (`window.__TT`) and the test helpers (`start`, `stay`, `spawn`,
-  `openCatchOn`, `flick`, `talkThrough`, `layoutOk`, ...).
+  `openCatchOn`, `flick`, `talkThrough`, `traceReal`, `waitReload`, `atSize`, `layoutOk`, ...).
 - `tests.js`: the test cases.
 
 ## Tests
@@ -65,3 +65,13 @@ A full run takes about 2 minutes. Playwright is preinstalled, so do not install 
 | 15 | At 360x629, the main screen (also with raid and rift banners), the catch sheet (also for a giant shiny legendary) and the battle sheet (also in the Rift with the longest names) have no horizontal overflow and at most 10 px of vertical overflow |
 | 16 | After a broad play session, no LOG event and no log document written by `flushLog` (through a fake DB) contains nested arrays |
 | 17 | No visible text in any state contains `undefined`/`NaN`. Covers every sheet, catch, battle, switch menu, raid and rift banners, travel and evolution, with one of every species in the team |
+| 18 | Owed conversations survive a reload: the neighbor's intro, the first-arrival chat (which also waits for the "到达…" line) and the post-badge interview come back after the page is reloaded mid-chat, and are recorded once finished |
+| 19 | A road trip and its road creatures wait while the catch spell (trace) or the catch screen is open; a catch never opens for a creature that left the field |
+| 20 | Importing a save code replaces everything (field, trip, items); the "Tap again" label goes back to "Load" after 4 s |
+| 21 | Stop ends the Speak lesson at once: no audio and no phrase recorded after it; a new lesson then works |
+| 22 | Story: no "New goal" toast for a goal already met; the Starveil rift stays at Yosemite (and comes back if it was lost) until chapter 8 |
+| 23 | Catch hints are Chinese with pinyin, play from recordings and are spoken (release without a flick, idle hint); the Spell button resets after the throw; no Spell without orbs |
+| 24 | The daily Chinese quest counts conversation answers, lines said in the Speak lesson and traced characters (real mouse tracing); the "phrases said" tile matches the phrase list |
+| 25 | Raid toast only for a raid that showed up; no "flight" labels from the Rift; a knock banner is gone on a trip; player names are text and an unnamed player is "Player N"; plurals |
+| 26 | At 360x629 and 336x560: Settings fits, every reading reaches Done without scrolling, all status lines fit, map cards and battle titles fit; toasts sit below sheet headers |
+| 27 | A creature past both evolution levels evolves twice; little kids get no level choice and no mic button; unfound book cards show only a silhouette |
