@@ -301,10 +301,11 @@ canvas.mini{border-radius:8px;background:radial-gradient(circle at 50% 70%,rgba(
 </div></div>
 <div class="sheet" id="sSet" hidden><div class="inner">
   <div class="row"><h2>Settings<span class="zh" data-say="设置">设置<i>shèzhì</i></span></h2><button class="small" data-close>Close<span class="zh" data-say="关闭">关闭<i>guānbì</i></span></button></div>
-  <div class="sub">Chinese level<span class="zh" data-say="中文水平">中文水平<i>Zhōngwén shuǐpíng</i></span></div>
+  <div id="lvlBox"><div class="sub">Chinese level<span class="zh" data-say="中文水平">中文水平<i>Zhōngwén shuǐpíng</i></span></div>
   <div class="seg" id="lvlSeg"></div>
-  <div class="sub" id="lvlNote"></div>
-  <div id="setList" style="display:flex;flex-direction:column;gap:8px"></div>
+  <div class="sub" id="lvlNote"></div></div>
+  <div id="setList" class="seg"></div>
+  <div id="saveBox" class="savebox"></div>
 </div></div>
 
 <div class="quizwrap" id="quiz" hidden><div class="quizcard">
@@ -325,7 +326,7 @@ canvas.mini{border-radius:8px;background:radial-gradient(circle at 50% 70%,rgba(
 
 <div class="sheet" id="sBattle" hidden><div class="inner">
   <h2 id="bTitle"></h2>
-  <div class="hpbox"><div class="row"><span><b id="fName"></b><span class="titanbadge" id="fTitan"></span></span><span class="sub" id="fLv"></span></div><div class="hp"><i id="fBar"></i></div></div>
+  <div class="hpbox" data-toast><div class="row"><span><b id="fName"></b><span class="titanbadge" id="fTitan"></span></span><span class="sub" id="fLv"></span></div><div class="hp"><i id="fBar"></i></div></div>
   <canvas id="bcv"></canvas>
   <div class="hpbox"><div class="row"><span><b id="pName"></b><span class="titanbadge" id="pTitan"></span></span><span class="sub" id="pHp"></span></div><div class="hp"><i id="pBar"></i></div></div>
   <div id="blog"></div>
@@ -618,7 +619,7 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
       for(const s2 of AMB){const k=((T*.8+s2.a)%1),a=s2.b*Math.PI*2,r1=k*w*.7,r2=r1+k*k*40;sctx.strokeStyle='rgba(255,255,255,.8)';sctx.globalAlpha=k;sctx.lineWidth=1.5;sctx.beginPath();sctx.moveTo(w/2+Math.cos(a)*r1,h/2+Math.sin(a)*r1*.7);sctx.lineTo(w/2+Math.cos(a)*r2,h/2+Math.sin(a)*r2*.7);sctx.stroke()}
       sctx.globalAlpha=1;if(travelT>=1)arrive()}else{
     bg(sctx,w,h,travelT<.5?p:q);drawRoad(sctx,w,h,T,travelT<.5?p:q);
-    for(const rs of roadSpawns)if(!rs.done&&travelT>rs.at){rs.done=true;if(Math.random()<.75){const wd=spawnWild(true);wd.vx=-.07;wd.x=1.08;wild.push(wd);toast('Something is crossing the road!')}}
+    for(const rs of roadSpawns)if(!rs.done&&travelT>rs.at){rs.done=true;if(Math.random()<.75){const wd=spawnWild(true);wd.vx=-.07;wd.x=1.08;wild.push(wd);toast('Something is crossing the road! Tap it!')}}
     if(travelT>=1)arrive();}
   }else{bg(sctx,w,h,p);if(!hasScene(p))for(const pr of props)drawProp(sctx,pr,w,h);
     if(S.mode==='staying'&&S.spawned<quota()&&wild.length<7&&T-lastSpawn>1.3){{const nw=spawnWild(false);wild.push(nw);LOG('spawn',{sp:SP[nw.sp].n,lvl:nw.lvl,shiny:!!nw.shiny});if(!sheetOpen()){if(SP[nw.sp].leg){sfx('legend');toast(`A legendary ${SP[nw.sp].n} appeared! · 传说的${ZS(SP[nw.sp].n).zh}出现了！(chuánshuō de ${ZS(SP[nw.sp].n).py} chūxiàn le!)`)}else if(nw.shiny){sfx('shiny');toast(`A shiny ${SP[nw.sp].n} appeared! · 闪光的${ZS(SP[nw.sp].n).zh}出现了！(shǎnguāng de ${ZS(SP[nw.sp].n).py} chūxiàn le!)`)}else sfx('spawn')}}S.spawned++;lastSpawn=T;save();updateUI()}}
@@ -755,7 +756,7 @@ function updateUI(){const p=PLACES[S.place];
   document.getElementById('cDex').textContent=`${new Set(S.col.map(c=>c.sp)).size}/${SP.length} kinds · 种 zhǒng`;
   const st=document.getElementById('status'),m=document.getElementById('meter');
   const nextQ=Math.min(15,5+2*(S.stayed.length-(S.stayed.includes(S.place)?1:0)));
-  if(S.mode==='travel'){st.innerHTML=(!PLACES[travelTo].rift&&!p.rift&&PLACES[travelTo].region!==p.region)?`<b>Flying to ${PLACES[travelTo].n}…</b>`:(PLACES[travelTo].rift||p.rift)?`<b>Warping to ${PLACES[travelTo].n}…</b>`:`<b>Traveling to ${PLACES[travelTo].n}…</b> Tap creatures on the road!`}
+  if(S.mode==='travel'){st.innerHTML=(!PLACES[travelTo].rift&&!p.rift&&PLACES[travelTo].region!==p.region)?`<b>Flying to ${PLACES[travelTo].n}…</b>`:(PLACES[travelTo].rift||p.rift)?`<b>Warping to ${PLACES[travelTo].n}…</b>`:`<b>Traveling to ${PLACES[travelTo].n}…</b>`}
   else if(S.mode==='staying'){const q=quota();m.style.width=(S.spawned/q*100)+'%';
     st.innerHTML=S.spawned<q?`<b>Staying at ${p.n}</b> · ${S.spawned} of ${q} creatures`:
       wild.length?`<b>All ${q} creatures are here!</b>`:`<b>${p.n} is quiet now.</b> Move on for more.`}
@@ -793,11 +794,20 @@ function holdIdle(p){const my=++idleHold;Promise.race([Promise.resolve(p).catch(
 function sheetOpen(){if(document.querySelector('.sheet.talk:not([hidden]),.sheet.lesson:not([hidden])'))return'talk';for(const id of['sCatch','sBattle','sEvo','sStart','sQuest','sBag','sTeam','sMap','sContacts','sSet','sLearn','sRead','sWho']){const el=document.getElementById(id);if(el&&!el.hidden)return id}
   if(document.querySelector('.tracewrap'))return'trace';if(C)return'catch';const qz=document.getElementById('quiz');if(qz&&!qz.hidden)return'quiz';return null}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.closest('.sheet').id));
-let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200)}
+// over an open sheet, a toast sits just below the sheet's header (its title, the speaker's name, the foe's name) instead of covering it;
+// it moves when a sheet opens or closes while it is showing
+function placeToast(){const t=document.getElementById('toast');if(!t||!t.classList.contains('on'))return;let top='';
+  try{const sh=[...document.querySelectorAll('.sheet:not([hidden])')].pop();if(sh){const hd=sh.querySelector('[data-toast]')||sh.querySelector('.talkhead,.inner>.row,.inner>h2');if(hd){const r=hd.getBoundingClientRect();if(r.height)top=Math.round(r.bottom+6)+'px'}}}catch(e){}
+  if(t.style.top!==top)t.style.top=top}
+new MutationObserver(()=>placeToast()).observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden']});
+let toastTimer;function toast(msg){const t=document.getElementById('toast');t.textContent=msg;
+  t.classList.add('on');placeToast();clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200)}
 document.getElementById('bStay').onclick=startStay;
 document.getElementById('bMove').onclick=()=>{const L=document.getElementById('mapList');L.innerHTML='';
-  let lastReg=null;PLACES.forEach((p,i)=>{if(p.rift&&i!==S.place)return;if(p.region!==lastReg){lastReg=p.region;const hh=document.createElement('div');hh.className='reghead';hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+(p.region!==PLACES[S.place].region?' · flight 飞行 fēixíng':''):'Home · 家乡 jiāxiāng'+(p.region!==PLACES[S.place].region?' · flight 飞行 fēixíng':'');L.appendChild(hh)}const c=document.createElement('div');c.className='card';
-    c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="nm">${plB(i,true)}${S.badges.includes(i)?' ★':''}</div><div class="sub">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join(' ')} · Lv ${Math.max(2,p.lv-3)}–${p.lv}</div></div>`;
+  let lastReg=null;PLACES.forEach((p,i)=>{if(p.rift&&i!==S.place)return;if(p.region!==lastReg){lastReg=p.region;const hh=document.createElement('div');hh.className='reghead';const fl=p.region!==PLACES[S.place].region&&!PLACES[S.place].rift?' · flight 飞行 fēixíng':''; // leaving the Rift is a warp, not a flight
+      hh.textContent=p.region==='Rift'?'Starveil · 星幕 xīng mù':p.region==='California'?'California · 加利福尼亚 Jiālìfúníyà'+fl:'Home · 家乡 jiāxiāng'+fl;L.appendChild(hh)}const c=document.createElement('div');c.className='card';
+    // name in Chinese with pinyin, English and levels under it, then the creature types (no awkward wrapping on narrow phones)
+    const z=ZP(p.n);c.innerHTML=`<canvas class="mapthumb" data-place="${i}"></canvas><div class="info"><div class="tname"><b data-say="${z.zh}">${z.zh||p.n}</b><span class="tpy">${z.py}</span>${S.badges.includes(i)?'<span class="mbadge">★</span>':''}</div><div class="ten">${p.n} · Lv ${Math.max(2,p.lv-3)}–${p.lv}</div><div class="tmeta">${p.types.map(t=>`<span class="type" style="background:${TYPES[t]}">${tyB(t)}</span>`).join('')}</div></div>`;
     const b=document.createElement('button');b.className='small'+(i===S.place?'':' big');b.textContent=i===S.place?'Here':'Go';b.disabled=i===S.place;b.onclick=()=>travel(i);c.appendChild(b);L.appendChild(c)});L.querySelectorAll('canvas.mapthumb').forEach(cv=>{try{const pl=PLACES[+cv.dataset.place],d=devicePixelRatio||1;cv.width=92*d;cv.height=62*d;const cx=cv.getContext('2d');cx.setTransform(d,0,0,d,0,0);if(hasScene(pl))cx.drawImage(painted(pl.key,160,108),0,0,160,108,0,0,92,62);else bgOld(cx,92,62,pl)}catch(e){}});open('sMap')};
 document.getElementById('bTeam').onclick=renderTeam;
 function renderTeam(){const L=document.getElementById('teamList');L.innerHTML='';
@@ -996,8 +1006,11 @@ function startGym(){
   const f=l=>{const c=mk(grown(pick(pool),l,1),l);S.nextId--;return c};
   LOG('battle_start',{kind:'gym',place:p.n,party:snap().party});
   B={foes:[f(lv-1),f(lv),f(lv+1)],fi:0,pi:party().findIndex(c=>c.hp>0),pm:0,pt:0,pused:false,ft:0,busy:true,hitP:-9,hitF:-9,lungeP:-9,lungeF:-9};
-  document.getElementById('bTitle').textContent=`${p.leader} · ${p.n} Gym${had?' (rematch)':''}`;open('sBattle');requestAnimationFrame(battleLoop);
+  document.getElementById('bTitle').textContent=`${p.leader} · ${p.n} Gym${had?' (rematch)':''}`;open('sBattle');fitText(document.getElementById('bTitle'),11);requestAnimationFrame(battleLoop);
   (async()=>{renderBattle();await say(`${p.leader} wants to battle! They have 3 creatures.`);await say(`${p.leader} sends out ${SP[B.foes[0].sp].n}!`);B.busy=false;renderBattle()})()};
+// shrink a one-line title until it fits its box (long gym names on a narrow phone)
+function fitText(el,min){if(!el)return;el.style.removeProperty('font-size');let fs=parseFloat(getComputedStyle(el).fontSize)||16;
+  while(el.scrollWidth>el.clientWidth+1&&fs>min){fs-=.5;el.style.setProperty('font-size',fs+'px','important')}}
 function battleLoop(){if(!B)return;requestAnimationFrame(battleLoop);try{battleFrame()}catch(e){console.error(e)}}
 // ---------- giant transformation: charge-up, spiral energy, swell with overshoot, flash, shockwave, light pillar ----------
 const easeBack=k=>{const c=1.9;return 1+(c+1)*Math.pow(k-1,3)+c*Math.pow(k-1,2)};
@@ -1085,7 +1098,7 @@ function startRaid(){if(!raidHere()||B)return;if(!party().some(c=>c.hp>0)){toast
   const r=S.raid,boss=mk(r.sp,r.lvl,r.shiny);S.nextId--;boss.hpMul=4;boss.hp=stats(boss).maxhp;
   LOG('battle_start',{kind:'raid',boss:SP[r.sp].n,lvl:r.lvl,party:snap().party});
   B={raid:true,foes:[boss],fi:0,pi:party().findIndex(c=>c.hp>0),pm:0,pt:0,pused:false,ft:1,busy:true,hitP:-9,hitF:-9,lungeP:-9,lungeF:-9,grow:{side:'f',t0:performance.now()/1000+.3}};
-  document.getElementById('bTitle').textContent=`Giant raid · ${r.shiny?'Shiny ':''}${SP[r.sp].n}`;open('sBattle');requestAnimationFrame(battleLoop);sfx(SP[r.sp].leg?'legend':'raid');
+  document.getElementById('bTitle').textContent=`Giant raid · ${r.shiny?'Shiny ':''}${SP[r.sp].n}`;open('sBattle');fitText(document.getElementById('bTitle'),11);requestAnimationFrame(battleLoop);sfx(SP[r.sp].leg?'legend':'raid');
   (async()=>{renderBattle();await say(`A giant ${SP[r.sp].n} towers over you! Beat it to get a chance to catch it.`);B.busy=false;renderBattle()})()}
 async function raidWin(){const r=S.raid,rw=SP[r.sp].leg?{great:3,ultra:2,berry:3}:{great:2,ultra:1,berry:2};give(rw);
   await say(`You beat the giant ${SP[r.sp].n}! You got ${rwTxt(rw)}. Now catch it!`);
@@ -1229,19 +1242,24 @@ document.getElementById('bPractice').onclick=()=>{close('sLearn');runLesson()};
 document.getElementById('bPracticeOld')&&(document.getElementById('bPracticeOld').onclick=async()=>{let right=0;for(let i=0;i<5;i++){const ok=await askQuiz('practice');if(ok)right++}
   const rw=right===5?{orb:10,great:1}:{orb:right*2};if(right)give(rw);save();renderLearn();toast(`${right}/5 correct · 答对了${right}个 (dá duì le ${right} gè). ${right?'You got '+rwTxt(rw)+'.':''}`);speak(`答对了${['零','一','二','三','四','五'][right]}个`);updateUI()});
 // ---------- Settings ----------
-function renderSettings(){const seg=document.getElementById('lvlSeg');seg.innerHTML='';
+// Settings fit on one phone screen: the Chinese level, a 2-column grid of switches, and the save code
+function renderSettings(full){const seg=document.getElementById('lvlSeg');seg.innerHTML='';
+  // little kids keep the beginner level (Chinese, pinyin and English all shown), so the level choice is not offered to them
+  document.getElementById('lvlBox').hidden=isYoung();
   const LV=[[1,'Beginner','初级','chūjí','English shown small under the Chinese.'],[2,'Intermediate','中级','zhōngjí','English hidden. Tap any Chinese to hear it and see the English.'],[3,'Advanced','高级','gāojí','English and pinyin hidden until you tap.']];
   for(const[l,en,zh,py,note]of LV){const b=document.createElement('button');b.className='small'+((S.lvl||1)===l?' on':'');b.innerHTML=en+zw(zh,py);b.onclick=()=>{S.lvl=l;applyLevel();save();renderSettings()};seg.appendChild(b);if((S.lvl||1)===l)document.getElementById('lvlNote').textContent=note}
   const L=document.getElementById('setList');L.innerHTML='';
-  const tg=(en,zh,py,get,set)=>{const d=document.createElement('div');d.className='toggle';d.innerHTML=`<span>${en}${zw(zh,py)}</span>`;const b=document.createElement('button');b.className='small'+(get()?' big':'');b.textContent=get()?'On 开':'Off 关';b.onclick=()=>{set(!get());save();renderSettings()};d.appendChild(b);L.appendChild(d)};
-  tg('Trace characters for moves and spells','写字出招','xiě zì chū zhāo',()=>S.trace!==false,v=>S.trace=v);
-  if(window.SpeechRecognition||window.webkitSpeechRecognition)tg('Check my speaking with the microphone','听我说','tīng wǒ shuō',()=>S.listen!==false,v=>S.listen=v);
+  const tg=(en,zh,py,get,set)=>{const on=!!get(),b=document.createElement('button');b.className='toggle settile'+(on?' on':'');b.setAttribute('aria-pressed',String(on));
+    b.innerHTML=`<span class="tl">${en}${zw(zh,py)}</span><i class="sw">${on?'On · 开 kāi':'Off · 关 guān'}</i>`;b.onclick=()=>{set(!get());save();renderSettings()};L.appendChild(b)};
+  tg('Trace characters','写字出招','xiě zì chū zhāo',()=>S.trace!==false,v=>S.trace=v);
+  if(window.SpeechRecognition||window.webkitSpeechRecognition)tg('Check my speaking','听我说','tīng wǒ shuō',()=>S.listen!==false,v=>S.listen=v);
   tg('Chinese voice','中文语音','Zhōngwén yǔyīn',()=>S.zhVoice!==false,v=>{S.zhVoice=v;if(v)speak('你好！我们一起学中文吧。')});
   tg('Sound effects','音效','yīnxiào',()=>!(window.SFX&&SFX.muted),v=>{if(window.SFX&&SFX.muted===v)SFX.toggle()});
   if(window.SFX&&SFX.toggleMusic)tg('Music','音乐','yīnyuè',()=>!SFX.musicMuted,v=>{if(SFX.musicMuted===v)SFX.toggleMusic();musicNow()});
-  {pickVoice();const d=document.createElement('div');d.className='sub';d.style.margin='2px 2px 6px';d.textContent=zhVoice?`Device Chinese voice: ${zhVoice.name}`:'No Chinese voice on this device, so only recorded lines are spoken. Opening the game in Chrome usually adds one.';L.appendChild(d)}
-  // move a save between devices or sites
-  const sv=document.createElement('div');sv.className='savebox';sv.innerHTML=`<div class="toggle"><span>Save code${zw('存档','cúndàng')}</span><span style="display:flex;gap:6px"><button class="small" id="svCopy">Copy</button><button class="small" id="svLoad">Load</button></span></div><textarea id="svText" rows="2" spellcheck="false" placeholder="Paste a save code here, then tap Load"></textarea>`;L.appendChild(sv);
+  pickVoice();
+  // move a save between devices or sites (built when Settings opens, so switching something above keeps a pasted code)
+  const sv=document.getElementById('saveBox');if(!full&&sv.firstChild)return;
+  sv.innerHTML=`<div class="saverow"><span class="tl">Save code${zw('存档','cúndàng')}</span><button class="small" id="svCopy">Copy</button><button class="small" id="svLoad">Load</button></div><textarea id="svText" rows="2" spellcheck="false" placeholder="Paste a save code here, then tap Load"></textarea>`;
   const ta=sv.querySelector('#svText');
   sv.querySelector('#svCopy').onclick=()=>{snapshotState();const code='CC1:'+btoa(unescape(encodeURIComponent(JSON.stringify(S))));ta.value=code;ta.select();try{navigator.clipboard&&navigator.clipboard.writeText(code).then(()=>toast('Save code copied'),()=>toast('Select the code and copy it'))}catch(e){toast('Select the code and copy it')}};
   let armed=0,armT=0;const lb=sv.querySelector('#svLoad');lb.onclick=()=>{const raw=(ta.value||'').trim();let obj=null;try{obj=JSON.parse(decodeURIComponent(escape(atob(raw.replace(/^CC1:/,'')))))}catch(err){}
@@ -1366,6 +1384,18 @@ header{position:relative}#bWho{position:absolute;right:0;top:2px;max-width:9.5em
 #catchTitle .ctz{font-family:'Noto Sans SC',sans-serif;font-size:1.12rem;font-weight:600;white-space:nowrap}#catchTitle .ctag{font-size:.7rem;padding:1px 6px;border-radius:99px;background:#ffd23f;color:#3a2a00;vertical-align:middle}
 #catchTitle .ctp{font-size:.72rem;opacity:.8;font-weight:500}#catchTitle .cte{font-size:.68rem;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sCatch .inner>.row{align-items:center}
+/* Settings: one screen, no scrolling */
+#sSet .inner{gap:8px}#lvlBox{display:flex;flex-direction:column;gap:6px}
+#setList.seg{grid-template-columns:1fr 1fr;gap:6px}
+#setList .settile{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;padding:7px 10px!important;border-radius:18px!important;position:relative;min-width:0;gap:0}
+#setList .settile .bi{align-items:flex-start;text-align:left}#setList .settile .sw{position:absolute;right:10px;top:7px;font-style:normal;font-size:.6rem;font-weight:700;opacity:.75}
+#setList .settile.on .sw{opacity:1;color:#1c3fa6}
+#sSet .savebox{display:flex;flex-direction:column;gap:6px}#sSet .saverow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}#sSet .saverow .bi{align-items:flex-start}
+#sSet .savebox textarea{height:44px}
+/* map cards: thumbnail · Chinese name, pinyin, English + levels, types · Go */
+#mapList .card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
+#mapList .tname b{font-size:1.1rem}#mapList .tmeta{gap:3px}#mapList .tmeta .type{margin:0}#mapList .mbadge{color:#b67500;font-size:.85rem}
+@media (max-width:350px){.mapthumb{width:70px!important;height:47px!important}#mapList .card{gap:8px}}
 .itembar button{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.12}
 .itembar button b{font-family:'Noto Sans SC',sans-serif;font-size:.88rem;font-weight:600}.itembar button small{font-size:.6rem;opacity:.75;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 </style>

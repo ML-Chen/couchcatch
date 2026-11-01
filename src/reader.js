@@ -5,8 +5,8 @@
 if(typeof READINGS==='undefined')window.READINGS=[];
 const KIND={letter:['Letter','信','xìn','✉️'],note:['Note','纸条','zhǐtiáo','📝'],postcard:['Postcard','明信片','míngxìnpiàn','🏞️'],book:['Book','书','shū','📖'],
   magazine:['Magazine','杂志','zázhì','📰'],newspaper:['Newspaper','报纸','bàozhǐ','🗞️'],poster:['Poster','海报','hǎibào','📌'],diary:['Diary','日记','rìjì','📔'],guide:['Field guide','图鉴','tújiàn','🔎']};
-const css=`#sRead .inner{gap:12px}
-.paper{background:#f6f0e3;color:#2b2420;border-radius:14px;padding:16px 14px 18px;box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 0 0 1px rgba(120,90,50,.18);background-image:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,0) 40%)}
+const css=`#sRead .inner{gap:12px;height:100%}
+.paper{flex:1 1 0;min-height:0;overflow:hidden;position:relative;background:#f6f0e3;color:#2b2420;border-radius:14px;padding:16px 14px 18px;box-shadow:0 10px 40px rgba(0,0,0,.45),inset 0 0 0 1px rgba(120,90,50,.18);background-image:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,0) 40%)}
 .paper.k-newspaper{background-color:#eeebe4;background-image:none}.paper.k-guide{background-color:#eef3ea}.paper.k-poster{background-color:#fbefd9}.paper.k-diary{background-color:#f3ecf6}
 .paper .ptitle{display:flex;flex-direction:column;align-items:center;gap:2px;border-bottom:1px solid rgba(80,60,30,.18);padding-bottom:10px;margin-bottom:6px;text-align:center}
 .paper .ptitle b{font-family:'Noto Sans SC',sans-serif;font-size:1.35rem;letter-spacing:.04em}.paper .ptitle i{font-style:normal;color:#8a6d4a;font-size:.8rem}.paper .ptitle span{color:#7a7268;font-size:.74rem}
@@ -19,7 +19,8 @@ const css=`#sRead .inner{gap:12px}
 .tok i{font-style:normal;font-size:.68rem;color:#8a5a2b;line-height:1.15}
 .tok u{text-decoration:none;font-size:.6rem;color:#7a7268;line-height:1.15;max-width:6.5em;text-align:center}
 .tok.p{cursor:default;min-width:0;padding:1px 0}.tok.p b{color:#6b5a48}
-.readbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.paper .off{display:none!important}
+.readbtns{display:flex;gap:8px;flex:none}.readbtns button{flex:1 1 0;min-width:0}.readbtns #rdPrev{flex:0 0 auto;padding-left:16px;padding-right:16px}
 .rdlib{grid-column:1/-1;display:flex;flex-direction:column;gap:6px}
 .rdlib button{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px}
 .rdlib button span.k{font-size:1.2rem}.rdlib button b{font-family:'Noto Sans SC',sans-serif;font-weight:500}.rdlib button small{color:var(--muted);display:block}`;
@@ -27,15 +28,23 @@ const sty=document.createElement('style');sty.textContent=css;document.head.appe
 const sh=document.createElement('div');sh.className='sheet';sh.id='sRead';sh.hidden=true;
 sh.innerHTML=`<div class="inner"><div class="row"><h2 id="rdKind"></h2><button class="small" id="rdClose">Close<span class="zh" data-say="关闭">关闭<i>guānbì</i></span></button></div>
   <div class="paper" id="rdPaper"></div>
-  <div class="readbtns"><button id="rdPlay">▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdDone" class="primary">Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
+  <div class="readbtns"><button id="rdPrev" aria-label="Back" hidden>‹</button><button id="rdPlay">▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdNext" class="primary" hidden>Next ›<span class="zh" data-say="继续">继续<i>jìxù</i></span></button><button id="rdDone" class="primary">Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
 document.body.appendChild(sh);
 const $=id=>document.getElementById(id);
 const isP=t=>t.length===1;
 const sentZh=l=>l.w.map(t=>t[0]).join('');
-let cur=null,tok=0;
+let cur=null,tok=0,page=0,npages=1;
 function stopRead(){tok++;try{stopSpeech()}catch(e){}document.querySelectorAll('#rdPaper .sent.now').forEach(x=>x.classList.remove('now'))}
+// A long piece is split into pages that fit the screen (no scrolling): Next turns the page, and Done is on the last one.
+function paginate(){const paper=$('rdPaper'),bl=[...paper.children];bl.forEach(b=>b.classList.remove('off'));
+  const cs=getComputedStyle(paper),H=paper.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);let pg=0,top=null;
+  for(const b of bl){if(top==null)top=b.offsetTop;if(b.offsetTop+b.offsetHeight-top>H+1&&b!==bl[0]&&b.offsetTop>top){pg++;top=b.offsetTop}b.dataset.pg=pg}
+  npages=pg+1;showPage(Math.min(page,pg))}
+function showPage(n){page=Math.max(0,Math.min(n,npages-1));for(const b of $('rdPaper').children)b.classList.toggle('off',+b.dataset.pg!==page);
+  const last=page>=npages-1;$('rdDone').hidden=!last;$('rdNext').hidden=last;$('rdPrev').hidden=page===0}
+function turnTo(n){if(n<0||n>=npages)return;showPage(n);const first=$('rdPaper').querySelector(`.sent[data-pg="${page}"]`);if(first)narrate(+first.dataset.i);else stopRead()}
 async function narrate(from){const my=++tok;try{stopSpeech()}catch(e){}tok=my;const ss=[...document.querySelectorAll('#rdPaper .sent')];
-  for(let i=from||0;i<ss.length;i++){if(tok!==my||sh.hidden)return;ss.forEach(x=>x.classList.toggle('now',x===ss[i]));ss[i].scrollIntoView({block:'nearest',behavior:'smooth'});
+  for(let i=from||0;i<ss.length;i++){if(tok!==my||sh.hidden)return;if(+ss[i].dataset.pg!==page)showPage(+ss[i].dataset.pg);ss.forEach(x=>x.classList.toggle('now',x===ss[i]));
     const t0=performance.now();try{await (window.speakAsync?speakAsync(ss[i].dataset.zh):Promise.resolve())}catch(e){}
     const spent=performance.now()-t0;await new Promise(r=>setTimeout(r,Math.max(450,900-spent)));} // a short pause between sentences; longer if the line had no audio
   if(tok===my)ss.forEach(x=>x.classList.remove('now'))}
@@ -48,11 +57,14 @@ function openReading(id,opts){const r=READINGS.find(x=>x.id===id);if(!r)return;c
   $('rdPaper').className='paper k-'+r.kind;$('rdPaper').innerHTML=h;
   $('rdDone').innerHTML=(cur.fresh&&r.reward?`Done · ${rwTxt(r.reward)}`:'Done')+zw('读完了','dú wán le');
   try{for(const l of r.lines)preloadZh(sentZh(l))}catch(e){}
-  sh.hidden=false;sh.scrollTop=0;try{LOG('read_open',{id,fresh:cur.fresh})}catch(e){}
+  sh.hidden=false;sh.scrollTop=0;page=0;paginate();try{LOG('read_open',{id,fresh:cur.fresh})}catch(e){}
   setTimeout(()=>narrate(0),350)}
+addEventListener('resize',()=>{if(!sh.hidden&&cur)paginate()});
+try{document.fonts&&document.fonts.ready.then(()=>{if(!sh.hidden&&cur)paginate()})}catch(e){}
 $('rdPaper').addEventListener('click',e=>{const t=e.target.closest('.tok');if(t&&t.dataset.w){e.stopPropagation();stopRead();speak(t.dataset.w);return}
   const s=e.target.closest('.sent');if(s)narrate(+s.dataset.i)});
-$('rdPlay').onclick=()=>narrate(0);
+$('rdPlay').onclick=()=>{const first=$('rdPaper').querySelector(`.sent[data-pg="${page}"]`);narrate(first?+first.dataset.i:0)};
+$('rdNext').onclick=()=>turnTo(page+1);$('rdPrev').onclick=()=>turnTo(page-1);
 function closeReading(){stopRead();sh.hidden=true;cur=null;try{lastIdle=T}catch(e){}updateUI()}
 $('rdClose').onclick=closeReading;
 $('rdDone').onclick=()=>{if(!cur)return closeReading();const {r,fresh}=cur;S.read=S.read||{};
