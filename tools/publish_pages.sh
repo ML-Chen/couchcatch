@@ -31,5 +31,15 @@ if [ -n "${COUCHCATCH_UPDATE_KEY:-}" ]; then
   rm -f "$KEYFILE.pub.der" "$KEYFILE.pub.pem" "$KEYFILE.sig"
   echo "signed update version $VERSION"
 else
-  echo "COUCHCATCH_UPDATE_KEY not set: publishing the web game only, no app update" >&2
+  # No key here: keep the last signed update exactly as it was, so phones keep seeing a valid (older) build
+  # instead of nothing. Nothing new can be signed without the key.
+  if git -C "$ROOT" rev-parse -q --verify origin/gh-pages >/dev/null; then
+    mkdir -p "$OUT/update"
+    for f in index.html manifest.json manifest.sig; do
+      git -C "$ROOT" show "origin/gh-pages:update/$f" > "$OUT/update/$f" 2>/dev/null || { rm -rf "$OUT/update"; break; }
+    done
+  fi
+  echo "COUCHCATCH_UPDATE_KEY not set: published the web game; the app update stays at the last signed build" >&2
 fi
+# The Android app itself, for direct download from the Pages site.
+if [ -f "$ROOT/android/release/couchcatch.apk" ]; then cp "$ROOT/android/release/couchcatch.apk" "$OUT/couchcatch.apk"; fi

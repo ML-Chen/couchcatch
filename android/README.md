@@ -4,7 +4,7 @@ A small Android app around the same single-file game. It works offline, and it u
 
 ## Install
 
-Download `couchcatch.apk` from the repository's latest GitHub Release and open it on the phone. Android asks once to allow installs from the browser or files app. Saves stay on the phone inside the app, and survive updates of the game. They are deleted only when the app is uninstalled or its storage is cleared. Settings → Save code moves a save between devices.
+Download `couchcatch.apk` from https://ml-chen.github.io/couchcatch/couchcatch.apk (the same file is committed at `android/release/couchcatch.apk`) and open it on the phone. Android asks once to allow installs from the browser or files app. Saves stay on the phone inside the app, and survive updates of the game. They are deleted only when the app is uninstalled or its storage is cleared. Settings → Save code moves a save between devices.
 
 ## How updates work, and why they are safe
 
