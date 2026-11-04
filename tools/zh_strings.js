@@ -16,7 +16,7 @@ const PUNCT = /[，。！？、…!?,.]/g;
 const norm = s => String(s == null ? '' : s).trim().replace(PUNCT, '').trim();
 const HAN = /[㐀-鿿]/;
 
-const BASE_FILES = ['vocab.js', 'phrases.js', 'zh_names.js', 'together.js']; // together.js: TOGETHER_LINES (trading / friendly battle)
+const BASE_FILES = ['vocab.js', 'phrases.js', 'zh_names.js', 'together.js', 'holidays.js']; // together.js: TOGETHER_LINES (trading / friendly battle)
 // food.js (the food stalls) defines FOOD before it touches the page, so it loads in the sandbox too
 const EXTRA_FILES = ['food.js'];
 // ...plus every dialogues*.js in the game root (dialogues.js, dialogues_a.js, dialogues_b.js, ...).
@@ -36,7 +36,7 @@ function loadGame(root) {
     try { vm.runInContext(fs.readFileSync(p, 'utf8'), ctx, { filename: f }); loaded.push(f); }
     catch (e) { errors.push(f + ': ' + e.message); }
   }
-  const names = ['VOCAB', 'PHRASES', 'PHRASEBOOK', 'MOMENTS', 'ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ACTS', 'ZH_ITEMS', 'ZH_PLACES', 'DIALOGUES', 'READINGS', 'FOOD', 'TOGETHER_LINES'];
+  const names = ['VOCAB', 'PHRASES', 'PHRASEBOOK', 'MOMENTS', 'ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ACTS', 'ZH_ITEMS', 'ZH_PLACES', 'DIALOGUES', 'READINGS', 'FOOD', 'TOGETHER_LINES', 'HOLIDAY_LINES'];
   const g = vm.runInContext('({' + names.map(n => `${n}:typeof ${n}!=='undefined'?${n}:(typeof window!=='undefined'?window.${n}:undefined)`).join(',') + '})', ctx);
   return { g, loaded, errors };
 }
@@ -80,6 +80,7 @@ function collect(root) {
   zhValues(g.FOOD, []).forEach(s => add(s, 'FOOD'));
   // playing together (trading, friendly battles): short whole lines like 我们换吧！
   Object.values(g.TOGETHER_LINES || {}).forEach(e => add(e && e.zh, 'TOGETHER_LINES'));
+  (g.HOLIDAY_LINES || []).forEach(s => add(s, 'HOLIDAYS'));
   // graded readers: each sentence is spoken whole, plus titles and single words
   (g.READINGS || []).forEach(r => { if (r.title) add(r.title[0], 'READINGS'); (r.lines || []).forEach(l => { add((l.w || []).map(t => t[0]).join(''), 'READINGS'); (l.w || []).forEach(t => t.length > 1 && add(t[0], 'READINGS.word')) }) });
   // the companion's lines (src/companion.js): a finite set of templates x trace characters / phrasebook phrases

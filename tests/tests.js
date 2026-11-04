@@ -1367,10 +1367,10 @@ module.exports = [
       stats: SP.filter(s => !(Array.isArray(s.st) && s.st.length === 3 && s.st.every(v => v > 30 && v < 90))).map(s => s.n),
       blank, nowhere: BASES.filter(i => !PLACES.some(p => (SP[i].hab || []).includes(p.key) || SP[i].ts.some(t => p.types.includes(t)))).map(i => SP[i].n),
       legs: LEGS.map(i => SP[i].n + (SP[i].next != null ? '>' + SP[SP[i].next].n : '')), legBases: LEG_BASES.map(i => SP[i].n), legTops: LEG_TOPS.map(i => SP[i].n),
-      newLines: SP.slice(70).map(s => { const b = line(IDX[s.n]); return SP[b].n + '>' + SP[SP[b].next].n + '@' + SP[b].evoLv; })};
+      newLines: SP.slice(70).map(s => { const b = line(IDX[s.n]); return SP[b].n + '>' + SP[SP[b].next].n + '@' + SP[b].evoLv + (SP[SP[b].next].next != null ? '+3' : ''); })};
   });
   T.eq(r.moved.length, 0, 'the first 70 species keep their index (saves store species by index); moved: ' + r.moved.join(', '));
-  T.eq(r.n, 87, 'species count');
+  T.ok(r.n >= 87, 'species count (87, plus appended lines): ' + r.n);
   T.eq(r.single.length, 0, 'species not in an evolution line: ' + r.single.join(', '));
   T.ok(!r.names.length, 'species without a Chinese name, toned pinyin and meaning: ' + r.names.join(', '));
   T.ok(!r.dupZh.length, 'two species share a Chinese name: ' + r.dupZh.join(', '));
@@ -1379,7 +1379,7 @@ module.exports = [
   T.ok(!r.nowhere.length, 'base forms that can spawn nowhere by habitat or type: ' + r.nowhere.join(', '));
   T.eq(r.legBases.join(','), 'Solfawn,Mireling,Stormling', 'legendary babies spawn in the wild');
   T.eq(r.legTops.join(','), 'Solvane,Mireluna,Stormlark', 'grown legendaries lead raids');
-  T.ok(r.newLines.every(x => /@28$/.test(x)), 'new 2-stage lines evolve at Lv 28: ' + r.newLines.join(' '));
+  T.ok(r.newLines.every(x => /@28$/.test(x) || /@18\+3$/.test(x)), 'new 2-stage lines evolve at Lv 28 (3-stage lines at 18): ' + r.newLines.join(' '));
   T.note('new lines: ' + r.newLines.join(' '));
 }},
 
@@ -1877,6 +1877,149 @@ module.exports = [
   await T.until(() => __TT.vis('.sheet.talk:not(.stagetalk)') && !!document.querySelector('.sheet.talk:not(.stagetalk) .talklog'), null, 'visit_weather opens the chat player');
   T.ok(await T.ev(() => !document.querySelector('.stagetalk')), 'no stage for visit_weather');
   await T.ev(() => stopTalk());
+}},
+
+{name: '40 holidays: Spring Festival, Lantern Festival and Mid-Autumn windows by date (2026-2032); forced events decorate the field and offer red envelopes, riddle lanterns, mooncakes and a conversation; nothing outside the windows; fits at 360x629 and 336x560', talk: ['holiday_cny_grandma', 'holiday_lantern_friend', 'holiday_moon_grandpa'], timeout: 120000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  // the date windows
+  const d = await T.ev(() => {
+    const H = HOLIDAYS, add = (iso, n) => { const [y, m, dd] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, dd + n)).toISOString().slice(0, 10); };
+    const k = iso => (H.at(iso) || {k: null}).k, bad = [];
+    for (const y of Object.keys(H.DATES)) {
+      const [c, l, m] = H.DATES[y];
+      if (add(c, 14) !== l) bad.push(y + ': Lantern Festival is not 14 days after the Spring Festival');
+      const want = [[c, 'cny'], [add(c, -7), 'cny'], [add(c, -8), null], [add(c, 6), 'cny'], [add(c, 7), 'lantern'], [l, 'lantern'], [add(l, 3), 'lantern'], [add(l, 4), null],
+        [m, 'moon'], [add(m, -7), 'moon'], [add(m, -8), null], [add(m, 3), 'moon'], [add(m, 4), null]];
+      for (const [iso, kk] of want) if (k(iso) !== kk) bad.push(`${y}: ${iso} gives ${k(iso)}, expected ${kk}`);
+    }
+    const fixed = {'2026-02-17': 'cny', '2027-02-06': 'cny', '2027-02-20': 'lantern', '2027-09-15': 'moon', '2028-10-03': 'moon', '2031-01-23': 'cny', '2032-09-19': 'moon',
+      '2026-11-04': null, '2027-06-01': null, '2029-12-25': null, '2030-07-04': null, '2032-05-01': null};
+    for (const [iso, kk] of Object.entries(fixed)) if (k(iso) !== kk) bad.push(`${iso} gives ${k(iso)}, expected ${kk}`);
+    let on = 0; for (let n = 0; n < 7 * 366; n++) if (H.at(add('2026-01-01', n))) on++;
+    return {bad, years: Object.keys(H.DATES).join(','), on, sample: H.at('2027-02-06')};
+  });
+  T.eq(d.years, '2026,2027,2028,2029,2030,2031,2032', 'festival dates for 2026-2032');
+  T.ok(!d.bad.length, 'festival windows: ' + d.bad.slice(0, 6).join('; '));
+  T.eq(d.on, 7 * (14 + 11 + 11), 'festival days in 2026-2032 (14 + 11 + 11 a year, no overlaps)');
+  T.eq(d.sample.id, '2027-cny', 'a festival is identified by year and kind');
+  const scenePx = (x, y) => T.ev(([x, y]) => { const r = scene.getBoundingClientRect(), d = scene.width / r.width, p = sctx.getImageData(Math.round(x * r.width * d) - 3, Math.round(y * r.height * d) - 3, 7, 7).data, m = [0, 0, 0]; for (let i = 0; i < p.length; i += 4) for (let c = 0; c < 3; c++) m[c] += p[i + c] / 49; return m.map(Math.round); }, [x, y]);
+  const tapScene = async (x, y) => { const r = await T.ev(() => { const b = scene.getBoundingClientRect(); return {x: b.left, y: b.top, w: b.width, h: b.height}; }); await T.page.mouse.click(r.x + x * r.w, r.y + y * r.h); };
+  await T.ev(() => { S.talked = S.talked || {}; S.talked.intro_neighbor = 1; });
+  await T.stay();
+  // outside the windows: no decorations, no treats, no riddles, no conversation
+  await T.ev(() => HOLIDAYS.force('2027-06-01'));
+  await T.sleep(300);
+  const off = await T.ev(() => ({now: HOLIDAYS.now(), drop: HOLIDAYS.drop(), items: HOLIDAYS.items().length}));
+  T.ok(!off.now && !off.drop && !off.items, 'no festival on 2027-06-01: ' + JSON.stringify(off));
+  const plain = await scenePx(.315, .125);
+  await tapScene(.2, .2);
+  T.ok(!(await T.ev(() => __TT.vis('#sHol'))), 'no riddle lantern outside the Lantern Festival');
+  // Spring Festival: red lanterns, red envelopes that give items, and Grandma's conversation
+  await T.ev(() => HOLIDAYS.force('cny'));
+  await T.until(() => { const t = document.querySelector('.sheet.talk'); return t && !t.hidden; }, null, 'the festival conversation starts', 8000);
+  const talk = await T.talkThrough();
+  T.eq(talk.key, 'holiday_cny_grandma', 'the Spring Festival conversation');
+  const tk = await T.ev(() => ({done: S.hol.done[HOLIDAYS.now().id], opts: DIALOGUES.holiday_cny_grandma.turns.flatMap(t => t.you || []).every(o => o.ok)}));
+  T.ok(tk.done && tk.opts, 'the conversation is recorded for this festival and offers only right answers: ' + JSON.stringify(tk));
+  await T.sleep(400);
+  const red = await scenePx(.315, .125);
+  T.ok(red[0] > 150 && red[1] < 120 && red[0] > red[2] + 60, `a red lantern hangs at the top (${red} vs ${plain} without a festival)`);
+  await T.ev(() => { HOLIDAYS.drop('env'); });
+  const env = (await T.ev(() => HOLIDAYS.items()))[0];
+  const before = await T.ev(() => ({...S.items}));
+  await T.sleep(400);
+  await T.layoutOk('#app', 'Spring Festival field');
+  const hit = await T.ev(([x, y]) => { const b = scene.getBoundingClientRect(), e = document.elementFromPoint(b.left + x * b.width, b.top + y * b.height); return {el: e && (e.id || e.className), open: sheetOpen(), items: HOLIDAYS.items(), mode: S.mode}; }, [env.x, env.y]);
+  await tapScene(env.x, env.y);
+  await T.until(e => !HOLIDAYS.items().some(o => o.x === e.x && o.y === e.y), env, 'tapping the red envelope picks it up: ' + JSON.stringify(hit));
+  const after = await T.ev(() => ({items: {...S.items}, env: S.hol.env, toast: document.getElementById('toast').innerText}));
+  T.ok(Object.keys(after.items).some(k => after.items[k] > (before[k] || 0)) && after.env === 1, 'the envelope gives an item: ' + JSON.stringify(after));
+  T.ok(/红包/.test(after.toast) && /hóng bāo/.test(after.toast) && /You got/.test(after.toast), 'its toast is Chinese with pinyin and English: ' + after.toast);
+  // Lantern Festival: riddle lanterns; tap one, hear the riddle, then see the answer with a picture
+  await T.ev(() => { HOLIDAYS.force('lantern'); S.hol.done[HOLIDAYS.now().id] = 1; });
+  await T.sleep(300);
+  const L = (await T.ev(() => HOLIDAYS.lanterns()))[0];
+  const lh = await T.ev(([x, y]) => { const b = scene.getBoundingClientRect(), e = document.elementFromPoint(b.left + x * b.width, b.top + y * b.height); return {el: e && (e.id || e.className), open: sheetOpen(), now: HOLIDAYS.now(), mode: S.mode, C: !!C}; }, [L.x, L.y + .1]);
+  await tapScene(L.x, L.y + .1);
+  await T.until(() => __TT.vis('#sHol'), null, 'tapping a lantern opens its riddle: ' + JSON.stringify(lh));
+  const q = await T.ev(() => ({q: document.querySelector('#sHol .rq').innerText, py: document.querySelector('#sHol .rpy').innerText, ans: __TT.vis('#holAns'), btns: [...document.querySelectorAll('#holBtns button')].map(b => b.innerText.replace(/\s+/g, ' '))}));
+  T.ok(/[㐀-鿿]/.test(q.q) && /[āáǎàēéěèīíǐìōóǒòūúǔù]/.test(q.py) && !q.ans && q.btns.length === 1 && /是什么/.test(q.btns[0]), 'the riddle shows with pinyin and one button to see the answer (no choices): ' + JSON.stringify(q));
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, () => T.layoutOk('#sHol', `riddle at ${w}x${h}`));
+  const orbs0 = await T.ev(() => S.items.orb);
+  await T.page.click('#holWhat');
+  await T.until(() => __TT.vis('#holAns'), null, 'the answer appears');
+  const a = await T.ev(() => ({pic: document.querySelector('#holAns .bigpic').innerText, zh: document.querySelector('#holAns .bigzh').innerText, orb: S.items.orb, seen: S.hol.rid[HOLIDAYS.now().id]}));
+  T.ok(a.pic && /^是/.test(a.zh) && a.orb === orbs0 + 2 && a.seen.length === 1, 'the answer comes with a picture, and the first time 2 orbs: ' + JSON.stringify(a));
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, () => T.layoutOk('#sHol', `riddle answer at ${w}x${h}`));
+  await T.page.click('#holBtns button.primary');
+  await T.until(() => !__TT.vis('#sHol'), null, 'OK closes the riddle');
+  // Mid-Autumn: a big moon, and mooncakes that heal the whole team
+  await T.ev(() => { HOLIDAYS.force('moon'); S.hol.done[HOLIDAYS.now().id] = 1; S.col[0].hp = 0; save(); });
+  await T.sleep(1900);
+  const mp = await T.ev(() => HOLIDAYS.moonPos());
+  const moonPx = await scenePx(mp.x, mp.y);
+  T.ok(moonPx[0] > 220 && moonPx[1] > 200 && moonPx[2] < moonPx[0] - 20, 'a big pale-gold moon in the sky: ' + moonPx);
+  await T.ev(() => HOLIDAYS.drop('cake'));
+  const cake = (await T.ev(() => HOLIDAYS.items()))[0];
+  const berry0 = await T.ev(() => S.items.berry);
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, () => T.layoutOk('#app', `Mid-Autumn field at ${w}x${h}`));
+  await tapScene(cake.x, cake.y);
+  await T.until(e => !HOLIDAYS.items().some(o => o.x === e.x && o.y === e.y), cake, 'tapping the mooncake eats it');
+  const c = await T.ev(() => ({hp: S.col[0].hp, max: stats(S.col[0]).maxhp, berry: S.items.berry, toast: document.getElementById('toast').innerText}));
+  T.ok(c.hp === c.max && c.berry === berry0 + 1 && /月饼/.test(c.toast) && /yuè bing/.test(c.toast), 'the mooncake heals the team and gives a berry: ' + JSON.stringify(c));
+  // an old save without S.hol still loads and plays
+  await T.ev(() => { delete S.hol; HOLIDAYS.force('cny'); HOLIDAYS.drop('env'); HOLIDAYS.grab(0); });
+  T.ok(await T.ev(() => S.hol && S.hol.env === 1), 'S.hol is created when needed (old saves load)');
+}},
+
+{name: '41 the moon moth line (Lunapuff > Lanternmoth > Moonregent) is complete and only comes at the Mid-Autumn Festival', timeout: 90000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  const r = await T.ev(() => {
+    const L = ['Lunapuff', 'Lanternmoth', 'Moonregent'].map(n => IDX[n]);
+    const cv = document.createElement('canvas'); cv.width = cv.height = 96; const x = cv.getContext('2d');
+    const ink = i => { x.clearRect(0, 0, 96, 96); drawCreature(x, SP[i], 48, 90, fitS(96, 96, i, .9), 0, {awake: true}); const d = x.getImageData(0, 0, 96, 96).data; let n = 0; for (let k = 3; k < d.length; k += 4) if (d[k] > 20) n++; return n; };
+    const o = {idx: L, n: SP.length, names: L.map(i => { const z = ZS(SP[i].n); return z.zh + '|' + z.py + '|' + !!z.mean; }), types: L.map(i => SP[i].ts.join('/')),
+      chain: [SP[L[0]].next === L[1], SP[L[1]].next === L[2], SP[L[2]].next == null, SP[L[0]].evoLv, SP[L[1]].evoLv, SP[L[0]].prev == null].join(','),
+      stages: L.map(i => SP[i].stage).join(','), ink: L.map(ink), moves: L.every(i => SP[i].ts.every(t => MOVES[t] && ZA(t).zh)), inBases: BASES.includes(L[0]), line: HOLIDAYS.moonLine.join(',')};
+    const isM = i => L.includes(i), N = 3000, count = k => { HOLIDAYS.force(k); let c = 0; for (let i = 0; i < N; i++) if (isM(spawnWild(false).sp)) c++; return c; };
+    S.mode = 'staying';
+    o.spawns = {none: count('none'), cny: count('cny'), lantern: count('lantern'), moon: count('moon'), road: (() => { HOLIDAYS.force('moon'); let c = 0; for (let i = 0; i < 500; i++) if (isM(spawnWild(true).sp)) c++; return c; })()};
+    // a strong team meets the grown forms, and raids never pick the line outside its window
+    S.col[0].lvl = 60; HOLIDAYS.force('moon'); const g = new Set(); for (let i = 0; i < 4000; i++) { const w = spawnWild(false); if (isM(w.sp)) g.add(SP[w.sp].n); } o.grown = [...g].sort().join(',');
+    S.col[0].lvl = 5;
+    HOLIDAYS.force('none'); const star = PLACES.findIndex(p => p.types.includes('star')); S.place = star; let rb = 0; for (let i = 0; i < 400; i++) if (isM(pickBoss().sp)) rb++; o.raids = rb; S.place = 0;
+    HOLIDAYS.force(null);
+    return o;
+  });
+  T.ok(r.idx.every(i => i >= 87) && r.idx[1] === r.idx[0] + 1 && r.idx[2] === r.idx[0] + 2, 'the line is appended at the end of the species list: ' + r.idx);
+  T.eq(r.names.join(' '), '月绒绒|yuè róng róng|true 灯笼蛾|dēng long é|true 月蛾王|yuè é wáng|true', 'Chinese names with toned pinyin and meanings');
+  T.eq(r.types.join(' '), 'star star/bug star/bug', 'types');
+  T.ok(r.moves, 'every type has a move and a battle line');
+  T.eq(r.chain, 'true,true,true,18,36,true', 'a 3-stage line evolving at Lv 18 and 36');
+  T.eq(r.stages, '1,2,3', 'stages');
+  T.ok(r.ink.every(n => n > 400), 'drawn art for each stage (inked pixels ' + r.ink + ')');
+  T.ok(!r.inBases && r.line === r.idx.join(','), 'Lunapuff is kept out of ordinary spawns and gyms');
+  T.ok(r.spawns.none === 0 && r.spawns.cny === 0 && r.spawns.lantern === 0, 'no moon moths outside the Mid-Autumn Festival: ' + JSON.stringify(r.spawns));
+  T.ok(r.spawns.moon > 3000 * .12 && r.spawns.moon < 3000 * .35 && r.spawns.road === 0, 'at Mid-Autumn about a fifth of field spawns are moon moths (none on the road): ' + JSON.stringify(r.spawns));
+  T.ok(/Lanternmoth/.test(r.grown) && /Moonregent/.test(r.grown), 'a strong team meets the grown forms too: ' + r.grown);
+  T.eq(r.raids, 0, 'raids never pick the moon moth outside its festival');
+  // in the field, the catch sheet and the book, at both phone sizes
+  await T.ev(() => { HOLIDAYS.force('moon'); S.hol = {done: {[HOLIDAYS.now().id]: 1}}; S.mode = 'arrived'; updateUI(); });
+  await T.stay();
+  await T.ev(() => { for (const n of ['Lunapuff', 'Lanternmoth', 'Moonregent']) { const w = spawnWild(false); w.sp = IDX[n]; w.lvl = 30; wild.push(w); } S.caught = SP.map((s, i) => i); });
+  await T.sleep(500);
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, async () => {
+    await T.layoutOk('#app', `field with moon moths at ${w}x${h}`);
+    await T.ev(() => openCatch(wild.find(x => x.sp === IDX.Moonregent)));
+    await T.until(() => C && __TT.vis('#sCatch'), null, 'catch sheet for Moonregent');
+    await T.sleep(150);
+    await T.layoutOk('#sCatch', `Moonregent catch at ${w}x${h}`);
+    await T.ev(() => endCatch());
+    const bad = await T.ev(async () => { const out = []; for (const n of ['Lunapuff', 'Moonregent']) { openDex(IDX[n], true); await new Promise(r => setTimeout(r, 60)); const d = document.querySelector('.dexcard').getBoundingClientRect(); if (d.bottom > innerHeight + 1 || d.top < -1 || d.right > innerWidth + 1) out.push(n); document.querySelector('.dexwrap').remove(); } return out; });
+    T.ok(!bad.length, `book cards on screen at ${w}x${h}: ` + bad.join(', '));
+  });
 }},
 
 ];

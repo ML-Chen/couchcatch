@@ -10,4 +10,6 @@ t=t.replace('//@@PLACES_ASIA@@',opt('places_asia.js')).replace('//@@ASIA@@','\n'
 t=t.replace('//@@FOOD@@',opt('food.js'))
 # playing together on one phone: trading and friendly battles (wraps a few game functions, so it loads last)
 t=t.replace('//@@TOGETHER@@',opt('together.js'))
+# Chinese holidays by date (Spring Festival, Lantern Festival, Mid-Autumn): decorations, treats, riddles, the moon moth
+t=t.replace('//@@HOLIDAYS@@',opt('holidays.js'))
 open(sys.argv[2],'w').write(t)

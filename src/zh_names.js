@@ -98,6 +98,10 @@ const ZH_SPECIES = {
   'Solfawn':     {zh:'小阳鹿', py:'xiǎo yáng lù',    mean:'little + sun + deer'},
   'Mireling':    {zh:'小月龙', py:'xiǎo yuè lóng',   mean:'little + moon + dragon'},
   'Stormling':   {zh:'小雷雀', py:'xiǎo léi què',    mean:'little + thunder + sparrow'},
+  // ---- holiday: the Mid-Autumn moon moth ----
+  'Lunapuff':    {zh:'月绒绒', py:'yuè róng róng',   mean:'moon + fluff + fluff'},
+  'Lanternmoth': {zh:'灯笼蛾', py:'dēng long é',     mean:'lantern + moth'},
+  'Moonregent':  {zh:'月蛾王', py:'yuè é wáng',      mean:'moon + moth + king'},
 };
 
 const ZH_TYPES = {

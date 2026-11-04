@@ -170,7 +170,7 @@ function _dcBody(ctx,S,s,t,M){
   // animal eye: a solid dark rounded shape (near-black, faintly tinted by the creature's darkest colour), one big white glint in
   // the upper area (~40% of the eye's width) and a tiny sparkle lower down. Round for birds/bugs/blobs/etc, upright oval for
   // furry/sleek animals. Fierce: the top is cut at an angle toward the nose with a soft lid line. Blink: a short curved line.
-  const EYC=_dcMix('#120b16',R3,.2),EYL=_dcMix(EYC,_dcMix(R3,'#ffffff',.35),.4),ROUND=['bird','bug','blob','golem','jelly','larva','butterfly','fish','tortoise','ghost'].includes(S.body);
+  const EYC=_dcMix('#120b16',R3,.2),EYL=_dcMix(EYC,_dcMix(R3,'#ffffff',.35),.4),ROUND=['bird','bug','blob','moth','golem','jelly','larva','butterfly','fish','tortoise','ghost'].includes(S.body);
   const eye=(ex,ey,r)=>{const blink=M.blink!=null?!!M.blink:(((t+ph*1.7)%4.3)+4.3)%4.3<.12,cool=st>=3&&!fierce,
       rx=r*(ROUND?.8:.7)*(cool?.9:1),ry=r*(ROUND?.84:.92)*(fierce?.94:1);
     if(blink){ctx.beginPath();ctx.moveTo(ex-rx*.95,ey+ry*.1);ctx.quadraticCurveTo(ex,ey-ry*.42,ex+rx*.95,ey+ry*.1);ctx.strokeStyle=K(EYC);ctx.lineWidth=Math.max(1,r*.16);ctx.stroke();return}
@@ -590,6 +590,47 @@ function _dcBody(ctx,S,s,t,M){
     eye(r*.42,by-r*.02,r*.3);eye(-r*.1,by-r*.04,r*.26);blush(r*.66,by+r*.28,r*.17);blush(-r*.36,by+r*.26,r*.14);
     ctx.beginPath();ctx.ellipse(r*.18,by+r*.3,r*.065,r*.085,0,0,7);ctx.fillStyle=K('#4a2a55');ctx.fill();if(!sil){ctx.fillStyle='#ff8fb0';ctx.beginPath();ctx.ellipse(r*.18,by+r*.35,r*.04,r*.025,0,0,7);ctx.fill()}
     headTop(r*.1,by,r*.9);motes(by,r*1.5);
+  }else if(b==='moth'){ // fluffy moon moth (Mid-Autumn): front-facing furry body with a full-moon mark, feathery antennae, rounded wings (S.wc) with moon eyespots
+    const r=u*(st===1?.46:st===2?.4:.37),by=-u*.95,fl=Math.sin(t*4+ph),W=u*(st===1?.56:st===2?.78:.98),WC=HX(S.wc)?S.wc:R2,wc=K(WC),mc=K('#fff3c4');
+    const moon=(mx,my,mr,glow)=>{if(!sil&&glow>0){const g=ctx.createRadialGradient(mx,my,mr*.4,mx,my,mr*2.4);g.addColorStop(0,_dcA('#fff2b0',glow));g.addColorStop(1,'rgba(255,240,170,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(mx,my,mr*2.4,0,7);ctx.fill()}
+      E(mx,my,mr,mr,mc,0,false);if(!sil){ctx.fillStyle=_dcA('#d9b866',.35);for(const[a,b2,k]of[[-.3,-.2,.22],[.28,.12,.17],[-.05,.38,.13]]){ctx.beginPath();ctx.arc(mx+a*mr,my+b2*mr,mr*k,0,7);ctx.fill()}
+        ctx.strokeStyle=_dcA(RSC,.8);ctx.lineWidth=Math.max(.6,mr*.12);ctx.beginPath();ctx.arc(mx,my,mr,0,7);ctx.stroke()}};
+    // wings behind the body, mirrored left and right; the forewing reaches up and out, the hindwing rounds off below
+    const wing=(d,hind)=>{const L=W*(hind?.7:1),Hh=W*(hind?.6:.74);SV();ctx.translate(d*r*.3,by+(hind?r*.32:-r*.2));ctx.scale(d*(.88+.12*fl),1);ctx.rotate(hind?.42:-.3);
+      const p=new Path2D(),tl=hind&&st===3;p.moveTo(0,0);p.bezierCurveTo(L*.18,-Hh*.95,L*.82,-Hh*1.12,L*1.02,-Hh*.5);
+      if(tl){const tw=Math.sin(t*4+ph+d)*L*.06;p.bezierCurveTo(L*1.08,-Hh*.1,L*.95,Hh*.2,L*.82,Hh*.42);p.bezierCurveTo(L*.75,Hh*.9,L*.62+tw,Hh*1.45,L*.48+tw,Hh*1.62);p.bezierCurveTo(L*.4+tw,Hh*1.45,L*.42,Hh*.8,L*.34,Hh*.42);p.quadraticCurveTo(L*.12,Hh*.26,0,0)}
+      else{p.bezierCurveTo(L*1.12,-Hh*.05,L*.78,Hh*.36,L*.4,Hh*.32);p.quadraticCurveTo(L*.12,Hh*.24,0,0)}p.closePath();
+      const f=hind?DK(wc,.14):wc;if(!sil)ctx.globalAlpha=.97;
+      FS(p,f,[L*.52,-Hh*.3,L*.52,Hh*.62],()=>{if(sil)return;
+        if(st===2){const g=ctx.createRadialGradient(L*.5,-Hh*.25,0,L*.5,-Hh*.25,L*.75);g.addColorStop(0,'rgba(255,236,160,.75)');g.addColorStop(1,'rgba(255,200,120,0)');ctx.fillStyle=g;ctx.fillRect(-L,-Hh*2,L*3,Hh*3)}
+        ctx.strokeStyle=_dcA(_dcMix(f,R3,.45),.45);ctx.lineWidth=W*.07;ctx.stroke(p);
+        ctx.strokeStyle=_dcA(_dcMix(f,R3,.4),st===2?.5:.32);ctx.lineWidth=Math.max(.5,lw*.7);ctx.beginPath();
+        for(const[a,b2]of hind?[[.9,.05],[.75,.28],[.5,.32]]:[[.95,-.62],[1.0,-.3],[.8,.1],[.5,.24]]){ctx.moveTo(L*.05,0);ctx.quadraticCurveTo(L*a*.45,Hh*b2*.2,L*a,Hh*b2)}ctx.stroke();
+        if(st===3&&!hind){ctx.fillStyle='rgba(255,236,170,.75)';for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(L*(.25+i*.16),-Hh*(.72-Math.abs(i-2)*.08),W*.022,0,7);ctx.fill()}}
+        ctx.fillStyle=RIM;ctx.globalAlpha=.25*eth;ctx.beginPath();ctx.ellipse(L*.6,-Hh*.62,L*.22,Hh*.12,-.3,0,7);ctx.fill();ctx.globalAlpha=1},.8);
+      ctx.globalAlpha=1;
+      if(st>=2&&!hind)moon(L*.6,-Hh*.32,W*(st===2?.1:.13),.45);
+      if(st===3&&hind){SV();ctx.translate(L*.66,Hh*.5);ctx.rotate(.9);const cr=W*.08;ctx.beginPath();ctx.arc(0,0,cr,Math.PI*.35,Math.PI*1.65);ctx.arc(cr*.42,0,cr*.82,Math.PI*1.55,Math.PI*.45,true);ctx.closePath();ctx.fillStyle=mc;ctx.fill();RS()}
+      RS()};
+    wing(-1,true);wing(1,true);wing(-1,false);wing(1,false);
+    // feathery antennae: a curved stem with a plume of fine barbs
+    for(const d of[-1,1]){const sw2=Math.sin(t*4+ph+d)*r*.05,x0=d*r*.22,y0=by-r*.8,tx=d*r*(.85+.18*st)+sw2,ty=by-r*(1.75+.12*st),cx=d*r*.3,cy=by-r*1.6,
+        qp=q=>[(1-q)*(1-q)*x0+2*(1-q)*q*cx+q*q*tx,(1-q)*(1-q)*y0+2*(1-q)*q*cy+q*q*ty],ac=K(_dcMix(RSC,R3,.25));
+      ctx.beginPath();for(let i=2;i<=11;i++){const q=i/12,[px,py]=qp(q),[qx,qy]=qp(q-.02),ang=Math.atan2(py-qy,px-qx),L2=r*(.34*Math.sin(q*Math.PI)+.05);
+        for(const sd of[-1,1]){const a2=ang+sd*1.15;ctx.moveTo(px,py);ctx.lineTo(px+Math.cos(a2)*L2,py+Math.sin(a2)*L2)}}
+      ctx.strokeStyle=sil||_dcA(RSC,.95);ctx.lineWidth=Math.max(.6,r*.045);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x0,y0);ctx.quadraticCurveTo(cx,cy,tx,ty);ctx.strokeStyle=OL(ac);ctx.lineWidth=Math.max(1,r*.09);ctx.stroke();ctx.strokeStyle=ac;ctx.lineWidth=Math.max(.7,r*.055);ctx.stroke()}
+    // little dangling feet
+    for(const d of[-1,1])E(d*r*.28,by+r*.98,r*.15,r*.11,DK(c1,.22));
+    // the fluffy body: a scalloped round outline, a white chest ruff and fur texture
+    const BP=new Path2D(),N=20;for(let i=0;i<=N;i++){const a=-Math.PI/2+i*Math.PI*2/N,am=a-Math.PI/N,rr=1+(i%2?.02:0);const px=Math.cos(a)*r*rr,py=by+Math.sin(a)*r*1.04*rr,qx=Math.cos(am)*r*1.13,qy=by+Math.sin(am)*r*1.16;i?BP.quadraticCurveTo(qx,qy,px,py):BP.moveTo(px,py)}BP.closePath();
+    FS(BP,c1,[0,by,r,r],()=>{ctx.fillStyle=c2;const RP=new Path2D(),M=9;RP.moveTo(-r*.95,by+r*.08);for(let i=1;i<=M;i++){const x1=-r*.95+i*r*1.9/M,xm=x1-r*.95/M;RP.quadraticCurveTo(xm,by+r*(.32+.06*Math.cos(i)),x1,by+r*.08+Math.abs(x1)*r*.0)}RP.lineTo(r*1.2,by+r*1.3);RP.lineTo(-r*1.2,by+r*1.3);RP.closePath();
+      if(!sil)ctx.globalAlpha=.9;ctx.fill(RP);ctx.globalAlpha=1;furTex(BP,0,by-r*.1,r*.9,r*.9,R1,1.4,2.0);furTex(RP,0,by+r*.6,r*.9,r*.45,R2,1.2,1.4)});
+    if(st>=3)for(let i=0;i<7;i++){const q=i/6-.5,px=q*r*1.4,py=by+r*(.64+q*q*.4)-(i%2)*r*.05,pr=r*(.27-q*q*.16);E(px,py,pr,pr*.9,c2,0,false);GE(px,py,pr,pr*.9)}
+    moon(0,by-r*.6,r*(st===1?.15:.18),st===1?.35:.55);
+    const er=r*(st===1?.27:st===2?.23:.21);eye(r*.33,by-r*.08,er);eye(-r*.33,by-r*.08,er);blush(r*.56,by+r*.2,r*.16);blush(-r*.56,by+r*.2,r*.16);
+    ctx.beginPath();ctx.moveTo(-r*.09,by+r*.2);ctx.quadraticCurveTo(-r*.045,by+r*.29,0,by+r*.21);ctx.quadraticCurveTo(r*.045,by+r*.29,r*.09,by+r*.2);ctx.strokeStyle=INK;ctx.lineWidth=Math.max(.7,r*.04);ctx.stroke();
+    motes(by,r*1.6);
   }else{ // blob
     const r=u*.55,by=-r*.95,BAT=S.ears==='bat';
     if(X.includes('batwings'))batwing(-r*.2,by-r*.1,r*1.3,true,true);
