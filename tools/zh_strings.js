@@ -17,11 +17,13 @@ const norm = s => String(s == null ? '' : s).trim().replace(PUNCT, '').trim();
 const HAN = /[㐀-鿿]/;
 
 const BASE_FILES = ['vocab.js', 'phrases.js', 'zh_names.js'];
+// food.js (the food stalls) defines FOOD before it touches the page, so it loads in the sandbox too
+const EXTRA_FILES = ['food.js'];
 // ...plus every dialogues*.js in the game root (dialogues.js, dialogues_a.js, dialogues_b.js, ...).
 // every *dialogues*.js (dialogues.js, story_dialogues.js, ...) and the graded-reader texts
 // places_*.js add place names to ZH_PLACES; *readings*.js are the graded readers (readings.js first: it creates READINGS)
 const files = root => BASE_FILES.concat(fs.readdirSync(root).filter(f => /^places_.*\.js$/.test(f)).sort(), fs.readdirSync(root).filter(f => /dialogues.*\.js$/.test(f)).sort(),
-  ['readings.js'].concat(fs.readdirSync(root).filter(f => /readings.*\.js$/.test(f) && f !== 'readings.js').sort()).filter(f => fs.existsSync(path.join(root, f))));
+  ['readings.js'].concat(fs.readdirSync(root).filter(f => /readings.*\.js$/.test(f) && f !== 'readings.js').sort()).filter(f => fs.existsSync(path.join(root, f))), EXTRA_FILES.filter(f => fs.existsSync(path.join(root, f))));
 
 function loadGame(root) {
   const sb = { console: { log() {}, warn() {}, error() {} }, setTimeout() {}, document: undefined };
@@ -34,7 +36,7 @@ function loadGame(root) {
     try { vm.runInContext(fs.readFileSync(p, 'utf8'), ctx, { filename: f }); loaded.push(f); }
     catch (e) { errors.push(f + ': ' + e.message); }
   }
-  const names = ['VOCAB', 'PHRASES', 'PHRASEBOOK', 'MOMENTS', 'ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ACTS', 'ZH_ITEMS', 'ZH_PLACES', 'DIALOGUES', 'READINGS'];
+  const names = ['VOCAB', 'PHRASES', 'PHRASEBOOK', 'MOMENTS', 'ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ACTS', 'ZH_ITEMS', 'ZH_PLACES', 'DIALOGUES', 'READINGS', 'FOOD'];
   const g = vm.runInContext('({' + names.map(n => `${n}:typeof ${n}!=='undefined'?${n}:(typeof window!=='undefined'?window.${n}:undefined)`).join(',') + '})', ctx);
   return { g, loaded, errors };
 }
@@ -74,6 +76,8 @@ function collect(root) {
   for (const k of ['ZH_SPECIES', 'ZH_TYPES', 'ZH_MOVES', 'ZH_ACTS', 'ZH_ITEMS', 'ZH_PLACES'])
     Object.values(g[k] || {}).forEach(e => add(e && e.zh, k));
   zhValues(g.DIALOGUES, []).forEach(s => add(s, 'DIALOGUES'));
+  // food stalls: the keeper's lines, every dish and answer, and the stall keepers' names
+  zhValues(g.FOOD, []).forEach(s => add(s, 'FOOD'));
   // graded readers: each sentence is spoken whole, plus titles and single words
   (g.READINGS || []).forEach(r => { if (r.title) add(r.title[0], 'READINGS'); (r.lines || []).forEach(l => { add((l.w || []).map(t => t[0]).join(''), 'READINGS'); (l.w || []).forEach(t => t.length > 1 && add(t[0], 'READINGS.word')) }) });
   const species = [...new Set(Object.values(g.ZH_SPECIES || {}).map(e => e && e.zh).filter(Boolean))];
