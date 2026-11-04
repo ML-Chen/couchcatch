@@ -38,6 +38,8 @@ const INIT = `
     get() { return real && (k => window.__TT.talkAllowed(k) && real(k)); },
     set(v) { real = v; }});
 })();
+// Holiday events follow the real date; tests run as if no festival is on unless they force one (HOLIDAYS.force, tests 40/41).
+window.COUCHCATCH_HOLIDAY = window.COUCHCATCH_HOLIDAY || 'none';
 window.__TT = {
   talk: window.__TT_TALK || false,
   talkAllowed(k) { return this.talk === true || (Array.isArray(this.talk) && this.talk.includes(k)); },

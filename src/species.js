@@ -113,4 +113,9 @@ const SPECIES_RAW=[
  {n:'Solfawn',t:'fire',body:'quad',sz:.66,c1:'#f8c25e',c2:'#fff6dc',c3:'#8a4214',sc:'#ffd84a',ears:'pointy',tail:'flame',head:['sunhalo'],extras:['hooves','spots'],stage:1,leg:true,evo:['Solvane',28],st:[70,72,70]},
  {n:'Mireling',t:'dragon',body:'snake',sz:.72,c1:'#6a70d2',c2:'#e4ecff',c3:'#22266a',sc:'#eef3ff',ears:null,tail:'fin',head:['crescent'],extras:['starspots'],stage:1,leg:true,evo:['Mireluna',28],st:[72,70,70]},
  {n:'Stormling',t:'spark',body:'bird',sz:.62,c1:'#8394c6',c2:'#f0f8ff',c3:'#28305a',sc:'#8ffaff',ears:null,tail:'bolt',head:['crowncrest'],extras:['wings','sparks'],stage:1,leg:true,evo:['Stormlark',28],st:[70,70,72]},
+ // ---- holiday line (append only): the moon moth that comes only at the Mid-Autumn Festival (holidays.js keeps it out of other spawns) ----
+ // body moth: round fluffy front-facing body with a full-moon mark, feathery antennae; wc = wing colour
+ {n:'Lunapuff',t:'star',body:'moth',sz:.55,c1:'#fff0d0',c2:'#ffffff',c3:'#8a6a3e',sc:'#f2c14e',wc:'#ffe3a0',ears:null,tail:null,head:[],extras:[],stage:1,float:true,evo:['Lanternmoth',18],hab:['midautumn'],st:[54,56,54]},
+ {n:'Lanternmoth',t:'star',t2:'bug',body:'moth',sz:.95,c1:'#fff0cf',c2:'#ffffff',c3:'#7a3f24',sc:'#ffd25a',wc:'#f2603f',ears:null,tail:null,head:[],extras:[],stage:2,float:true,evo:['Moonregent',36],st:[54,56,54]},
+ {n:'Moonregent',t:'star',t2:'bug',body:'moth',sz:1.3,c1:'#f7f0e2',c2:'#ffffff',c3:'#272657',sc:'#ffd96a',wc:'#4a4fa6',ears:null,tail:null,head:[],extras:[],stage:3,float:true,st:[54,56,54]},
 ];

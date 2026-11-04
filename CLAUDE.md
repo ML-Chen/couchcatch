@@ -28,6 +28,7 @@ Couchcatch is a single-file browser game: you stay in one place and original cre
 | trace.js, hanzi_writer.js, hsk_chars.js | Character tracing: per-type ladders, then all HSK 1–4 characters; Hanzi Writer + stroke data |
 | reader.js, readings.js, story_readings.js | Papers lying around → narrated graded reader |
 | story.js | The Little Star story arc: chapter triggers, goals, the floating companion |
+| holidays.js | Chinese festivals by real date (Spring Festival, Lantern Festival, Mid-Autumn): field decorations, red envelopes, riddle lanterns, mooncakes, a conversation each, and the Mid-Autumn-only moon moth line. Force with `?holiday=cny\|lantern\|moon\|none\|YYYY-MM-DD` or `HOLIDAYS.force()`. State in `S.hol` |
 | types_ext.js | Extra creature types (if present): mutates TYPES/STRONG/MOVES/PLACES, adds tracing ladders |
 | theme_glass.css | The glass UI theme (loaded last) |
 | zh_audio.js | Recorded Mandarin clips (Ogg Opus, base64). Keys are the Chinese text |
