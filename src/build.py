@@ -8,4 +8,6 @@ t=t.replace('//@@ZH@@',opt('zh_names.js')).replace('//@@VOCAB@@',opt('vocab.js')
 t=t.replace('//@@PLACES_ASIA@@',opt('places_asia.js')).replace('//@@ASIA@@','\n'.join(opt(f) for f in ['scenery_asia.js','asia_dialogues.js','asia_readings.js','asia.js']))
 # food stalls (Hawker Centre, Night Market, Backyard): ordering a dish in Chinese
 t=t.replace('//@@FOOD@@',opt('food.js'))
+# playing together on one phone: trading and friendly battles (wraps a few game functions, so it loads last)
+t=t.replace('//@@TOGETHER@@',opt('together.js'))
 open(sys.argv[2],'w').write(t)
