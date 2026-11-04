@@ -10593,7 +10593,7 @@ let spTok=0,curAudio=null;
 function playSeq(ss){const tok=++spTok;try{curAudio&&curAudio.pause()}catch(e){}let i=0;const next=()=>{if(tok!==spTok||i>=ss.length)return;const a=new Audio(ZH_AUDIO[ss[i++]]);curAudio=a;a.onended=()=>setTimeout(next,70);a.onerror=()=>next();const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{})};next()}
 function speak(zh){try{if(!zh||S.zhVoice===false)return;if(hasClips()){const ss=segs(zh);if(ss.length){playSeq(ss);return}}speakTTS(zh)}catch(e){}}
 function speakTTS(zh){try{if(!zh||S.zhVoice===false||!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(zh);u.lang='zh-CN';if(zhVoice)u.voice=zhVoice;u.rate=.85;speechSynthesis.speak(u)}catch(e){}}
-document.addEventListener('click',e=>{const z=e.target.closest&&e.target.closest('[data-say]');if(z)speak(z.dataset.say);
+document.addEventListener('click',e=>{const z=e.target.closest&&e.target.closest('[data-say]');/* a button that starts its own audio (Read to me) keeps its label quiet, so the reading isn't cut off */if(z&&!z.closest('[data-quiet]'))speak(z.dataset.say);
   const bi=e.target.closest&&e.target.closest('.bi');if(bi){bi.classList.add('show');clearTimeout(bi._t);bi._t=setTimeout(()=>bi.classList.remove('show'),3500)}
   const st=e.target.closest&&e.target.closest('#status');if(st){st.classList.add('show');clearTimeout(st._t);st._t=setTimeout(()=>st.classList.remove('show'),4000)}});
 function biWrap(root){if(!root||!root.querySelectorAll)return;root.querySelectorAll('.zh:not([data-bi])').forEach(z=>{z.dataset.bi='1';const par=z.parentNode;if(!par||par.classList.contains('bi'))return;
@@ -10709,17 +10709,24 @@ function spawnWild(road){const p=PLACES[S.place];
   spi=grown(spi,lvl,.35);
   // a legendary comes as its baby, grown up only when the level allows
   if(!road&&LEG_BASES.length&&Math.random()<(inRift()?1/25:1/250)){spi=grown(pick(LEG_BASES),lvl,.5)}
-  let bx=R(.12,.88),by=R(.6,.9);if(!road){let best=-1;for(let k=0;k<14;k++){const cx=R(.12,.88),cy=R(.6,.9);let md=9;for(const o of wild)md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6));if(md>best){best=md;bx=cx;by=cy}}}
+  let bx=R(.12,.88),by=R(.6,.9);if(!road){let best=-1;for(let k=0;k<30;k++){const cx=R(.12,.88),cy=R(.6,.9);let md=9;for(const o of wild)md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6));if(md>best){best=md;bx=cx;by=cy}}}
   return{shiny:Math.random()<shinyRate(),sp:spi,lvl,x:bx,y:road?R(.66,.7):by,vx:R(-.03,.03),ph:R(0,6),born:T,road}}
 function riftHere(){return!!(S.rift&&S.rift.shown&&S.rift.place===S.place&&S.mode!=='travel')}
 function enterRift(){if(!riftHere())return;LOG('rift_enter');S.rift=null;sfx('legend');travel(6)}
 function raidHere(){return!!(S.raid&&S.raid.shown&&S.raid.place===S.place&&S.mode!=='travel')}
+// which creature a tap means: a name tag picks its creature; otherwise the front-most creature whose body is under the finger; otherwise the nearest body within reach
+function pickWild(x,y){const vis=wild.filter(wd=>wd._box&&!(C&&C.wd===wd));if(!vis.length){let b=null,bd=.13;for(const wd of wild){const d=Math.hypot(wd.x-x,(wd.y-.07-y)*.75);if(d<bd){bd=d;b=wd}}return b}
+  const W=vis[0]._box.W,H=vis[0]._box.H,px=x*W,py=y*H;
+  for(const wd of vis){const t=wd._tag;if(t&&px>=t.x&&px<=t.x+t.w&&py>=t.y&&py<=t.y+t.h)return wd}
+  const hits=vis.filter(wd=>{const b=wd._box;return Math.abs(px-b.x)<=b.hw&&py<=b.y+6&&py>=b.y-b.ht});
+  if(hits.length)return hits.sort((a,b)=>b.y-a.y)[0];
+  let b=null,bd=Math.max(W,H)*.09;for(const wd of vis){const bx=wd._box,d=Math.hypot(px-bx.x,(py-(bx.y-bx.ht*.45))*.8);if(d<bd){bd=d;b=wd}}return b}
 function sceneTap(e){const r=scene.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
   if(raidHere()&&Math.abs(x-.5)<.1&&y>.25&&y<.55){startRaid();return}
   if(riftHere()&&Math.abs(x-.15)<.1&&Math.abs(y-.43)<.16){enterRift();return}
   for(const f of (window.TAP_HOOKS||[]))if(f(x,y))return;
   if(window.Reader&&Reader.tap(x,y))return;
-  let best=null,bd=.13;for(const wd of wild){const d=Math.hypot(wd.x-x,(wd.y-.07-y)*.75);if(d<bd){bd=d;best=wd}}
+  const best=pickWild(x,y);
   if(best)openCatch(best);else if(S.mode==='arrived')toast('Tap “Stay here” to draw creatures in')}
 scene.addEventListener('pointerdown',sceneTap);
 let last=0;
@@ -10751,19 +10758,19 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
   if(T-lastIdle>.8&&!idleHold&&!sheetOpen()&&!C&&!B&&!E&&S.mode!=='travel'){lastIdle=T;const k=nextTalk();if(k)runTalk(k);else if(evoQueue.length)runEvoQueue()}
   if(S.mode==='staying'&&!B&&T-lastHeal>3){lastHeal=T;for(const c of party()){const m=stats(c).maxhp;if(c.hp>0&&c.hp<m)c.hp=Math.min(m,c.hp+Math.ceil(m*.08))}}
   if(!paused){wild=wild.filter(wd=>!(wd.road&&wd.x<-.15));
-  for(let i=0;i<wild.length;i++)for(let j=i+1;j<wild.length;j++){const a=wild[i],b=wild[j];if(a.road||b.road)continue;const dx=a.x-b.x,dy=(a.y-b.y)*1.6,d=Math.hypot(dx,dy);if(d<.16){const f=(.16-d)*dt*.8*(dx<0?-1:1);a.x=Math.min(.9,Math.max(.1,a.x+f));b.x=Math.min(.9,Math.max(.1,b.x-f));if(d<.06){a.vx=Math.abs(a.vx||.02)*(dx<0?-1:1);b.vx=-a.vx}}}
+  for(let i=0;i<wild.length;i++)for(let j=i+1;j<wild.length;j++){const a=wild[i],b=wild[j];if(a.road||b.road)continue;const dx=a.x-b.x,dy=(a.y-b.y)*1.6,d=Math.hypot(dx,dy);if(d<.2){const f=(.2-d)*dt*1.6*(dx<0?-1:1);a.x=Math.min(.9,Math.max(.1,a.x+f));b.x=Math.min(.9,Math.max(.1,b.x-f));if(d<.06){a.vx=Math.abs(a.vx||.02)*(dx<0?-1:1);b.vx=-a.vx}}}
   for(const wd of wild){wd.x+=wd.vx*dt;if(!wd.road&&(wd.x<.1||wd.x>.9))wd.vx=Math.abs(wd.vx)*(wd.x<.5?1:-1);if(!wd.road&&Math.random()<.004)wd.vx=R(-.03,.03)}}
   if(S.mode!=='travel'&&window.Reader){try{Reader.frame(sctx,w,h)}catch(e){console.error(e)}}
   const labs=[];for(const wd of [...wild].sort((a,b)=>a.y-b.y)){if(C&&C.wd===wd)continue;const pop=Math.min(1,(T-wd.born)*3);const s=h*.11*(.75+(wd.y-.55)*1.3)*pop;
     const age=T-wd.born;if(age<.8&&window.FX&&FX.spawnRing){try{FX.spawnRing(sctx,wd.x*w,wd.y*h,age/.8,s*1.6)}catch(e){}}else if(age<.8){const k=age/.8;sctx.strokeStyle=`rgba(255,240,170,${1-k})`;sctx.lineWidth=3;sctx.beginPath();sctx.ellipse(wd.x*w,wd.y*h,s*2.2*k+4,s*.6*k+2,0,0,7);sctx.stroke();
       for(let i=0;i<6;i++){const a=i*1.05+wd.ph;el(sctx,wd.x*w+Math.cos(a)*s*1.6*k,wd.y*h-s*.8-Math.sin(a)*s*1.2*k-k*s,3*(1-k)+.5,3*(1-k)+.5,'#fff6c2')}}
-    dc(sctx,wd.sp,wd.x*w,wd.y*h,s,T,{ethereal:inRift(),shiny:wd.shiny,flip:wd.vx<0,ph:wd.ph,hop:Math.abs(Math.sin(T*5+wd.ph))*s*.15});
-    const zz=ZS(SP[wd.sp].n),lab=(zz.zh?zz.zh+' ':'')+'Lv '+wd.lvl,lab2=zz.py||'';sctx.font=`700 ${Math.max(10,h*.032)}px 'Noto Sans SC',Manrope,sans-serif`;const tw=Math.max(sctx.measureText(lab).width,lab2?sctx.measureText(lab2).width*.85:0);
-    const lh=h*.042;labs.push({x:wd.x*w,y:wd.y*h+4,tw,lh,bh:lab2?lh*1.85:lh,lab,lab2})}
+    dc(sctx,wd.sp,wd.x*w,wd.y*h,s,T,{ethereal:inRift(),shiny:wd.shiny,flip:wd.vx<0,ph:wd.ph,hop:Math.abs(Math.sin(T*5+wd.ph))*s*.15});wd._box={x:wd.x*w,y:wd.y*h,hw:s*1.15*Math.max(.8,Math.min(1.6,SP[wd.sp].sz||1)),ht:s*2.3*Math.max(.8,Math.min(1.6,SP[wd.sp].sz||1)),W:w,H:h};
+    const zz=ZS(SP[wd.sp].n),lab=(zz.zh?zz.zh+' ':'')+'Lv '+wd.lvl,lab2=zz.py||'';sctx.font=`700 ${Math.max(9,h*.027)}px 'Noto Sans SC',Manrope,sans-serif`;const tw=Math.max(sctx.measureText(lab).width,lab2?sctx.measureText(lab2).width*.85:0);
+    const lh=h*.036;labs.push({x:wd.x*w,y:wd.y*h+4,tw,lh,bh:lab2?lh*1.85:lh,lab,lab2,wd})}
   // name tags go on top, and a tag that would cover another one moves down (or above its creature at the bottom edge)
   {const placed=[];for(const L of labs){const hit=(y)=>placed.find(o=>Math.abs(o.x-L.x)<(o.tw+L.tw)/2+16&&y<o.y+o.bh+2&&y+L.bh+2>o.y);let y=L.y,o,n=0;while((o=hit(y))&&n++<8)y=o.y+o.bh+2;
-    if(y+L.bh>h-2){y=L.y-L.bh-h*.12;n=0;while((o=hit(y))&&n++<8)y=o.y-L.bh-2}L.y=y;placed.push(L)}
-  for(const L of labs){sctx.font=`700 ${Math.max(10,h*.032)}px 'Noto Sans SC',Manrope,sans-serif`;sctx.fillStyle='rgba(16,18,22,.62)';sctx.beginPath();sctx.roundRect(L.x-L.tw/2-7,L.y,L.tw+14,L.bh,6);sctx.fill();sctx.strokeStyle='rgba(255,255,255,.18)';sctx.lineWidth=1;sctx.stroke();sctx.fillStyle='#fff';sctx.textAlign='center';sctx.textBaseline='middle';sctx.fillText(L.lab,L.x,L.y+L.lh*.55);if(L.lab2){sctx.font=`600 ${Math.max(9,h*.027)}px Manrope,sans-serif`;sctx.fillStyle='rgba(255,255,255,.82)';sctx.fillText(L.lab2,L.x,L.y+L.lh*1.35)}}}
+    if(y+L.bh>h-2){y=L.y-L.bh-h*.12;n=0;while((o=hit(y))&&n++<8)y=o.y-L.bh-2}L.y=y;placed.push(L);if(L.wd)L.wd._tag={x:L.x-L.tw/2-7,y:L.y,w:L.tw+14,h:L.bh}}
+  for(const L of labs){sctx.font=`700 ${Math.max(9,h*.027)}px 'Noto Sans SC',Manrope,sans-serif`;sctx.fillStyle='rgba(16,18,22,.5)';sctx.beginPath();sctx.roundRect(L.x-L.tw/2-7,L.y,L.tw+14,L.bh,6);sctx.fill();sctx.strokeStyle='rgba(255,255,255,.18)';sctx.lineWidth=1;sctx.stroke();sctx.fillStyle='#fff';sctx.textAlign='center';sctx.textBaseline='middle';sctx.fillText(L.lab,L.x,L.y+L.lh*.55);if(L.lab2){sctx.font=`600 ${Math.max(8,h*.023)}px Manrope,sans-serif`;sctx.fillStyle='rgba(255,255,255,.82)';sctx.fillText(L.lab2,L.x,L.y+L.lh*1.35)}}}
   if(S.mode!=='travel')for(const f of (window.SCENE_HOOKS||[])){try{f(sctx,w,h)}catch(e){console.error(e)}}
   if(S.mode!=='travel'&&ambOK(p))ambient(sctx,w,h,p);vignette(sctx,w,h);
   if(S.mode==='travel')document.getElementById('meter').style.width=(travelT*100)+'%';
@@ -10985,7 +10992,7 @@ function openCatch(wd){if(C||!wd||(!wd.raid&&!wild.includes(wd)))return;LOG('cat
     if(sayName)setTimeout(()=>{if(C!==me)return;cSay(wname);if(!orbsLeft())cSay(W.noorbs[1],true)},250)};
   // the spell comes first: tapping a creature opens the trace right away, and the catch screen appears once the spell is cast
   if(orbsLeft()&&S.trace!==false&&window.traceChar)castSpell({title:`${wd.raid?'Giant':'Wild'} ${SP[wd.sp].n} · ${wname} <i>${wpy}</i>`,
-    pic:(ctx,w,h,t)=>{ctx.clearRect(0,0,w,h);dc(ctx,wd.sp,w/2,h*.94,fitS(w,h,wd.sp,.82),t,{shiny:wd.shiny,awake:true,ethereal:inRift(),titan:!!wd.raid})},then:()=>show(false)});
+    pic:(ctx,w,h,t)=>{ctx.clearRect(0,0,w,h);dc(ctx,wd.sp,w/2,h*.94,fitS(w,h,wd.sp,.82),t,{shiny:wd.shiny,awake:true,ethereal:inRift(),titan:!!wd.raid})},fromTap:!wd.raid,then:()=>show(false)});
   else show(true);
   if(S.qCatch===true){C.quizzing=true;const me=C;setTimeout(()=>askQuiz('catch').then(ok=>{if(C!==me)return;C.quizzing=false;if(ok){C.power=true;msg('Power orb! Your next throw is stronger.','能量球！','néngliàng qiú!',true)}}),450)}}
 function pickKind(){if(S.items[S.kind]>0)return S.kind;for(const k of['orb','great','ultra'])if(S.items[k]>0)return k;return'orb'}
@@ -11019,8 +11026,11 @@ function swipeCue(ctx,x,y,r){const k=(T*.9)%1;ctx.save();ctx.lineCap='round';ctx
   for(let i=0;i<3;i++){const q=(k+i/3)%1,cy=y-r*1.3-q*r*3.2,w=r*.55;ctx.globalAlpha=Math.sin(q*Math.PI)*.95;ctx.strokeStyle='#fff';ctx.shadowColor='rgba(20,30,80,.55)';ctx.shadowBlur=6;
     ctx.beginPath();ctx.moveTo(x-w,cy+w*.55);ctx.lineTo(x,cy);ctx.lineTo(x+w,cy+w*.55);ctx.stroke()}ctx.restore()}
 // catch-screen geometry without the creature's position (cBase), and with it at the current time (cGeom)
+// where the creature stands on the catch screen: on the ground of each painted place, never on water or in the sky
+function catchGround(){const p=PLACES[S.place]||{};return p.catchGy||CATCH_GY[p.key]||.6}
+const CATCH_GY={lakeshore:.66,stormpier:.72,hkharbour:.7,bangkok:.72,floatmarket:.72,phiphi:.76,marinabay:.7};
 function cBase(){const r=ccv.getBoundingClientRect(),w=r.width,h=r.height,sp=C.wd.sp,z=SP[sp].sz;
-  const s=Math.min(h*.14,h*.42/(2.6*z)),gy=h*.5,maxOff=Math.max(0,w/2-1.7*s*z),range=Math.min(maxOff,w*(.05+.04*SP[sp].stage))*swayK();
+  const s=Math.min(h*.14,h*.42/(2.6*z)),gy=h*catchGround(),maxOff=Math.max(0,w/2-1.7*s*z),range=Math.min(maxOff,w*(.05+.04*SP[sp].stage))*swayK();
   const hitR=Math.max(40,s*z*1.4)*(isYoung()?1.5:1),ty=gy-s*z*1.0;
   return{w,h,s,z,gy,ty,hitR,range,maxOff,orbR:Math.max(18,w*.065),rest:{x:w/2,y:h*.86}}}
 function cGeom(){const g=cBase(),p=cPos(T,g),k=ringK(T);g.cx=p.x;g.lift=p.lift;g.k=k;g.ringR=g.hitR*1.1*k;return g}
@@ -11095,10 +11105,10 @@ function predict(x0,y0,vx,vy){const g=cGeom(),P=-vy,slope=vx/(-vy),lo=g.h*1.1,hi
 ccv.addEventListener('pointerup',release);ccv.addEventListener('pointercancel',()=>{if(C)C.drag=null});
 ccv.addEventListener('keydown',e=>{if((e.key===' '||e.key==='Enter')&&C&&!C.quizzing&&C.phase==='aim'&&orbsLeft()){e.preventDefault();const g=cGeom();throwOrb(g.rest.x,g.rest.y,(g.cx-g.rest.x)*6,-(g.rest.y-g.ty)*6)}});
 function throwOrb(x0,y0,vx,vy){const g=cGeom();sfx('throw');C.throws++;S.items[C.kind]--;updOrbs();save();const dur=.55,land=T+dur;mvThrow(land);
-  let {x1,y1}=predict(x0,y0,vx,vy);const tp=cPos(land,g),tx=tp.x;if(y1===g.ty&&Math.abs(x1-tx)<g.hitR*1.3)x1+=(tx-x1)*.35; // light aim assist on near-hits only
+  let {x1,y1}=predict(x0,y0,vx,vy);/* a curveball drifts sideways as it flies, like in the phone game everyone knows: spin it clockwise and it curves right (so aim left of the creature); counter-clockwise curves left */const drift=C.curve*g.w*.22;x1+=drift;const tp=cPos(land,g),tx=tp.x;if(y1===g.ty&&Math.abs(x1-tx)<g.hitR*1.3)x1+=(tx-x1)*.35; // light aim assist on near-hits only
   LOG('throw',{kind:C.kind,berry:C.berry,vx:Math.round(vx),vy:Math.round(vy),land:`${Math.round(x1)},${Math.round(y1)}`,target:`${Math.round(tx)},${Math.round(g.ty-tp.lift)}`,hitR:Math.round(g.hitR),curve:C.curve});
-  C.phase='fly';C.orb={x0,y0,x1,y1,t0:T,dur,curve:C.curve,arc:g.h*.14,trail:[]};tryDodge(C.orb,land,g);C.curve=0;msg('');renderSpell()}
-function orbPos(o,p){const bend=o.curve*Math.sin(Math.PI*p)*70;return{x:o.x0+(o.x1-o.x0)*p+bend,y:o.y0+(o.y1-o.y0)*p-o.arc*Math.sin(Math.PI*p),sc:1-.42*p}}
+  C.phase='fly';C.orb={x0,y0,x1,y1,t0:T,dur,curve:C.curve,drift,arc:g.h*.14,trail:[]};tryDodge(C.orb,land,g);C.curve=0;msg('');renderSpell()}
+function orbPos(o,p){if(o.drift!=null)return{x:o.x0+(o.x1-o.drift-o.x0)*p+o.drift*p*p,y:o.y0+(o.y1-o.y0)*p-o.arc*Math.sin(Math.PI*p),sc:1-.42*p};const bend=o.curve*Math.sin(Math.PI*p)*70;return{x:o.x0+(o.x1-o.x0)*p+bend,y:o.y0+(o.y1-o.y0)*p-o.arc*Math.sin(Math.PI*p),sc:1-.42*p}}
 function burst(x,y,col,n){for(let i=0;i<(n||18);i++)C.parts.push({x,y,vx:R(-160,160),vy:R(-220,40),t0:T,col})}
 function dust(x,y,n){for(let i=0;i<n;i++)C.parts.push({x:x+R(-10,10),y:y-2,vx:R(-70,70),vy:R(-22,-6),t0:T,col:'#f3ead8',puff:R(3,6)})}
 function twinkle(ctx,x,y,r){ctx.beginPath();ctx.moveTo(x,y-r*2);ctx.quadraticCurveTo(x,y,x+r*2,y);ctx.quadraticCurveTo(x,y,x,y+r*2);ctx.quadraticCurveTo(x,y,x-r*2,y);ctx.quadraticCurveTo(x,y,x,y-r*2);ctx.fill()}
@@ -11139,7 +11149,7 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
     cctx.beginPath();cctx.arc(cx,ry,g.hitR*1.25,0,7);cctx.strokeStyle='rgba(255,255,255,.55)';cctx.lineWidth=2;cctx.stroke()}
   // orb
   if(C.phase==='aim'&&C.drag&&C.drag.pts.length>2){const pts=C.drag.pts,now=performance.now(),rc=pts.filter(q=>now-q.t<110),a=rc[0]||pts[0],b=pts[pts.length-1],dt=Math.max(.016,(b.t-a.t)/1000),vx=(b.x-a.x)/dt,vy=(b.y-a.y)/dt;
-    if(vy<-150){const pr=predict(C.drag.x,C.drag.y,vx,vy),o={x0:C.drag.x,y0:C.drag.y,x1:pr.x1,y1:pr.y1,curve:C.curve,arc:g.h*.14};
+    if(vy<-150){const pr=predict(C.drag.x,C.drag.y,vx,vy),o={x0:C.drag.x,y0:C.drag.y,x1:pr.x1+C.curve*g.w*.22,y1:pr.y1,curve:C.curve,drift:C.curve*g.w*.22,arc:g.h*.14};
       for(let i=1;i<14;i++){const q=orbPos(o,i/14);el(cctx,q.x,q.y,3,3,'rgba(255,255,255,.75)')}}}
   if(C.phase==='aim'){const p=C.drag?{x:C.drag.x,y:C.drag.y}:g.rest;const spinning=C.curve!==0;
     if(orbsLeft()){orbK(cctx,p.x,p.y,g.orbR,spinning?T*14*C.curve:0,spinning?.6+.4*Math.sin(T*12):0);spellGlyph(cctx,p.x,p.y,g.orbR);
@@ -11195,7 +11205,7 @@ document.getElementById('bSpell').onclick=()=>castSpell();
 // every catch starts with a spell, so tracing is part of the flow rather than a button to remember. The spell lasts the whole
 // catch; nothing re-opens the trace by itself after a miss or a break-free (the Spell button stays for a spell that was skipped)
 function castSpell(o){o=o||{};if(!C||C.spell||C.spelling||C.phase!=='aim'||!orbsLeft()||!window.traceChar){o.then&&o.then();return}const me=C,s=SP[C.wd.sp];C.spelling=true;C.quizzing=true;renderSpell();sfx('tap');
-  traceChar(s.t,{purpose:'spell',title:o.title,pic:o.pic}).then(r=>{if(C!==me)return;C.spelling=false;C.quizzing=false;if(o.then)o.then();
+  traceChar(s.t,{purpose:'spell',title:o.title,pic:o.pic,cancel:o.fromTap?['Let it go','放走','fàngzǒu']:null}).then(r=>{if(C!==me)return;C.spelling=false;C.quizzing=false;if(r.cancelled&&o.fromTap){LOG('catch_cancel',{sp:s.n});C=null;updateUI();return}if(o.then)o.then();
     if(!r.skipped){C.spell=r.perfect?2:1;C.spellCh=r.ch;C.spellT=T;C.spellBurst=0;LOG('spell',{ch:r.ch,mistakes:r.mistakes});
       const z=ZS(s.n);if(r.perfect)msg(`Perfect spell! ${s.n} is charmed. Throw now!`,`${z.zh}安静下来了！`,`${z.py} ānjìng xiàlái le!`,true);else msg('The spell is ready. Throw now!','准备好了！','zhǔnbèi hǎo le!',true)}
     renderSpell()})}
@@ -13170,7 +13180,7 @@ window.traceChar=function(kind,opts){if(typeof opts==='string')opts={title:opts}
     <div class="tracebox"><svg class="grid" viewBox="0 0 240 240"><g stroke="#d9c7a6" stroke-width="1" stroke-dasharray="5 5"><line x1="0" y1="120" x2="240" y2="120"/><line x1="120" y1="0" x2="120" y2="240"/><line x1="0" y1="0" x2="240" y2="240"/><line x1="240" y1="0" x2="0" y2="240"/></g></svg><div class="hw"></div></div>
     <div class="traceword" data-say="${wz}"><b>${wz}</b><span>${wpy} · ${wen}</span></div>
     <div class="tracemsg"></div>
-    <div class="tracebtns"><button data-a="show">Show me${zw('看笔顺','kàn bǐshùn')}</button><button data-a="hear">Hear it${zw('听一听','tīng yi tīng')}</button></div></div>`;
+    <div class="tracebtns"><button data-a="show">Show me${zw('看笔顺','kàn bǐshùn')}</button><button data-a="hear">Hear it${zw('听一听','tīng yi tīng')}</button>${opts.cancel?`<button data-a="cancel">${opts.cancel[0]}${zw(opts.cancel[1],opts.cancel[2])}</button>`:''}</div></div>`;
   document.body.appendChild(wrap);const msgEl=wrap.querySelector('.tracemsg');const a={wrap,res,ch,done:false};active=a;
   {const pc=wrap.querySelector('.tracepic');if(pc&&opts.pic){const d=Math.min(3,devicePixelRatio||1);pc.width=54*d;pc.height=54*d;const px=pc.getContext('2d');const loop=()=>{if(a.done||!wrap.isConnected)return;px.setTransform(d,0,0,d,0,0);try{opts.pic(px,54,54,performance.now()/1000)}catch(e){}requestAnimationFrame(loop)};loop()}}
   const writer=HanziWriter.create(wrap.querySelector('.hw'),ch,{width:240,height:240,padding:18,showOutline:true,showCharacter:false,strokeColor:'#2b2420',outlineColor:rp>=4?'#ebe2d2':'#d8ccb6',radicalColor:null,
@@ -13192,7 +13202,7 @@ window.traceChar=function(kind,opts){if(typeof opts==='string')opts={title:opts}
   speak(ch);
   // new or barely-known characters get a stroke demo first; familiar ones go straight to tracing
   if(rp<2||young())setTimeout(demo,300);else setTimeout(startQuiz,200);
-  wrap.onclick=ev=>{const b=ev.target.closest('button')?.dataset.a;if(b==='show')demo();else if(b==='hear')speak(ch+'，'+wz)};
+  wrap.onclick=ev=>{const b=ev.target.closest('button')?.dataset.a;if(b==='show')demo();else if(b==='hear')speak(ch+'，'+wz);else if(b==='cancel'){try{writer.cancelQuiz&&writer.cancelQuiz()}catch(e){}try{LOG('trace_cancel',{ch,purpose})}catch(e){}finish(a,{ok:false,cancelled:true,skipped:true,ch})}};
 }catch(err){console.error(err);if(active&&active.res===res)active=null;res({ok:true,mistakes:1,skipped:true})}})};
 // Progress for the Learn screen: every character on every ladder, with how well it is known.
 // For the Learn screen: per type, the hand-picked ladder plus any learned/next themed HSK characters; the general HSK row the same way.
@@ -13718,7 +13728,7 @@ const sty=document.createElement('style');sty.textContent=css;document.head.appe
 const sh=document.createElement('div');sh.className='sheet';sh.id='sRead';sh.hidden=true;
 sh.innerHTML=`<div class="inner"><div class="row"><h2 id="rdKind"></h2><button class="small" id="rdClose">Close<span class="zh" data-say="关闭">关闭<i>guānbì</i></span></button></div>
   <div class="paper" id="rdPaper"></div>
-  <div class="readbtns"><button id="rdPrev" aria-label="Back" hidden>‹</button><button id="rdPlay">▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdNext" class="primary" hidden>Next ›<span class="zh" data-say="继续">继续<i>jìxù</i></span></button><button id="rdDone" class="primary">Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
+  <div class="readbtns"><button id="rdPrev" aria-label="Back" hidden>‹</button><button id="rdPlay" data-quiet>▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdNext" class="primary" hidden data-quiet>Next ›<span class="zh" data-say="继续">继续<i>jìxù</i></span></button><button id="rdDone" class="primary" data-quiet>Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
 document.body.appendChild(sh);
 const $=id=>document.getElementById(id);
 const isP=t=>t.length===1;
