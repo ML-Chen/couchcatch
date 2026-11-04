@@ -211,7 +211,7 @@ function curRiddles(){const n=localDn(new Date());return RL.map((_,i)=>(n*RL.len
 function seenRiddle(ri){const ev=now();if(!ev)return false;const h=S.hol&&S.hol.rid;return!!(h&&Array.isArray(h[ev.id])&&h[ev.id].includes(ri))}
 let rsh=null,rgen=0;
 function riddleSheet(){if(rsh)return rsh;const css=`#sHol .inner{height:100%;gap:10px}#sHol .stage{gap:8px}#sHol canvas.rl{width:84px;height:112px;flex:none}
-#sHol .rq{font-family:'Noto Sans SC',sans-serif;font-size:1.35rem;font-weight:700;line-height:1.35;cursor:pointer}#sHol .rpy{font-size:.92rem;opacity:.9}#sHol .ren{font-size:.8rem;color:var(--muted)}
+#sHol .rq{font-family:'Noto Sans SC',sans-serif;text-wrap:balance;font-size:1.35rem;font-weight:700;line-height:1.35;cursor:pointer}#sHol .rpy{text-wrap:balance;font-size:.92rem;opacity:.9}#sHol .ren{font-size:.8rem;color:var(--muted)}
 #sHol .ans{display:flex;flex-direction:column;align-items:center;gap:2px;animation:holpop .45s ease-out}#sHol .ans .bigpic{font-size:3.6rem}#sHol .ans .bigzh{font-size:2rem;cursor:pointer}
 #sHol .rbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:none}#sHol .rbtns .one{grid-column:1/-1}
 @keyframes holpop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
