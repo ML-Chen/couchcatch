@@ -468,6 +468,11 @@ const SPECIES_RAW=[
  {n:'Solfawn',t:'fire',body:'quad',sz:.66,c1:'#f8c25e',c2:'#fff6dc',c3:'#8a4214',sc:'#ffd84a',ears:'pointy',tail:'flame',head:['sunhalo'],extras:['hooves','spots'],stage:1,leg:true,evo:['Solvane',28],st:[70,72,70]},
  {n:'Mireling',t:'dragon',body:'snake',sz:.72,c1:'#6a70d2',c2:'#e4ecff',c3:'#22266a',sc:'#eef3ff',ears:null,tail:'fin',head:['crescent'],extras:['starspots'],stage:1,leg:true,evo:['Mireluna',28],st:[72,70,70]},
  {n:'Stormling',t:'spark',body:'bird',sz:.62,c1:'#8394c6',c2:'#f0f8ff',c3:'#28305a',sc:'#8ffaff',ears:null,tail:'bolt',head:['crowncrest'],extras:['wings','sparks'],stage:1,leg:true,evo:['Stormlark',28],st:[70,70,72]},
+ // ---- holiday line (append only): the moon moth that comes only at the Mid-Autumn Festival (holidays.js keeps it out of other spawns) ----
+ // body moth: round fluffy front-facing body with a full-moon mark, feathery antennae; wc = wing colour
+ {n:'Lunapuff',t:'star',body:'moth',sz:.55,c1:'#fff0d0',c2:'#ffffff',c3:'#8a6a3e',sc:'#f2c14e',wc:'#ffe3a0',ears:null,tail:null,head:[],extras:[],stage:1,float:true,evo:['Lanternmoth',18],hab:['midautumn'],st:[54,56,54]},
+ {n:'Lanternmoth',t:'star',t2:'bug',body:'moth',sz:.95,c1:'#fff0cf',c2:'#ffffff',c3:'#7a3f24',sc:'#ffd25a',wc:'#f2603f',ears:null,tail:null,head:[],extras:[],stage:2,float:true,evo:['Moonregent',36],st:[54,56,54]},
+ {n:'Moonregent',t:'star',t2:'bug',body:'moth',sz:1.3,c1:'#f7f0e2',c2:'#ffffff',c3:'#272657',sc:'#ffd96a',wc:'#4a4fa6',ears:null,tail:null,head:[],extras:[],stage:3,float:true,st:[54,56,54]},
 ];
 
 </script>
@@ -644,7 +649,7 @@ function _dcBody(ctx,S,s,t,M){
   // animal eye: a solid dark rounded shape (near-black, faintly tinted by the creature's darkest colour), one big white glint in
   // the upper area (~40% of the eye's width) and a tiny sparkle lower down. Round for birds/bugs/blobs/etc, upright oval for
   // furry/sleek animals. Fierce: the top is cut at an angle toward the nose with a soft lid line. Blink: a short curved line.
-  const EYC=_dcMix('#120b16',R3,.2),EYL=_dcMix(EYC,_dcMix(R3,'#ffffff',.35),.4),ROUND=['bird','bug','blob','golem','jelly','larva','butterfly','fish','tortoise','ghost'].includes(S.body);
+  const EYC=_dcMix('#120b16',R3,.2),EYL=_dcMix(EYC,_dcMix(R3,'#ffffff',.35),.4),ROUND=['bird','bug','blob','moth','golem','jelly','larva','butterfly','fish','tortoise','ghost'].includes(S.body);
   const eye=(ex,ey,r)=>{const blink=M.blink!=null?!!M.blink:(((t+ph*1.7)%4.3)+4.3)%4.3<.12,cool=st>=3&&!fierce,
       rx=r*(ROUND?.8:.7)*(cool?.9:1),ry=r*(ROUND?.84:.92)*(fierce?.94:1);
     if(blink){ctx.beginPath();ctx.moveTo(ex-rx*.95,ey+ry*.1);ctx.quadraticCurveTo(ex,ey-ry*.42,ex+rx*.95,ey+ry*.1);ctx.strokeStyle=K(EYC);ctx.lineWidth=Math.max(1,r*.16);ctx.stroke();return}
@@ -1064,6 +1069,47 @@ function _dcBody(ctx,S,s,t,M){
     eye(r*.42,by-r*.02,r*.3);eye(-r*.1,by-r*.04,r*.26);blush(r*.66,by+r*.28,r*.17);blush(-r*.36,by+r*.26,r*.14);
     ctx.beginPath();ctx.ellipse(r*.18,by+r*.3,r*.065,r*.085,0,0,7);ctx.fillStyle=K('#4a2a55');ctx.fill();if(!sil){ctx.fillStyle='#ff8fb0';ctx.beginPath();ctx.ellipse(r*.18,by+r*.35,r*.04,r*.025,0,0,7);ctx.fill()}
     headTop(r*.1,by,r*.9);motes(by,r*1.5);
+  }else if(b==='moth'){ // fluffy moon moth (Mid-Autumn): front-facing furry body with a full-moon mark, feathery antennae, rounded wings (S.wc) with moon eyespots
+    const r=u*(st===1?.46:st===2?.4:.37),by=-u*.95,fl=Math.sin(t*4+ph),W=u*(st===1?.56:st===2?.78:.98),WC=HX(S.wc)?S.wc:R2,wc=K(WC),mc=K('#fff3c4');
+    const moon=(mx,my,mr,glow)=>{if(!sil&&glow>0){const g=ctx.createRadialGradient(mx,my,mr*.4,mx,my,mr*2.4);g.addColorStop(0,_dcA('#fff2b0',glow));g.addColorStop(1,'rgba(255,240,170,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(mx,my,mr*2.4,0,7);ctx.fill()}
+      E(mx,my,mr,mr,mc,0,false);if(!sil){ctx.fillStyle=_dcA('#d9b866',.35);for(const[a,b2,k]of[[-.3,-.2,.22],[.28,.12,.17],[-.05,.38,.13]]){ctx.beginPath();ctx.arc(mx+a*mr,my+b2*mr,mr*k,0,7);ctx.fill()}
+        ctx.strokeStyle=_dcA(RSC,.8);ctx.lineWidth=Math.max(.6,mr*.12);ctx.beginPath();ctx.arc(mx,my,mr,0,7);ctx.stroke()}};
+    // wings behind the body, mirrored left and right; the forewing reaches up and out, the hindwing rounds off below
+    const wing=(d,hind)=>{const L=W*(hind?.7:1),Hh=W*(hind?.6:.74);SV();ctx.translate(d*r*.3,by+(hind?r*.32:-r*.2));ctx.scale(d*(.88+.12*fl),1);ctx.rotate(hind?.42:-.3);
+      const p=new Path2D(),tl=hind&&st===3;p.moveTo(0,0);p.bezierCurveTo(L*.18,-Hh*.95,L*.82,-Hh*1.12,L*1.02,-Hh*.5);
+      if(tl){const tw=Math.sin(t*4+ph+d)*L*.06;p.bezierCurveTo(L*1.08,-Hh*.1,L*.95,Hh*.2,L*.82,Hh*.42);p.bezierCurveTo(L*.75,Hh*.9,L*.62+tw,Hh*1.45,L*.48+tw,Hh*1.62);p.bezierCurveTo(L*.4+tw,Hh*1.45,L*.42,Hh*.8,L*.34,Hh*.42);p.quadraticCurveTo(L*.12,Hh*.26,0,0)}
+      else{p.bezierCurveTo(L*1.12,-Hh*.05,L*.78,Hh*.36,L*.4,Hh*.32);p.quadraticCurveTo(L*.12,Hh*.24,0,0)}p.closePath();
+      const f=hind?DK(wc,.14):wc;if(!sil)ctx.globalAlpha=.97;
+      FS(p,f,[L*.52,-Hh*.3,L*.52,Hh*.62],()=>{if(sil)return;
+        if(st===2){const g=ctx.createRadialGradient(L*.5,-Hh*.25,0,L*.5,-Hh*.25,L*.75);g.addColorStop(0,'rgba(255,236,160,.75)');g.addColorStop(1,'rgba(255,200,120,0)');ctx.fillStyle=g;ctx.fillRect(-L,-Hh*2,L*3,Hh*3)}
+        ctx.strokeStyle=_dcA(_dcMix(f,R3,.45),.45);ctx.lineWidth=W*.07;ctx.stroke(p);
+        ctx.strokeStyle=_dcA(_dcMix(f,R3,.4),st===2?.5:.32);ctx.lineWidth=Math.max(.5,lw*.7);ctx.beginPath();
+        for(const[a,b2]of hind?[[.9,.05],[.75,.28],[.5,.32]]:[[.95,-.62],[1.0,-.3],[.8,.1],[.5,.24]]){ctx.moveTo(L*.05,0);ctx.quadraticCurveTo(L*a*.45,Hh*b2*.2,L*a,Hh*b2)}ctx.stroke();
+        if(st===3&&!hind){ctx.fillStyle='rgba(255,236,170,.75)';for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(L*(.25+i*.16),-Hh*(.72-Math.abs(i-2)*.08),W*.022,0,7);ctx.fill()}}
+        ctx.fillStyle=RIM;ctx.globalAlpha=.25*eth;ctx.beginPath();ctx.ellipse(L*.6,-Hh*.62,L*.22,Hh*.12,-.3,0,7);ctx.fill();ctx.globalAlpha=1},.8);
+      ctx.globalAlpha=1;
+      if(st>=2&&!hind)moon(L*.6,-Hh*.32,W*(st===2?.1:.13),.45);
+      if(st===3&&hind){SV();ctx.translate(L*.66,Hh*.5);ctx.rotate(.9);const cr=W*.08;ctx.beginPath();ctx.arc(0,0,cr,Math.PI*.35,Math.PI*1.65);ctx.arc(cr*.42,0,cr*.82,Math.PI*1.55,Math.PI*.45,true);ctx.closePath();ctx.fillStyle=mc;ctx.fill();RS()}
+      RS()};
+    wing(-1,true);wing(1,true);wing(-1,false);wing(1,false);
+    // feathery antennae: a curved stem with a plume of fine barbs
+    for(const d of[-1,1]){const sw2=Math.sin(t*4+ph+d)*r*.05,x0=d*r*.22,y0=by-r*.8,tx=d*r*(.85+.18*st)+sw2,ty=by-r*(1.75+.12*st),cx=d*r*.3,cy=by-r*1.6,
+        qp=q=>[(1-q)*(1-q)*x0+2*(1-q)*q*cx+q*q*tx,(1-q)*(1-q)*y0+2*(1-q)*q*cy+q*q*ty],ac=K(_dcMix(RSC,R3,.25));
+      ctx.beginPath();for(let i=2;i<=11;i++){const q=i/12,[px,py]=qp(q),[qx,qy]=qp(q-.02),ang=Math.atan2(py-qy,px-qx),L2=r*(.34*Math.sin(q*Math.PI)+.05);
+        for(const sd of[-1,1]){const a2=ang+sd*1.15;ctx.moveTo(px,py);ctx.lineTo(px+Math.cos(a2)*L2,py+Math.sin(a2)*L2)}}
+      ctx.strokeStyle=sil||_dcA(RSC,.95);ctx.lineWidth=Math.max(.6,r*.045);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x0,y0);ctx.quadraticCurveTo(cx,cy,tx,ty);ctx.strokeStyle=OL(ac);ctx.lineWidth=Math.max(1,r*.09);ctx.stroke();ctx.strokeStyle=ac;ctx.lineWidth=Math.max(.7,r*.055);ctx.stroke()}
+    // little dangling feet
+    for(const d of[-1,1])E(d*r*.28,by+r*.98,r*.15,r*.11,DK(c1,.22));
+    // the fluffy body: a scalloped round outline, a white chest ruff and fur texture
+    const BP=new Path2D(),N=20;for(let i=0;i<=N;i++){const a=-Math.PI/2+i*Math.PI*2/N,am=a-Math.PI/N,rr=1+(i%2?.02:0);const px=Math.cos(a)*r*rr,py=by+Math.sin(a)*r*1.04*rr,qx=Math.cos(am)*r*1.13,qy=by+Math.sin(am)*r*1.16;i?BP.quadraticCurveTo(qx,qy,px,py):BP.moveTo(px,py)}BP.closePath();
+    FS(BP,c1,[0,by,r,r],()=>{ctx.fillStyle=c2;const RP=new Path2D(),M=9;RP.moveTo(-r*.95,by+r*.08);for(let i=1;i<=M;i++){const x1=-r*.95+i*r*1.9/M,xm=x1-r*.95/M;RP.quadraticCurveTo(xm,by+r*(.32+.06*Math.cos(i)),x1,by+r*.08+Math.abs(x1)*r*.0)}RP.lineTo(r*1.2,by+r*1.3);RP.lineTo(-r*1.2,by+r*1.3);RP.closePath();
+      if(!sil)ctx.globalAlpha=.9;ctx.fill(RP);ctx.globalAlpha=1;furTex(BP,0,by-r*.1,r*.9,r*.9,R1,1.4,2.0);furTex(RP,0,by+r*.6,r*.9,r*.45,R2,1.2,1.4)});
+    if(st>=3)for(let i=0;i<7;i++){const q=i/6-.5,px=q*r*1.4,py=by+r*(.64+q*q*.4)-(i%2)*r*.05,pr=r*(.27-q*q*.16);E(px,py,pr,pr*.9,c2,0,false);GE(px,py,pr,pr*.9)}
+    moon(0,by-r*.6,r*(st===1?.15:.18),st===1?.35:.55);
+    const er=r*(st===1?.27:st===2?.23:.21);eye(r*.33,by-r*.08,er);eye(-r*.33,by-r*.08,er);blush(r*.56,by+r*.2,r*.16);blush(-r*.56,by+r*.2,r*.16);
+    ctx.beginPath();ctx.moveTo(-r*.09,by+r*.2);ctx.quadraticCurveTo(-r*.045,by+r*.29,0,by+r*.21);ctx.quadraticCurveTo(r*.045,by+r*.29,r*.09,by+r*.2);ctx.strokeStyle=INK;ctx.lineWidth=Math.max(.7,r*.04);ctx.stroke();
+    motes(by,r*1.6);
   }else{ // blob
     const r=u*.55,by=-r*.95,BAT=S.ears==='bat';
     if(X.includes('batwings'))batwing(-r*.2,by-r*.1,r*1.3,true,true);
@@ -1210,6 +1256,10 @@ const ZH_SPECIES = {
   'Solfawn':     {zh:'小阳鹿', py:'xiǎo yáng lù',    mean:'little + sun + deer'},
   'Mireling':    {zh:'小月龙', py:'xiǎo yuè lóng',   mean:'little + moon + dragon'},
   'Stormling':   {zh:'小雷雀', py:'xiǎo léi què',    mean:'little + thunder + sparrow'},
+  // ---- holiday: the Mid-Autumn moon moth ----
+  'Lunapuff':    {zh:'月绒绒', py:'yuè róng róng',   mean:'moon + fluff + fluff'},
+  'Lanternmoth': {zh:'灯笼蛾', py:'dēng long é',     mean:'lantern + moth'},
+  'Moonregent':  {zh:'月蛾王', py:'yuè é wáng',      mean:'moon + moth + king'},
 };
 
 const ZH_TYPES = {
@@ -10761,6 +10811,8 @@ function sceneFrame(ts){T=ts/1000;const dt=Math.min(.05,T-last);last=T;const {w,
   if(!paused){wild=wild.filter(wd=>!(wd.road&&wd.x<-.15));
   for(let i=0;i<wild.length;i++)for(let j=i+1;j<wild.length;j++){const a=wild[i],b=wild[j];if(a.road||b.road)continue;const dx=a.x-b.x,dy=(a.y-b.y)*1.6,d=Math.hypot(dx,dy);if(d<.2){const f=(.2-d)*dt*1.6*(dx<0?-1:1);a.x=Math.min(.9,Math.max(.1,a.x+f));b.x=Math.min(.9,Math.max(.1,b.x-f));if(d<.06){a.vx=Math.abs(a.vx||.02)*(dx<0?-1:1);b.vx=-a.vx}}}
   for(const wd of wild){wd.x+=wd.vx*dt;if(!wd.road&&(wd.x<.1||wd.x>.9))wd.vx=Math.abs(wd.vx)*(wd.x<.5?1:-1);if(!wd.road&&Math.random()<.004)wd.vx=R(-.03,.03)}}
+  // things standing on the ground (the food cart): drawn before the creatures, so a creature in front covers them
+  if(S.mode!=='travel')for(const f of (window.GROUND_HOOKS||[])){try{f(sctx,w,h)}catch(e){console.error(e)}}
   if(S.mode!=='travel'&&window.Reader){try{Reader.frame(sctx,w,h)}catch(e){console.error(e)}}
   const labs=[];for(const wd of [...wild].sort((a,b)=>a.y-b.y)){if(C&&C.wd===wd)continue;const pop=Math.min(1,(T-wd.born)*3);const s=h*.11*(.75+(wd.y-.55)*1.3)*pop;
     const age=T-wd.born;if(age<.8&&window.FX&&FX.spawnRing){try{FX.spawnRing(sctx,wd.x*w,wd.y*h,age/.8,s*1.6)}catch(e){}}else if(age<.8){const k=age/.8;sctx.strokeStyle=`rgba(255,240,170,${1-k})`;sctx.lineWidth=3;sctx.beginPath();sctx.ellipse(wd.x*w,wd.y*h,s*2.2*k+4,s*.6*k+2,0,0,7);sctx.stroke();
@@ -14165,6 +14217,285 @@ document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest
 
 </script>
 <script>
+// ---------- Food stalls: order a dish in Chinese ----------
+// A little food cart stands at the Hawker Centre (Singapore), the Night Market (Hong Kong) and in the Backyard (Auntie Wang's stand).
+// Tapping it opens a short ordering scene in the conversation style: the keeper greets, the child picks a dish (every choice is right),
+// says it out loud and taps "I said it!", maybe answers one follow-up (spicy? ice?), says 谢谢！, and the team eats: HP full and some XP.
+// Each stall serves FOOD.perDay meals a day (S.food = {day, n:{placeKey:count}}; old saves without it load as "nothing eaten today").
+// tools/zh_strings.js loads this file in a sandbox (no document) to collect every Chinese line for recording: keep the data first.
+(function(){
+var g=(typeof window!=='undefined')?window:this;
+function L(zh,py,en){return{zh:zh,py:py,en:en}}
+function O(l,reply){l.reply=reply;return l}
+var ASKS={
+  spicy:{q:L('好的！要不要辣？','hǎo de! yào bu yào là?','OK! Do you want it spicy?'),
+    a:[O(Object.assign(L('不要辣，谢谢！','bú yào là, xiè xie!','Not spicy, thanks!'),{pic:'nochili'}),L('好，不辣！','hǎo, bú là!','OK, not spicy!')),
+       O(Object.assign(L('要一点儿辣！','yào yì diǎnr là!','A little spicy, please!'),{pic:'chili'}),L('好，一点儿辣！','hǎo, yì diǎnr là!','OK, a little spicy!'))]},
+  ice:{q:L('好的！要不要冰？','hǎo de! yào bu yào bīng?','OK! Do you want ice?'),
+    a:[O(Object.assign(L('要冰的！','yào bīng de!','With ice, please!'),{pic:'ice'}),L('好，加冰！','hǎo, jiā bīng!','OK, with ice!')),
+       O(Object.assign(L('不要冰，谢谢！','bú yào bīng, xiè xie!','No ice, thanks!'),{pic:'noice'}),L('好，不加冰！','hǎo, bù jiā bīng!','OK, no ice!'))]}};
+// every dish line is a whole natural sentence; drinks get 慢慢喝, food 慢慢吃
+var DISHES={
+  chickenrice:Object.assign(L('我要一盘鸡饭。','wǒ yào yì pán jī fàn.','A plate of chicken rice, please.'),{ask:'spicy'}),
+  nasilemak:  Object.assign(L('我要椰浆饭。','wǒ yào yē jiāng fàn.','Coconut rice, please.'),{ask:'spicy'}),
+  noodles:    Object.assign(L('我要一碗面。','wǒ yào yì wǎn miàn.','A bowl of noodles, please.'),{ask:'spicy'}),
+  milktea:    Object.assign(L('我要一杯奶茶。','wǒ yào yì bēi nǎi chá.','A cup of milk tea, please.'),{ask:'ice',drink:true}),
+  fishballs:  Object.assign(L('我要一串鱼蛋。','wǒ yào yí chuàn yú dàn.','A stick of fish balls, please.'),{ask:'spicy'}),
+  eggwaffle:  L('我要一个鸡蛋仔。','wǒ yào yí gè jī dàn zǎi.','An egg waffle, please.'),
+  wonton:     L('我要一碗云吞面。','wǒ yào yì wǎn yún tūn miàn.','A bowl of wonton noodles, please.'),
+  baozi:      L('我要一个包子。','wǒ yào yí gè bāo zi.','A steamed bun, please.'),
+  dumplings:  L('我要一盘饺子。','wǒ yào yì pán jiǎo zi.','A plate of dumplings, please.'),
+  watermelon: L('我要一块西瓜。','wǒ yào yí kuài xī guā.','A slice of watermelon, please.'),
+  juice:      Object.assign(L('我要一杯果汁。','wǒ yào yì bēi guǒ zhī.','A glass of juice, please.'),{ask:'ice',drink:true}),
+};
+var STALLS={
+  hawker:{who:{name:'Auntie Lim',zh:'林阿姨',py:'Lín āyí'},look:'hawker',sign:'小吃',dishes:['chickenrice','nasilemak','noodles','milktea'],
+    person:{skin:2,hair:'#1d1716',style:'bun',shirt:'#2f8f6a',acc:'apron',accc:'#f3efe4',bg:'#2f5a4a'}},
+  hknight:{who:{name:'Uncle Wah',zh:'华叔',py:'Huá shū'},look:'night',sign:'小食',dishes:['fishballs','eggwaffle','wonton','milktea'],
+    person:{skin:1,hair:'#1a1412',style:'short',hat:'cap',hatc:'#c0392b',shirt:'#3a3f5a',acc:'apron',accc:'#e8e1d2',bg:'#4a2540',male:1}},
+  backyard:{who:{name:'Auntie Wang',zh:'王阿姨',py:'Wáng ā yí'},look:'home',sign:'点心',dishes:['baozi','dumplings','watermelon','juice'],
+    person:{skin:1,hair:'#2a2422',style:'curly',shirt:'#5f8f6e',acc:'apron',age:'adult',bg:'#3b5a49'}}};
+var LINES={
+  hello:L('你好！你要吃什么？','nǐ hǎo! nǐ yào chī shén me?','Hi! What would you like?'),
+  ok:L('好的！','hǎo de!','OK!'),
+  eat:L('给你！慢慢吃！','gěi nǐ! màn màn chī!','Here you go! Enjoy!'),
+  drink:L('给你！慢慢喝！','gěi nǐ! màn màn hē!','Here you go! Enjoy!'),
+  thanks:Object.assign(L('谢谢！','xiè xie!','Thank you!'),{pic:'heart'}),
+  welcome:L('不客气！','bú kè qi!','You’re welcome!'),
+  full:L('吃饱了！','chī bǎo le!','All full!'),
+  soldout:L('卖完了！明天再来吧！','mài wán le! míngtiān zài lái ba!','All sold out! Come back tomorrow!'),
+  // UI words (tappable, so they are spoken too)
+  buy:L('买吃的','mǎi chī de','Get food'),tomorrow:L('明天见','míngtiān jiàn','See you tomorrow'),
+  say:L('用中文说','yòng Zhōngwén shuō','Say it in Chinese'),listen:L('听一听，说一说','tīng yi tīng, shuō yi shuō','Listen, then say it'),
+  said:L('说了！','shuō le!','I said it!'),next:L('继续','jìxù','Continue')};
+g.FOOD={perDay:2,stalls:STALLS,dishes:DISHES,asks:ASKS,lines:LINES};
+if(typeof document==='undefined')return; // the string collector stops here
+
+const F=g.FOOD,PER_DAY=F.perDay;
+const $=s=>sh.querySelector(s);
+// ---------- state ----------
+function stallKey(){try{const p=PLACES[S.place];return p&&STALLS[p.key]&&!p.rift?p.key:null}catch(e){return null}}
+function here(){return S.col.length&&S.mode!=='travel'&&stallKey()?STALLS[stallKey()]:null}
+function eaten(k){const f=S.food;return f&&f.day===today()&&f.n?(f.n[k]||0):0}
+function left(k){k=k||stallKey();return k?Math.max(0,PER_DAY-eaten(k)):0}
+function markEaten(k){if(!S.food||S.food.day!==today())S.food={day:today(),n:{}};S.food.n=S.food.n||{};S.food.n[k]=(S.food.n[k]||0)+1}
+// ---------- the boost: the whole team (the six in battle) is healed, fainted ones too, and each gets a quarter of a level in XP ----------
+function feed(){const out={healed:0,xp:0};for(const c of party()){const m=stats(c).maxhp;if(c.hp<m){c.hp=m;out.healed++}
+  const n=Math.max(5,Math.round(c.lvl*15*.25));gainXP(c,n);c.hp=Math.max(c.hp,stats(c).maxhp);out.xp=out.xp||n}return out}
+
+// ---------- the cart in the field (drawn under the creatures, like the scenery) ----------
+const POS={x:.16,y:.63}; // base of the cart, as a fraction of the scene
+function cartBox(){return{x0:POS.x-.12,x1:POS.x+.12,y0:POS.y-.27,y1:POS.y+.02}}
+function drawCart(c,w,h,st,closed,t){const s=h*.2,x=POS.x*w,y=POS.y*h,look=st.look,u=s/100;
+  const E=(ex,ey,rx,ry,f)=>{c.beginPath();c.ellipse(ex,ey,Math.max(.1,rx),Math.max(.1,ry),0,0,7);c.fillStyle=f;c.fill()};
+  const pal=look==='night'?{body:['#b8322c','#7a1d1d'],top:'#e9d8b8',stripe:['#d93a32','#fff3dc'],pole:'#3a2a24',trim:'#f2c14e'}
+    :look==='hawker'?{body:['#dfe6ea','#9aa7b0'],top:'#f4f6f7',stripe:['#2f9a6a','#f7f4ea'],pole:'#6d7b84',trim:'#e3b23c'}
+    :{body:['#c28a52','#8a5a32'],top:'#e8cfa4',stripe:['#3f7fc4','#fbf6ea'],pole:'#6b4a2e',trim:'#f0c35a'};
+  c.save();
+  // warm glow (strong at night), soft shadow on the ground
+  if(look==='night'&&!closed){const gl=c.createRadialGradient(x,y-s*.75,s*.1,x,y-s*.75,s*1.3);gl.addColorStop(0,'rgba(255,170,90,.38)');gl.addColorStop(1,'rgba(255,170,90,0)');c.fillStyle=gl;c.fillRect(x-s*1.4,y-s*2.1,s*2.8,s*2.4)}
+  E(x+s*.04,y+s*.02,s*.62,s*.09,'rgba(0,0,0,.28)');
+  // poles + wheels
+  c.fillStyle=pal.pole;c.fillRect(x-s*.47,y-s*1.12,s*.05,s*1.0);c.fillRect(x+s*.42,y-s*1.12,s*.05,s*1.0);
+  for(const wx of[-.3,.3]){E(x+wx*s,y-s*.06,s*.12,s*.12,'#2b2320');E(x+wx*s,y-s*.06,s*.075,s*.075,'#8a7a6a');E(x+wx*s,y-s*.06,s*.025,s*.025,'#2b2320')}
+  // the counter body
+  const bg=c.createLinearGradient(0,y-s*.62,0,y-s*.12);bg.addColorStop(0,pal.body[0]);bg.addColorStop(1,pal.body[1]);c.fillStyle=bg;c.beginPath();c.roundRect(x-s*.55,y-s*.62,s*1.1,s*.5,s*.05);c.fill();
+  c.strokeStyle='rgba(0,0,0,.22)';c.lineWidth=1;c.stroke();
+  c.fillStyle=pal.body[1];c.beginPath();c.moveTo(x+s*.55,y-s*.6);c.lineTo(x+s*.63,y-s*.66);c.lineTo(x+s*.63,y-s*.18);c.lineTo(x+s*.55,y-s*.12);c.closePath();c.fill();c.fillStyle='rgba(0,0,0,.18)';c.fill();
+  if(look==='home'){c.strokeStyle='rgba(60,35,15,.3)';c.lineWidth=Math.max(1,u*1.2);for(let i=1;i<4;i++){c.beginPath();c.moveTo(x-s*.55,y-s*.62+i*s*.125);c.lineTo(x+s*.55,y-s*.62+i*s*.125);c.stroke()}}
+  else{c.fillStyle='rgba(255,255,255,.22)';c.fillRect(x-s*.5,y-s*.58,s*1.0,s*.05)}
+  // a sign on the front of the counter
+  c.fillStyle=pal.trim;c.beginPath();c.roundRect(x-s*.26,y-s*.5,s*.52,s*.24,s*.04);c.fill();
+  c.fillStyle=look==='hawker'?'#1f5a40':'#5a1a12';c.font=`700 ${Math.max(8,s*.17)}px 'Noto Sans SC',sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(st.sign,x,y-s*.375);
+  // counter top + food on it
+  c.fillStyle=pal.top;c.beginPath();c.roundRect(x-s*.6,y-s*.68,s*1.2,s*.08,s*.03);c.fill();
+  if(!closed){
+    if(look==='night'){E(x-s*.28,y-s*.72,s*.2,s*.06,'#3a3a40');c.fillStyle='#55565e';c.fillRect(x-s*.48,y-s*.86,s*.4,s*.14);E(x-s*.28,y-s*.86,s*.2,s*.05,'#c9852f');
+      for(let i=0;i<3;i++){c.strokeStyle='#d8b98a';c.lineWidth=Math.max(1,u*1.3);c.beginPath();c.moveTo(x+s*(.12+i*.1),y-s*.7);c.lineTo(x+s*(.18+i*.1),y-s*1.0);c.stroke();for(let k=0;k<3;k++)E(x+s*(.135+i*.1+k*.015),y-s*(.78+k*.07),s*.035,s*.035,'#e8a23a')}}
+    else{// steamer baskets (bamboo) or a pot
+      const sx=x-s*.26;for(let i=0;i<(look==='home'?3:2);i++){const yy=y-s*(.74+i*.1);c.fillStyle=i%2?'#d9b77a':'#c9a464';c.beginPath();c.roundRect(sx-s*.2,yy-s*.05,s*.4,s*.1,s*.03);c.fill();c.strokeStyle='rgba(90,60,20,.45)';c.lineWidth=1;c.stroke()}
+      E(sx,y-s*(look==='home'?.98:.88),s*.2,s*.05,'#e3c98f');
+      E(x+s*.25,y-s*.73,s*.15,s*.05,'#f6f6f2');E(x+s*.25,y-s*.75,s*.11,s*.03,look==='hawker'?'#e9c46a':'#f2f0ea')}
+    // steam
+    c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=Math.max(1.2,u*1.8);c.lineCap='round';
+    for(let i=0;i<3;i++){const k=((t*.45+i/3)%1),sx0=x-s*(.36-i*.1);c.globalAlpha=(1-k)*.8;c.beginPath();c.moveTo(sx0,y-s*(.95+k*.1));
+      c.bezierCurveTo(sx0+s*.08*Math.sin(t*2+i),y-s*(1.05+k*.25),sx0-s*.08*Math.sin(t*2+i),y-s*(1.15+k*.3),sx0+s*.03,y-s*(1.25+k*.35));c.stroke()}
+    c.globalAlpha=1}
+  else{// closed for today: a cloth over the counter top
+    c.fillStyle='rgba(235,225,205,.95)';c.beginPath();c.moveTo(x-s*.58,y-s*.68);c.quadraticCurveTo(x,y-s*.9,x+s*.58,y-s*.68);c.lineTo(x+s*.54,y-s*.56);c.lineTo(x-s*.54,y-s*.56);c.closePath();c.fill()}
+  // scalloped striped awning
+  // a sloping canopy (narrower at the top), stripes fanning out, and a scalloped valance hanging from its front edge
+  const ay=y-s*1.08,aw=s*1.32,ah=s*.3,n=7,tw0=aw*.72;
+  for(let i=0;i<n;i++){const t0=x-tw0/2+i*tw0/n,t1=t0+tw0/n,b0=x-aw/2+i*aw/n,b1=b0+aw/n;c.fillStyle=pal.stripe[i%2];c.beginPath();c.moveTo(t0,ay-ah);c.lineTo(t1,ay-ah);c.lineTo(b1,ay);c.lineTo(b0,ay);c.closePath();c.fill();
+    c.beginPath();c.moveTo(b0,ay-.5);c.lineTo(b1,ay-.5);c.lineTo(b1,ay+ah*.18);c.ellipse((b0+b1)/2,ay+ah*.18,aw/n/2,ah*.26,0,0,Math.PI);c.closePath();c.fill()}
+  const hl=c.createLinearGradient(0,ay-ah,0,ay);hl.addColorStop(0,'rgba(255,255,255,.3)');hl.addColorStop(1,'rgba(0,0,0,.12)');c.fillStyle=hl;c.beginPath();c.moveTo(x-tw0/2,ay-ah);c.lineTo(x+tw0/2,ay-ah);c.lineTo(x+aw/2,ay);c.lineTo(x-aw/2,ay);c.closePath();c.fill();
+  c.fillStyle='rgba(0,0,0,.14)';c.fillRect(x-aw/2,ay,aw,Math.max(1,ah*.07));
+  c.fillStyle=pal.pole;c.beginPath();c.roundRect(x-tw0/2-s*.02,ay-ah-s*.03,tw0+s*.04,s*.05,s*.025);c.fill();
+  // a lantern at night
+  if(look==='night'){const lx=x+s*.52,ly=ay+ah*.75;c.strokeStyle='#3a2a24';c.lineWidth=1;c.beginPath();c.moveTo(lx,ay+ah*.1);c.lineTo(lx,ly-s*.1);c.stroke();
+    if(!closed){const lg=c.createRadialGradient(lx,ly,1,lx,ly,s*.32);lg.addColorStop(0,'rgba(255,120,80,.6)');lg.addColorStop(1,'rgba(255,120,80,0)');c.fillStyle=lg;c.fillRect(lx-s*.35,ly-s*.35,s*.7,s*.7)}
+    E(lx,ly,s*.1,s*.12,closed?'#7a2a24':'#e8402f');c.fillStyle='#f2c14e';c.fillRect(lx-s*.05,ly-s*.14,s*.1,s*.03);c.fillRect(lx-s*.05,ly+s*.11,s*.1,s*.03)}
+  c.restore();
+  // a little label like the creatures and the papers have
+  const lab=closed?LINES.tomorrow.zh:LINES.buy.zh,lab2=closed?LINES.tomorrow.py:LINES.buy.py;c.font=`700 ${Math.max(10,h*.032)}px 'Noto Sans SC',sans-serif`;
+  const tw=Math.max(c.measureText(lab).width,c.measureText(lab2).width*.85),lh=h*.042,lx=x,ly=ay-ah-lh*2.05;
+  c.globalAlpha=closed?.7:1;c.fillStyle='rgba(16,18,22,.66)';c.beginPath();c.roundRect(lx-tw/2-7,ly,tw+14,lh*1.85,6);c.fill();c.strokeStyle='rgba(255,231,176,.35)';c.lineWidth=1;c.stroke();
+  c.fillStyle='#ffe7b0';c.textAlign='center';c.textBaseline='middle';c.fillText(lab,lx,ly+lh*.55);
+  c.font=`600 ${Math.max(9,h*.027)}px Manrope,sans-serif`;c.fillStyle='rgba(255,255,255,.82)';c.fillText(lab2,lx,ly+lh*1.35);c.globalAlpha=1}
+g.GROUND_HOOKS=g.GROUND_HOOKS||[];g.TAP_HOOKS=g.TAP_HOOKS||[];
+GROUND_HOOKS.push((c,w,h)=>{const st=here();if(st)drawCart(c,w,h,st,!left(),T)});
+TAP_HOOKS.push((x,y)=>{if(!here())return false;const b=cartBox();if(x<b.x0||x>b.x1||y<b.y0||y>b.y1)return false;
+  // a creature standing right there gets the tap instead
+  for(const wd of wild)if(Math.hypot(wd.x-x,(wd.y-.07-y)*.75)<.08)return false;
+  sfx('tap');if(!left()){toast(`Sold out today · ${LINES.soldout.zh} (${LINES.soldout.py})`);speak(LINES.soldout.zh);return true}
+  openFood();return true});
+
+// ---------- small drawn food pictures ----------
+function drawFood(c,kind,x,y,r){const E=(ex,ey,rx,ry,f,rot=0)=>{c.beginPath();c.ellipse(ex,ey,Math.max(.1,rx),Math.max(.1,ry),rot,0,7);c.fillStyle=f;c.fill()};
+  const bowl=(inner)=>{E(x,y+r*.55,r*.55,r*.12,'rgba(0,0,0,.18)');c.fillStyle='#f4f1ea';c.beginPath();c.moveTo(x-r*.85,y-r*.05);c.quadraticCurveTo(x-r*.8,y+r*.6,x,y+r*.6);c.quadraticCurveTo(x+r*.8,y+r*.6,x+r*.85,y-r*.05);c.fill();
+    c.strokeStyle='#3f6fb5';c.lineWidth=Math.max(1,r*.07);c.beginPath();c.moveTo(x-r*.78,y+r*.18);c.quadraticCurveTo(x,y+r*.36,x+r*.78,y+r*.18);c.stroke();
+    E(x,y-r*.05,r*.85,r*.26,'#e6e1d6');E(x,y-r*.03,r*.75,r*.2,inner)};
+  const plate=()=>{E(x,y+r*.36,r*.98,r*.46,'rgba(0,0,0,.15)');E(x,y+r*.26,r*.98,r*.46,'#f7f5f0');c.strokeStyle='#3f6fb5';c.lineWidth=Math.max(1,r*.05);c.beginPath();c.ellipse(x,y+r*.26,r*.86,r*.38,0,0,7);c.stroke();E(x,y+r*.26,r*.72,r*.3,'#ecebe6')};
+  const noodles=(col)=>{c.strokeStyle=col;c.lineWidth=Math.max(1,r*.07);for(let i=0;i<4;i++){c.beginPath();c.moveTo(x-r*.6+i*r*.12,y-r*.04);c.bezierCurveTo(x-r*.3+i*r*.1,y-r*.18,x+i*r*.08,y+r*.1,x+r*.5-i*r*.05,y-r*.06);c.stroke()}};
+  const glass=(liq,top)=>{E(x,y+r*.82,r*.42,r*.1,'rgba(0,0,0,.15)');c.fillStyle='rgba(225,240,250,.55)';c.beginPath();c.moveTo(x-r*.48,y-r*.7);c.lineTo(x-r*.38,y+r*.8);c.lineTo(x+r*.38,y+r*.8);c.lineTo(x+r*.48,y-r*.7);c.closePath();c.fill();
+    c.fillStyle=liq;c.beginPath();c.moveTo(x-r*.44,y-r*.4);c.lineTo(x-r*.37,y+r*.74);c.lineTo(x+r*.37,y+r*.74);c.lineTo(x+r*.44,y-r*.4);c.closePath();c.fill();E(x,y-r*.4,r*.44,r*.08,top);
+    c.strokeStyle='rgba(255,255,255,.7)';c.lineWidth=Math.max(1,r*.06);c.beginPath();c.moveTo(x-r*.3,y-r*.3);c.lineTo(x-r*.25,y+r*.6);c.stroke();
+    c.strokeStyle='#e8504a';c.lineWidth=Math.max(1.5,r*.1);c.beginPath();c.moveTo(x+r*.12,y+r*.3);c.lineTo(x+r*.3,y-r*.95);c.lineTo(x+r*.5,y-r*1.0);c.stroke()};
+  const cross=()=>{c.strokeStyle='#e0453a';c.lineWidth=Math.max(2,r*.16);c.lineCap='round';c.beginPath();c.arc(x,y,r*.9,0,7);c.stroke();c.beginPath();c.moveTo(x-r*.62,y+r*.62);c.lineTo(x+r*.62,y-r*.62);c.stroke()};
+  const chili=(s=1)=>{c.fillStyle='#d8322a';c.beginPath();c.moveTo(x-r*.5*s,y-r*.35*s);c.quadraticCurveTo(x+r*.7*s,y-r*.45*s,x+r*.45*s,y+r*.65*s);c.quadraticCurveTo(x+r*.15*s,y-r*.05*s,x-r*.5*s,y-r*.05*s);c.closePath();c.fill();
+    E(x-r*.15*s,y-r*.28*s,r*.18*s,r*.05*s,'rgba(255,255,255,.4)',-.1);c.fillStyle='#3f8f3a';c.beginPath();c.roundRect(x-r*.68*s,y-r*.3*s,r*.22*s,r*.22*s,r*.05);c.fill()};
+  const cube=(dx,dy,s)=>{c.fillStyle='rgba(190,230,255,.95)';c.beginPath();c.roundRect(x+dx-r*s/2,y+dy-r*s/2,r*s,r*s,r*s*.2);c.fill();c.strokeStyle='rgba(90,160,210,.8)';c.lineWidth=1;c.stroke();
+    c.fillStyle='rgba(255,255,255,.8)';c.fillRect(x+dx-r*s*.3,y+dy-r*s*.3,r*s*.22,r*s*.22)};
+  c.save();c.lineCap='round';c.lineJoin='round';
+  switch(kind){
+  case'noodles':bowl('#e7b46a');noodles('#f6dc8a');E(x+r*.3,y-r*.08,r*.1,r*.05,'#5fb24a');E(x-r*.35,y-r*.02,r*.08,r*.04,'#5fb24a');
+    c.strokeStyle='#8a5a32';c.lineWidth=Math.max(1.5,r*.08);c.beginPath();c.moveTo(x-r*.2,y-r*.85);c.lineTo(x+r*.95,y-r*.15);c.moveTo(x-r*.05,y-r*.95);c.lineTo(x+r*1.0,y-r*.3);c.stroke();break;
+  case'wonton':bowl('#e7c27a');noodles('#f6dc8a');for(const [dx,dy] of[[-.35,-.08],[.05,-.12],[.38,-.04]]){E(x+dx*r,y+dy*r,r*.2,r*.13,'#fbf0dc');E(x+dx*r,y+(dy-.06)*r,r*.1,r*.07,'#f2dcc0')}E(x+r*.18,y+r*.02,r*.08,r*.04,'#5fb24a');break;
+  case'chickenrice':plate();E(x-r*.28,y+r*.12,r*.45,r*.34,'#fbfaf5');E(x-r*.3,y-r*.02,r*.32,r*.18,'#ffffff');
+    for(let i=0;i<4;i++){const sx=x+r*(.02+i*.16),sy=y+r*(.02+i*.05);c.fillStyle='#f6e3bd';c.beginPath();c.moveTo(sx,sy);c.lineTo(sx+r*.2,sy-r*.1);c.lineTo(sx+r*.26,sy+r*.3);c.lineTo(sx+r*.06,sy+r*.4);c.closePath();c.fill();c.strokeStyle='#d9a54e';c.lineWidth=Math.max(1,r*.07);c.beginPath();c.moveTo(sx,sy);c.lineTo(sx+r*.2,sy-r*.1);c.stroke()}
+    E(x+r*.6,y+r*.42,r*.13,r*.07,'#5fb24a');E(x-r*.65,y-r*.2,r*.17,r*.1,'#d8322a');break;
+  case'nasilemak':E(x,y+r*.3,r*.98,r*.38,'#3f8f3a');E(x,y+r*.26,r*.88,r*.3,'#5fb24a');E(x-r*.15,y+r*.1,r*.4,r*.28,'#fbfaf5');E(x-r*.15,y,r*.3,r*.16,'#ffffff');
+    E(x+r*.45,y+r*.15,r*.22,r*.15,'#ffffff');E(x+r*.45,y+r*.13,r*.11,r*.08,'#f5b82e');E(x-r*.55,y+r*.38,r*.16,r*.1,'#c8341f');
+    for(const [dx,dy] of[[.15,.45],[.25,.5],[.05,.52]])E(x+dx*r,y+dy*r,r*.06,r*.04,'#b07a3a');E(x+r*.6,y+r*.42,r*.12,r*.06,'#9fd47a');break;
+  case'milktea':glass('#c99a6a','#d9b085');cube(-.1*r,-.15*r,.22);cube(.1*r,.0,.2);break;
+  case'juice':glass('#f5a623','#ffc04d');cube(-.12*r,-.12*r,.2);E(x-r*.45,y-r*.72,r*.22,r*.22,'#ffb02e');E(x-r*.45,y-r*.72,r*.15,r*.15,'#ffd36b');break;
+  case'fishballs':c.strokeStyle='#c9a36a';c.lineWidth=Math.max(1.5,r*.08);c.beginPath();c.moveTo(x-r*.75,y+r*.85);c.lineTo(x+r*.55,y-r*.9);c.stroke();
+    for(let i=0;i<4;i++){const px=x-r*.45+i*r*.3,py=y+r*.45-i*r*.4;E(px,py,r*.24,r*.24,'#e9a53a');E(px-r*.07,py-r*.08,r*.08,r*.06,'rgba(255,255,255,.45)')}break;
+  case'eggwaffle':c.fillStyle='#e8b04a';c.beginPath();c.moveTo(x-r*.9,y-r*.2);c.quadraticCurveTo(x,y-r*.75,x+r*.9,y-r*.25);c.quadraticCurveTo(x+r*.7,y+r*.6,x,y+r*.65);c.quadraticCurveTo(x-r*.7,y+r*.6,x-r*.9,y-r*.2);c.fill();
+    for(let j=0;j<3;j++)for(let i=0;i<5-(j===2?1:0);i++)E(x-r*.6+i*r*.3+(j%2)*r*.12,y-r*.15+j*r*.27,r*.13,r*.11,'#f6cf6a');break;
+  case'baozi':E(x,y+r*.55,r*.82,r*.16,'#c9a464');c.fillStyle='#fbf8f1';c.beginPath();c.moveTo(x-r*.78,y+r*.5);c.quadraticCurveTo(x-r*.82,y-r*.45,x,y-r*.5);c.quadraticCurveTo(x+r*.82,y-r*.45,x+r*.78,y+r*.5);c.closePath();c.fill();c.strokeStyle='rgba(160,130,90,.55)';c.lineWidth=Math.max(1,r*.05);c.stroke();
+    c.strokeStyle='rgba(170,140,100,.75)';c.lineWidth=Math.max(1,r*.06);for(let i=-2;i<=2;i++){c.beginPath();c.moveTo(x,y-r*.42);c.quadraticCurveTo(x+i*r*.18,y-r*.25,x+i*r*.3,y-r*.08);c.stroke()}E(x,y-r*.42,r*.07,r*.05,'#d8c7a8');E(x-r*.4,y+r*.15,r*.12,r*.18,'rgba(255,255,255,.8)');break;
+  case'dumplings':plate();for(const [dx,dy] of[[-.36,.1],[.3,.08],[0,.42]]){const px=x+dx*r,py=y+dy*r;E(px,py+r*.1,r*.36,r*.08,'#d9a45a');c.fillStyle='#fbf1dc';c.beginPath();c.moveTo(px-r*.36,py+r*.1);c.quadraticCurveTo(px-r*.3,py-r*.3,px,py-r*.3);c.quadraticCurveTo(px+r*.3,py-r*.3,px+r*.36,py+r*.1);c.closePath();c.fill();c.strokeStyle='rgba(160,120,70,.6)';c.lineWidth=Math.max(1,r*.04);c.stroke();
+    c.beginPath();for(let k=-2;k<=2;k++){c.moveTo(px+k*r*.1,py-r*.27+Math.abs(k)*r*.04);c.lineTo(px+k*r*.1+r*.03,py-r*.14+Math.abs(k)*r*.04)}c.stroke()}break;
+  case'watermelon':c.fillStyle='#3f8f3a';c.beginPath();c.moveTo(x-r*.9,y-r*.1);c.quadraticCurveTo(x,y+r*1.05,x+r*.9,y-r*.1);c.closePath();c.fill();c.fillStyle='#bfe3a0';c.beginPath();c.moveTo(x-r*.8,y-r*.1);c.quadraticCurveTo(x,y+r*.88,x+r*.8,y-r*.1);c.closePath();c.fill();
+    c.fillStyle='#ef4f5a';c.beginPath();c.moveTo(x-r*.72,y-r*.1);c.quadraticCurveTo(x,y+r*.75,x+r*.72,y-r*.1);c.closePath();c.fill();for(const [dx,dy] of[[-.35,.05],[0,.2],[.35,.05],[-.12,.4],[.15,.38]])E(x+dx*r,y+dy*r,r*.04,r*.07,'#2a1a14');
+    c.fillStyle='rgba(255,255,255,.18)';c.beginPath();c.ellipse(x-r*.3,y,r*.25,r*.06,.2,0,7);c.fill();break;
+  case'chili':chili(1);break;
+  case'nochili':chili(.8);cross();break;
+  case'ice':cube(-r*.3,r*.2,.6);cube(r*.32,r*.25,.5);cube(0,-r*.35,.55);break;
+  case'noice':cube(0,0,.8);cross();break;
+  case'heart':c.fillStyle='#ff6b8a';c.beginPath();c.moveTo(x,y+r*.75);c.bezierCurveTo(x-r*1.1,y,x-r*.6,y-r*.85,x,y-r*.35);c.bezierCurveTo(x+r*.6,y-r*.85,x+r*1.1,y,x,y+r*.75);c.fill();E(x-r*.35,y-r*.3,r*.15,r*.1,'rgba(255,255,255,.5)',-.5);break;
+  }
+  c.restore()}
+function paint(cv,kind){try{const d=devicePixelRatio||1,S2=cv.clientWidth||44;cv.width=S2*d;cv.height=S2*d;const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);drawFood(c,kind,S2/2,S2/2,S2*.47)}catch(e){}}
+
+// ---------- the ordering sheet (reuses the conversation look: bubbles, cue ring, buttons) ----------
+const css=`#sFood .inner{height:100%;gap:8px}
+#sFood .talkhead .nm{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:6px;line-height:1.2}#sFood .nm b{font-family:'Noto Sans SC',sans-serif;font-size:1.15rem;font-weight:700}#sFood .nm i{font-style:normal;font-size:.85rem;opacity:.85}#sFood .nm span{flex-basis:100%;font-size:.72rem;opacity:.7;font-family:var(--body)}.lvl-2 #sFood .nm span,.lvl-3 #sFood .nm span{display:none}
+#sFood .talkhead canvas.avatar.person{width:56px;height:56px}
+#sFood .fx{margin-left:auto;flex:none;padding:6px 11px}
+#sFood .talkpanel{gap:6px}
+#sFood .talkcue{padding:8px 10px}
+.dishes{display:flex;flex-direction:column;gap:5px}
+.dishes .dish{display:flex;align-items:center;gap:10px;text-align:left;padding:5px 10px;min-width:0;border-radius:18px}
+.dishes .dish canvas{width:46px;height:46px;flex:none}
+.dishes .dish .t{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.dishes .dish .z{font-family:'Noto Sans SC',sans-serif;font-size:1.05rem;font-weight:700}
+.dishes .dish .p{font-size:.74rem;opacity:.85;font-family:var(--body);font-weight:500}
+.dishes .dish .e{font-size:.66rem;opacity:.68;font-family:var(--body);font-weight:500}
+.dishes .dish.sel{outline:3px solid var(--accent);outline-offset:-1px}
+.lvl-2 .dishes .dish .e,.lvl-3 .dishes .dish .e{display:none}.lvl-3 .dishes .dish .p{display:none}.lvl-3 .dishes .dish.sel .p{display:block}
+#sFood .said{width:100%}
+@media (max-height:600px){#sFood .talkhead canvas.avatar.person{width:46px;height:46px}#sFood .inner{gap:6px}#sFood .talkcue{padding:5px 10px}#sFood .ring{width:36px;height:36px}.dishes{gap:4px}.dishes .dish{padding:3px 10px}.dishes .dish canvas{width:40px;height:40px}.dishes .dish .z{font-size:.98rem}#sFood .said{padding-top:7px;padding-bottom:7px}#sFood .bub{padding:6px 11px}}
+.bub .fpic{width:56px;height:56px;display:block;margin:4px auto 0}
+.fed{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:18px;background:var(--panel)}
+.fed canvas{width:48px;height:48px;flex:none}.fed .t{display:flex;flex-direction:column;gap:2px;font-family:var(--display);font-weight:600}
+.fed .z{font-family:'Noto Sans SC',sans-serif;font-size:1.15rem;font-weight:700}.fed .p{font-size:.8rem;font-weight:500;opacity:.85}.fed .e{font-size:.7rem;font-weight:500;opacity:.7}.lvl-2 .fed .e,.lvl-3 .fed .e{display:none}
+.fed .chips{display:flex;gap:6px;flex-wrap:wrap}.fed .chips span{font-size:.82rem;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.55)}`;
+const sty=document.createElement('style');sty.textContent=css;document.head.appendChild(sty);
+const sh=document.createElement('div');sh.className='sheet food';sh.id='sFood';sh.hidden=true;
+sh.innerHTML=`<div class="inner"><div class="talkhead"><canvas class="avatar person" id="fdAv"></canvas><div style="flex:1;min-width:0"><div class="nm" id="fdWho"></div></div><button class="small fx" id="fdClose" aria-label="Close">✕</button></div>
+  <div class="talklog" id="fdLog"></div><div class="talkpanel" id="fdPanel"></div></div>`;
+document.body.appendChild(sh);
+try{new ResizeObserver(()=>scrollLog()).observe($('#fdLog'))}catch(e){}
+sh.addEventListener('click',e=>{const b=e.target.closest('.bub');if(b&&b.dataset.say)speakAsync(b.dataset.say)});
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const readMs=l=>Math.min(4200,1000+String(l.zh||'').length*160+String(l.en||'').length*15)*(window.TALK_PACE||1);
+const ZW=l=>zw(l.zh,l.py);
+let gen=0,cur=null;
+function scrollLog(){const lg=$('#fdLog');requestAnimationFrame(()=>{lg.scrollTop=lg.scrollHeight})}
+function bubble(kind,l,pic){const lg=$('#fdLog'),b=document.createElement('div');b.className='bub '+kind;b.dataset.say=l.zh;
+  b.innerHTML=`<div class="z">${l.zh}</div><div class="p">${l.py||''}</div>${l.en?`<div class="e">${l.en}</div>`:''}${pic?'<canvas class="fpic"></canvas>':''}`;
+  if(kind==='npc'&&cur){const row=document.createElement('div');row.className='bubrow';const cv=document.createElement('canvas');cv.className='mini-person';row.append(cv,b);lg.appendChild(row);try{drawPerson(cv,cur.st.person,false)}catch(e){}}
+  else lg.appendChild(b);if(pic)paint(b.querySelector('canvas'),pic);scrollLog();return b}
+// say a line (with the reading pause), stopping if the sheet was closed
+async function npc(my,l,pic){bubble('npc',l,pic);await Promise.all([speakAsync(l.zh).catch(()=>{}),wait(readMs(l))]);if(my!==gen)throw ABORT}
+const ABORT={};
+// One turn for the child: every option is right. Big kids see all of them (with pictures) and tap one (it plays);
+// little kids hear the one line first. Then "I said it!" sends the line.
+function choose(my,opts){return new Promise(async(res,rej)=>{const young=!!(window.isYoung&&isYoung());if(young)opts=[opts[0]];
+  const P=$('#fdPanel'),one=opts.length===1;
+  P.innerHTML=`<div class="talkcue"><div class="c">${young?ZW(LINES.listen):`${one?`Say it in Chinese: “${opts[0].en}”`:'Pick one and say it'}${ZW(LINES.say)}`}</div><div class="ring"><span></span></div></div>
+    <div class="dishes"></div><button class="big said" disabled>I said it!${ZW(LINES.said)}</button>`;
+  const box=P.querySelector('.dishes'),said=P.querySelector('.said');let pick=null;
+  const sel=(o,b,talk)=>{pick=o;[...box.children].forEach(x=>x.classList.toggle('sel',x===b));said.disabled=false;if(talk)speakAsync(o.zh)};
+  opts.forEach((o,i)=>{const b=document.createElement('button');b.className='dish';b.dataset.i=i;
+    b.innerHTML=`${o.pic?'<canvas></canvas>':''}<div class="t"><div class="z">${o.zh}</div><div class="p">${o.py}</div><div class="e">${o.en}</div></div>`;
+    b.onclick=()=>sel(o,b,true);box.appendChild(b);if(o.pic)paint(b.querySelector('canvas'),o.pic)});
+  said.onclick=()=>{if(pick&&my===gen)res(pick)};
+  const ringEl=P.querySelector('.ring');let ringDone=false;const ring=()=>new Promise(r=>{const t0=performance.now(),D=(young?4:3)*1000;ringEl._skip=()=>{ringDone=true};
+    const f=()=>{const k=ringDone?1:Math.min(1,(performance.now()-t0)/D);ringEl.style.setProperty('--p',(k*100)+'%');const s=ringEl.querySelector('span');if(s)s.textContent=Math.ceil((D/1000)*(1-k))||'';if(k>=1||my!==gen){r();return}requestAnimationFrame(f)};f()});
+  if(young){try{await speakAsync(opts[0].zh)}catch(e){}if(my!==gen)return rej(ABORT);sel(opts[0],box.children[0],false)}
+  ring()})}
+async function youSay(my,o){$('#fdPanel').innerHTML='';bubble('you',o);try{questEv('words')}catch(e){}
+  await Promise.all([speakAsync(o.zh).catch(()=>{}),wait(800*(window.TALK_PACE||1))]);if(my!==gen)throw ABORT}
+// opens the stall and returns at once (true when it opened); the scene plays on by itself
+function openFood(){const k=stallKey(),st=k&&STALLS[k];if(!st||!S.col.length||!left(k)||!sh.hidden)return false;if(typeof B!=='undefined'&&B)return false;
+  const my=++gen;cur={k,st};try{stopSpeech()}catch(e){}
+  try{preloadZh(LINES.hello.zh);for(const d of st.dishes)preloadZh(DISHES[d].zh)}catch(e){}
+  drawPerson($('#fdAv'),st.person,false);$('#fdWho').innerHTML=`<b data-say="${st.who.zh}">${st.who.zh}</b><i>${st.who.py}</i><span>${st.who.name}</span>`;$('#fdLog').innerHTML='';$('#fdPanel').innerHTML='';sh.hidden=false;
+  try{LOG('food_open',{place:k,left:left(k)})}catch(e){}
+  play(my,k,st);return true}
+async function play(my,k,st){
+  try{
+    await npc(my,LINES.hello);
+    const young=!!(window.isYoung&&isYoung());
+    // little kids get a different dish each time (by how many meals they have had), big kids choose
+    let menu=st.dishes.map(id=>Object.assign({id,pic:id},DISHES[id]));if(young){const n=(S.foodN||0)%menu.length;menu=menu.slice(n).concat(menu.slice(0,n))}
+    const dish=await choose(my,menu);await youSay(my,dish);
+    const ask=dish.ask&&ASKS[dish.ask];let extra=null;
+    if(ask){await npc(my,ask.q);extra=await choose(my,ask.a.map(a=>Object.assign({},a)));await youSay(my,extra);await npc(my,extra.reply)}
+    else await npc(my,LINES.ok);
+    await npc(my,dish.drink?LINES.drink:LINES.eat,dish.pic);
+    const th=await choose(my,[Object.assign({},LINES.thanks)]);await youSay(my,th);
+    await npc(my,LINES.welcome);
+    // the team eats
+    markEaten(k);S.foodN=(S.foodN||0)+1;const r=feed();save();try{LOG('food_order',{place:k,dish:dish.id,extra:extra?extra.zh:'',young,healed:r.healed,xp:r.xp})}catch(e){}
+    try{sfx('quest')}catch(e){}speakAsync(LINES.full.zh);
+    const P=$('#fdPanel');P.innerHTML=`<div class="fed"><canvas></canvas><div class="t" data-say="${LINES.full.zh}"><div class="z">${LINES.full.zh}</div><div class="p">${LINES.full.py}</div><div class="e">${LINES.full.en}</div><div class="chips"><span>❤️ HP full</span><span>⭐ +${r.xp} XP</span></div></div></div>
+      <button class="big said">Continue${ZW(LINES.next)}</button>`;paint(P.querySelector('canvas'),dish.pic);
+    P.querySelector('.said').onclick=()=>closeFood();
+  }catch(e){if(e!==ABORT)console.error(e)}}
+function closeFood(){gen++;cur=null;if(sh.hidden)return;sh.hidden=true;try{stopSpeech()}catch(e){}try{lastIdle=T}catch(e){}try{updateUI()}catch(e){}}
+$('#fdClose').onclick=closeFood;
+// the field and idle chats wait while the stall is open; a player switch (stopTalk) closes it
+const so=g.sheetOpen;if(typeof so==='function')g.sheetOpen=function(){return so.apply(this,arguments)||(sh.hidden?null:'sFood')};
+const stt=g.stopTalk;g.stopTalk=function(){closeFood();return stt?stt.apply(this,arguments):undefined};
+g.Food={open:openFood,close:closeFood,here,left,stallKey,box:cartBox,pos:POS,perDay:PER_DAY,drawFood,feed};
+})();
+
+</script>
+<script>
 // ---------- Staged conversations: a small scene instead of a chat log ----------
 // A conversation listed in STAGE_TALKS plays as a scene: the place's painted background (with its ambient motion) fills the
 // screen, the visitor stands in it full-body (breathing, blinking, mouth moving while her line plays, a face and a gesture per
@@ -16508,6 +16839,277 @@ function fbCleanup(f,winner,quiet){if(!f||f.cleaned)return;f.cleaned=true;
   if(FB===f){FB=null;B=null;try{closeSayCard&&closeSayCard()}catch(e){}close('sBattle');document.querySelectorAll('#sBattle .hpbox').forEach(x=>x.classList.remove('fbon'))}
   save();updateUI()}
 window.TOGETHER={startTrade,startFriendly,commitTrade,get trade(){return TR},get battle(){return FB},readOther};
+})();
+
+</script>
+<script>
+// ---------- Chinese holidays by the real date: Spring Festival 春节, Lantern Festival 元宵节, Mid-Autumn Festival 中秋节 ----------
+// Each festival runs for a window around its day. While it runs the field is decorated (red lanterns / lantern lights / a big
+// moon), a short conversation teaches a few whole holiday phrases, and there is something to tap: red envelopes 红包 (items),
+// riddle lanterns 灯谜 (hear the riddle, then see and hear the answer: never a quiz), mooncakes 月饼 (heal the team) and,
+// only at Mid-Autumn, the moon moth line (Lunapuff > Lanternmoth > Moonregent, appended to species.js).
+// Saved state lives in S.hol (optional, so old saves load). Force an event with ?holiday=cny|lantern|moon|none|YYYY-MM-DD,
+// window.COUCHCATCH_HOLIDAY (set before load) or HOLIDAYS.force(...) (null goes back to the real clock).
+(function(){
+// [Spring Festival (lunar 1/1), Lantern Festival (1/15), Mid-Autumn (8/15)], local dates. Checked against two lunar-calendar
+// libraries (lunardate, lunarcalendar). The Lantern Festival is always 14 days after the Spring Festival.
+const DATES={
+  2026:['2026-02-17','2026-03-03','2026-09-25'],
+  2027:['2027-02-06','2027-02-20','2027-09-15'],
+  2028:['2028-01-26','2028-02-09','2028-10-03'],
+  2029:['2029-02-13','2029-02-27','2029-09-22'],
+  2030:['2030-02-03','2030-02-17','2030-09-12'],
+  2031:['2031-01-23','2031-02-06','2031-10-01'],
+  2032:['2032-02-11','2032-02-25','2032-09-19'],
+};
+// before/after: days of the window around the festival day (the Spring Festival window ends the day before the Lantern one starts)
+const EV={
+  cny:    {i:0,before:7,after:6,zh:'春节',  py:'Chūnjié',   en:'Spring Festival',     greet:['新年快乐！','xīn nián kuài lè!','Happy New Year!'],         talk:'holiday_cny_grandma'},
+  lantern:{i:1,before:7,after:3,zh:'元宵节',py:'Yuánxiāojié',en:'Lantern Festival',    greet:['元宵节快乐！','yuán xiāo jié kuài lè!','Happy Lantern Festival!'],talk:'holiday_lantern_friend'},
+  moon:   {i:2,before:7,after:3,zh:'中秋节',py:'Zhōngqiūjié',en:'Mid-Autumn Festival', greet:['中秋节快乐！','zhōng qiū jié kuài lè!','Happy Mid-Autumn Festival!'],talk:'holiday_moon_grandpa'},
+};
+// child-level lantern riddles: the riddle, then the answer with a picture
+const RIDDLES=[
+  {q:['有时像圆盘，有时像小船。','yǒu shí xiàng yuán pán, yǒu shí xiàng xiǎo chuán.','Sometimes it looks like a round plate, sometimes like a little boat.'],a:['是月亮！','shì yuè liang!','It’s the moon!'],pic:'🌙'},
+  {q:['一闪一闪亮晶晶，好像天上小眼睛。','yì shǎn yì shǎn liàng jīng jīng, hǎo xiàng tiān shàng xiǎo yǎn jing.','Twinkling and sparkling, like little eyes in the sky.'],a:['是星星！','shì xīng xing!','It’s the stars!'],pic:'⭐'},
+  {q:['红公鸡，绿尾巴，身子钻到地底下。','hóng gōng jī, lǜ wěi ba, shēn zi zuān dào dì dǐ xia.','A red rooster with a green tail, its body dug down under the ground.'],a:['是胡萝卜！','shì hú luó bo!','It’s a carrot!'],pic:'🥕'},
+  {q:['耳朵长，尾巴短，爱吃萝卜爱吃菜。','ěr duo cháng, wěi ba duǎn, ài chī luó bo ài chī cài.','Long ears, short tail, loves carrots and greens.'],a:['是小白兔！','shì xiǎo bái tù!','It’s a little white rabbit!'],pic:'🐰'},
+  {q:['外面绿，里面红，吃起来甜又甜。','wài miàn lǜ, lǐ miàn hóng, chī qǐ lái tián yòu tián.','Green outside, red inside, sweet, sweet, sweet to eat.'],a:['是西瓜！','shì xī guā!','It’s a watermelon!'],pic:'🍉'},
+  {q:['身上滑溜溜，天天在水里游。','shēn shang huá liū liū, tiān tiān zài shuǐ lǐ yóu.','Slippery all over, it swims in the water every day.'],a:['是小鱼！','shì xiǎo yú!','It’s a little fish!'],pic:'🐟'},
+];
+// what you hear when you tap things
+const SAY={
+  fortune:['恭喜发财！','gōng xǐ fā cái!','Wishing you good fortune!'],
+  envelope:['我拿到红包了！','wǒ ná dào hóng bāo le!','I got a red envelope!'],
+  cake:['我喜欢吃月饼。','wǒ xǐ huan chī yuè bing.','I like eating mooncakes.'],
+  moon:['月亮好圆啊！','yuè liang hǎo yuán a!','The moon is so round!'],
+  guess:['猜一猜！','cāi yi cāi!','Guess!'],
+};
+const UI={title:['Lantern riddle','猜灯谜','cāi dēng mí'],what:['What is it?','是什么？','shì shén me?'],again:['Again','再听一次','zài tīng yí cì'],ok:['OK','好的！','hǎo de!'],close:['Close','关闭','guān bì'],
+  env:['Red envelope','红包','hóng bāo'],cakeN:['Mooncake','月饼','yuè bing']};
+
+// ---- conversations (the usual format; only right answers are offered) ----
+window.DIALOGUES=window.DIALOGUES||{};
+Object.assign(window.DIALOGUES,{
+  holiday_cny_grandma:{
+    title:{en:'Happy New Year!',zh:'新年快乐！',py:'xīn nián kuài lè!'},
+    who:{name:'Grandma',zh:'奶奶',py:'nǎi nai',role:'grandma'},
+    setting:'Spring Festival! Grandma comes over with red envelopes.',
+    turns:[
+      {npc:{zh:'新年快乐！',py:'xīn nián kuài lè!',en:'Happy New Year!'}},
+      {you:[{zh:'新年快乐，奶奶！',py:'xīn nián kuài lè, nǎi nai!',en:'Happy New Year, Grandma!',ok:true,reply:{zh:'真乖！今天是春节！',py:'zhēn guāi! jīn tiān shì Chūn jié!',en:'Good kid! Today is the Spring Festival!'}}]},
+      {you:[{zh:'恭喜发财！',py:'gōng xǐ fā cái!',en:'Wishing you good fortune!',ok:true,reply:{zh:'恭喜发财！给你一个红包！',py:'gōng xǐ fā cái! gěi nǐ yí ge hóng bāo!',en:'Good fortune to you too! Here’s a red envelope!'}}]},
+      {you:[{zh:'谢谢奶奶！',py:'xiè xie nǎi nai!',en:'Thank you, Grandma!',ok:true,reply:{zh:'不客气！',py:'bú kè qi!',en:'You’re welcome!'}}]},
+      {npc:{zh:'我们一起吃饺子吧！',py:'wǒ men yì qǐ chī jiǎo zi ba!',en:'Let’s eat dumplings together!'}},
+      {you:[{zh:'好啊！我喜欢吃饺子！',py:'hǎo a! wǒ xǐ huan chī jiǎo zi!',en:'Yes! I love dumplings!',ok:true,reply:{zh:'太好了！',py:'tài hǎo le!',en:'Great!'}}]}
+    ],
+    end:{zh:'新的一年，天天开心！',py:'xīn de yì nián, tiān tiān kāi xīn!',en:'Be happy every day of the new year!'},
+    reward:{orb:5,great:1}
+  },
+  holiday_lantern_friend:{
+    title:{en:'Lantern Festival',zh:'元宵节',py:'yuán xiāo jié'},
+    who:{name:'Lele',zh:'乐乐',py:'Lè le',role:'friend'},
+    setting:'Lantern Festival! Your friend Lele runs over with a lantern.',
+    turns:[
+      {npc:{zh:'元宵节快乐！',py:'yuán xiāo jié kuài lè!',en:'Happy Lantern Festival!'}},
+      {you:[{zh:'元宵节快乐！',py:'yuán xiāo jié kuài lè!',en:'Happy Lantern Festival!',ok:true,reply:{zh:'你看，好多灯笼！',py:'nǐ kàn, hǎo duō dēng long!',en:'Look, so many lanterns!'}}]},
+      {you:[{zh:'灯笼好漂亮啊！',py:'dēng long hǎo piào liang a!',en:'The lanterns are so pretty!',ok:true,reply:{zh:'我们去猜灯谜吧！',py:'wǒ men qù cāi dēng mí ba!',en:'Let’s go guess lantern riddles!'}}]},
+      {you:[{zh:'好啊！走吧！',py:'hǎo a! zǒu ba!',en:'Okay! Let’s go!',ok:true,reply:{zh:'先吃汤圆！',py:'xiān chī tāng yuán!',en:'First, sweet rice balls!'}}]},
+      {you:[{zh:'汤圆真好吃！',py:'tāng yuán zhēn hǎo chī!',en:'The rice balls are yummy!',ok:true,reply:{zh:'是啊！又甜又圆！',py:'shì a! yòu tián yòu yuán!',en:'Yes! Sweet and round!'}}]}
+    ],
+    end:{zh:'快去看看灯笼吧！',py:'kuài qù kàn kan dēng long ba!',en:'Go and look at the lanterns!'},
+    reward:{great:1,berry:2}
+  },
+  holiday_moon_grandpa:{
+    title:{en:'Mid-Autumn Moon',zh:'中秋节',py:'zhōng qiū jié'},
+    who:{name:'Grandpa',zh:'爷爷',py:'yé ye',role:'grandpa'},
+    setting:'Mid-Autumn Festival! Grandpa brings mooncakes to watch the moon.',
+    turns:[
+      {npc:{zh:'中秋节快乐！',py:'zhōng qiū jié kuài lè!',en:'Happy Mid-Autumn Festival!'}},
+      {you:[{zh:'中秋节快乐，爷爷！',py:'zhōng qiū jié kuài lè, yé ye!',en:'Happy Mid-Autumn Festival, Grandpa!',ok:true,reply:{zh:'你看，今天的月亮！',py:'nǐ kàn, jīn tiān de yuè liang!',en:'Look at the moon tonight!'}}]},
+      {you:[{zh:'月亮好圆啊！',py:'yuè liang hǎo yuán a!',en:'The moon is so round!',ok:true,reply:{zh:'对！又圆又亮！',py:'duì! yòu yuán yòu liàng!',en:'Yes! Round and bright!'}}]},
+      {npc:{zh:'你想吃月饼吗？',py:'nǐ xiǎng chī yuè bing ma?',en:'Would you like a mooncake?'}},
+      {you:[{zh:'想！我喜欢吃月饼。',py:'xiǎng! wǒ xǐ huan chī yuè bing.',en:'Yes! I like eating mooncakes.',ok:true,reply:{zh:'给你一个！',py:'gěi nǐ yí ge!',en:'Here’s one for you!'}}]},
+      {you:[{zh:'谢谢爷爷！',py:'xiè xie yé ye!',en:'Thank you, Grandpa!',ok:true,reply:{zh:'不客气！',py:'bú kè qi!',en:'You’re welcome!'}}]}
+    ],
+    end:{zh:'我们一起看月亮吧！',py:'wǒ men yì qǐ kàn yuè liang ba!',en:'Let’s watch the moon together!'},
+    reward:{great:1,berry:2}
+  },
+});
+// every Chinese line this module speaks or shows with a tap-to-hear (tools/zh_strings.js collects these for recording)
+window.HOLIDAY_LINES=[...Object.values(EV).map(e=>e.greet[0]),...Object.values(SAY).map(s=>s[0]),...RIDDLES.flatMap(r=>[r.q[0],r.a[0]]),...Object.values(UI).map(u=>u[1])];
+
+if(typeof document==='undefined'||typeof SP==='undefined'||typeof PLACES==='undefined')return; // data only (tools)
+
+// ---------- dates ----------
+const dn=(y,m,d)=>Math.round(Date.UTC(y,m-1,d)/864e5);
+const isoDn=s=>{const[y,m,d]=s.split('-').map(Number);return dn(y,m,d)};
+const localDn=d=>dn(d.getFullYear(),d.getMonth()+1,d.getDate());
+// the festival running on date d (a Date or 'YYYY-MM-DD'), or null: {k, id:'2027-cny', day:'2027-02-06', off: days from the festival day}
+function at(d){const n=typeof d==='string'?isoDn(d):localDn(d||new Date());
+  for(const y in DATES)for(const k in EV){const e=EV[k],h=isoDn(DATES[y][e.i]);if(n>=h-e.before&&n<=h+e.after)return{k,id:y+'-'+k,day:DATES[y][e.i],off:n-h}}
+  return null}
+let forced=null;
+try{const q=new URLSearchParams(location.search).get('holiday');if(q)forced=q}catch(e){}
+if(forced==null&&typeof window.COUCHCATCH_HOLIDAY==='string')forced=window.COUCHCATCH_HOLIDAY;
+function now(){if(forced==null)return at(new Date());if(forced==='none'||forced==='')return null;if(EV[forced]){const y=new Date().getFullYear();return{k:forced,id:y+'-'+forced,day:(DATES[y]||DATES[2027])[EV[forced].i],off:0,forced:true}}
+  if(/^\d{4}-\d\d-\d\d$/.test(forced))return at(forced);return null}
+const dayKey=()=>{const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`};
+function st(){if(!S.hol||typeof S.hol!=='object')S.hol={};const h=S.hol;if(h.day!==dayKey()){h.day=dayKey();h.env=0;h.cake=0}
+  h.done=h.done&&typeof h.done==='object'?h.done:{};h.rid=h.rid&&typeof h.rid==='object'?h.rid:{};return h}
+const here=()=>S.mode!=='travel'&&S.col&&S.col.length>0;
+
+// ---------- the moon moth line: only at Mid-Autumn ----------
+const MOON=['Lunapuff','Lanternmoth','Moonregent'].map(n=>IDX[n]).filter(i=>i!=null);
+const isMoon=i=>MOON.includes(i);
+{const bi=BASES.indexOf(MOON[0]);if(bi>=0)BASES.splice(bi,1)} // never an ordinary spawn or gym creature
+const spawn0=window.spawnWild;
+if(typeof spawn0==='function')window.spawnWild=function(road){let w=spawn0.apply(this,arguments);
+  const ev=now();
+  if(w&&isMoon(w.sp)&&!(ev&&ev.k==='moon'))w=spawn0.apply(this,arguments); // (cannot happen with BASES trimmed; belt and braces)
+  if(w&&ev&&ev.k==='moon'&&!road&&MOON.length&&!SP[w.sp].leg&&Math.random()<.22)w.sp=grown(MOON[0],w.lvl,.35);
+  return w};
+const boss0=window.pickBoss;
+if(typeof boss0==='function')window.pickBoss=function(){let r=boss0.apply(this,arguments);const ev=now();for(let n=0;n<30&&r&&isMoon(r.sp)&&!(ev&&ev.k==='moon');n++)r=boss0.apply(this,arguments);return r};
+
+// ---------- painting ----------
+const TAU=Math.PI*2;
+function glow(ctx,x,y,r,col,a){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,col.replace('A',a));g.addColorStop(1,col.replace('A',0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill()}
+// a round Chinese lantern hanging from (x,y): gold caps, ribbed red silk, a tassel (or a riddle slip), a warm glow
+function lantern(ctx,x,y,R,col,t,o={}){const sw=Math.sin(t*1.6+(o.ph||0))*.07;ctx.save();ctx.translate(x,y);ctx.rotate(sw);
+  const cy=R*1.15;if(o.glow!==false)glow(ctx,0,cy,R*2.4,'rgba(255,170,80,A)',o.dusk?.55:.32);
+  ctx.strokeStyle='rgba(60,30,20,.7)';ctx.lineWidth=Math.max(1,R*.06);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,cy-R*.95);ctx.stroke();
+  const g=ctx.createRadialGradient(-R*.3,cy-R*.35,R*.1,0,cy,R*1.1);g.addColorStop(0,o.lit||'#ffb07a');g.addColorStop(.55,col);g.addColorStop(1,o.dark||'#8e1a12');
+  ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,cy,R,R*.84,0,0,TAU);ctx.fill();
+  ctx.save();ctx.beginPath();ctx.ellipse(0,cy,R,R*.84,0,0,TAU);ctx.clip();ctx.strokeStyle='rgba(110,10,10,.35)';ctx.lineWidth=Math.max(.8,R*.05);
+  for(const k of[.36,.7]){ctx.beginPath();ctx.ellipse(0,cy,R*k,R*.84,0,0,TAU);ctx.stroke()}ctx.beginPath();ctx.moveTo(0,cy-R);ctx.lineTo(0,cy+R);ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.18)';ctx.beginPath();ctx.ellipse(-R*.42,cy-R*.32,R*.18,R*.34,.3,0,TAU);ctx.fill();ctx.restore();
+  const gold='#f6c445';ctx.fillStyle=gold;ctx.strokeStyle='#a8741a';ctx.lineWidth=Math.max(.6,R*.04);
+  for(const yy of[cy-R*.84-R*.08,cy+R*.84-R*.1]){ctx.beginPath();ctx.roundRect(-R*.42,yy,R*.84,R*.18,R*.06);ctx.fill();ctx.stroke()}
+  if(o.glyph){ctx.fillStyle='#ffd65a';ctx.font=`700 ${R*.82}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.glyph,0,cy+R*.04)}
+  const by=cy+R*.84+R*.08;
+  if(o.slip){ctx.strokeStyle='rgba(60,30,20,.7)';ctx.lineWidth=Math.max(1,R*.05);ctx.beginPath();ctx.moveTo(0,by);ctx.lineTo(0,by+R*.25);ctx.stroke();
+    const sw2=R*.62,sh=R*.86,sy=by+R*.25;ctx.fillStyle='#fff3d6';ctx.strokeStyle=o.done?'#f2b632':'rgba(160,90,40,.6)';ctx.lineWidth=Math.max(1,R*(o.done?.08:.04));ctx.beginPath();ctx.roundRect(-sw2/2,sy,sw2,sh,R*.08);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#c8281e';ctx.font=`700 ${R*.5}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.slip,0,sy+sh/2+R*.02)}
+  else{ctx.strokeStyle='#e8a92c';ctx.lineWidth=Math.max(.8,R*.05);ctx.beginPath();for(let i=-2;i<=2;i++){ctx.moveTo(i*R*.05,by);ctx.lineTo(i*R*.09+Math.sin(t*2+i)*R*.03,by+R*.75)}ctx.stroke();
+    ctx.fillStyle='#e8a92c';ctx.beginPath();ctx.arc(0,by+R*.05,R*.1,0,TAU);ctx.fill()}
+  ctx.restore()}
+// a rope across the top, sagging in the middle; returns its height at x
+const ropeY=(q,h,y0,sag)=>h*(y0+sag*4*q*(1-q));
+function rope(ctx,w,h,y0,sag,col){ctx.strokeStyle=col;ctx.lineWidth=Math.max(1.2,h*.006);ctx.beginPath();for(let i=0;i<=20;i++){const q=i/20;i?ctx.lineTo(q*w,ropeY(q,h,y0,sag)):ctx.moveTo(0,ropeY(0,h,y0,sag))}ctx.stroke()}
+// dusk: a gentle evening tint over the sky only (creatures stand lower down)
+function dusk(ctx,w,h,a){const g=ctx.createLinearGradient(0,0,0,h*.5);g.addColorStop(0,`rgba(28,22,78,${a})`);g.addColorStop(1,'rgba(28,22,78,0)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h*.5)}
+// Spring Festival: a garland of red lanterns, the middle one with 福 (good fortune)
+const CNY_L=[.12,.31,.5,.69,.88];
+function cnyScene(ctx,w,h,t){rope(ctx,w,h,.035,.05,'rgba(120,30,20,.85)');
+  CNY_L.forEach((q,i)=>{const big=i===2,R=h*(big?.05:.04),y=ropeY(q,h,.035,.05);lantern(ctx,q*w,y,R,'#e3342a',t,{ph:i*1.3,glyph:big?'福':null})});
+  // a few drifting gold sparkles
+  for(let i=0;i<6;i++){const k=((t*.05+i/6)%1),x=w*(.08+((i*37)%84)/100),y=h*(.1+k*.35);ctx.globalAlpha=Math.sin(k*Math.PI)*.8;glow(ctx,x,y,h*.012,'rgba(255,214,90,A)',1);ctx.globalAlpha=1}}
+// Lantern Festival: dusk, a string of little lantern lights, and three big riddle lanterns with paper slips
+const RL=[{x:.2,y:.08,col:'#e3342a'},{x:.44,y:.12,col:'#f08424',lit:'#ffd08a',dark:'#9a4a0c'},{x:.68,y:.08,col:'#e0457a',lit:'#ffb3cf',dark:'#80173f'}];
+const lanternR=h=>h*.052;
+function lanternScene(ctx,w,h,t){dusk(ctx,w,h,.42);rope(ctx,w,h,.025,.035,'rgba(40,20,40,.8)');
+  for(let i=0;i<11;i++){const q=(i+.5)/11,x=q*w,y=ropeY(q,h,.025,.035)+h*.012,c=['rgba(255,90,70,A)','rgba(255,200,80,A)','rgba(255,140,190,A)'][i%3],a=.65+.35*Math.sin(t*3+i*1.7);glow(ctx,x,y,h*.03,c,a*.6);glow(ctx,x,y,h*.008,'rgba(255,250,230,A)',a)}
+  const rid=curRiddles();RL.forEach((L,i)=>{const R=lanternR(h);ctx.strokeStyle='rgba(40,20,40,.8)';ctx.lineWidth=Math.max(1,h*.005);ctx.beginPath();ctx.moveTo(L.x*w,ropeY(L.x,h,.025,.035));ctx.lineTo(L.x*w,L.y*h);ctx.stroke();
+    lantern(ctx,L.x*w,L.y*h,R,L.col,t,{ph:i*2.1,slip:'谜',lit:L.lit,dark:L.dark,dusk:true,done:seenRiddle(rid[i])})})}
+// Mid-Autumn: dusk, a few stars, a big glowing full moon and sky lanterns rising
+const MOONP={x:.72,y:.15,r:.085};
+function moonScene(ctx,w,h,t){dusk(ctx,w,h,.55);
+  for(let i=0;i<14;i++){const x=w*(((i*53)%97)/97),y=h*(.02+((i*31)%40)/100),a=.4+.6*Math.max(0,Math.sin(t*2+i*2.3));ctx.fillStyle=`rgba(255,250,225,${a*.8})`;ctx.beginPath();ctx.arc(x,y,Math.max(.8,h*.0035),0,TAU);ctx.fill()}
+  const mx=MOONP.x*w,my=MOONP.y*h,mr=MOONP.r*h;glow(ctx,mx,my,mr*3,'rgba(255,236,170,A)',.5);
+  const g=ctx.createRadialGradient(mx-mr*.35,my-mr*.35,mr*.1,mx,my,mr);g.addColorStop(0,'#fffdf0');g.addColorStop(.6,'#ffeeb5');g.addColorStop(1,'#f3cf78');ctx.fillStyle=g;ctx.beginPath();ctx.arc(mx,my,mr,0,TAU);ctx.fill();
+  ctx.fillStyle='rgba(214,170,90,.22)';for(const[a,b,k]of[[-.32,-.18,.26],[.3,.15,.2],[-.05,.42,.15],[.35,-.38,.12],[-.45,.3,.1]]){ctx.beginPath();ctx.arc(mx+a*mr,my+b*mr,mr*k,0,TAU);ctx.fill()}
+  // sky lanterns (孔明灯) drifting up
+  for(let i=0;i<3;i++){const k=((t*.018+i/3)%1),x=w*(.15+i*.22)+Math.sin(t*.5+i*2)*w*.03,y=h*(.5-k*.5),s=h*.016*(1.2-k*.5);ctx.globalAlpha=Math.min(1,Math.sin(k*Math.PI)*1.6);
+    glow(ctx,x,y,s*3.2,'rgba(255,170,70,A)',.55);ctx.fillStyle='#ffb35a';ctx.beginPath();ctx.moveTo(x-s*.7,y-s);ctx.lineTo(x+s*.7,y-s);ctx.lineTo(x+s*.5,y+s);ctx.lineTo(x-s*.5,y+s);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#fff1b8';ctx.beginPath();ctx.ellipse(x,y+s*.75,s*.3,s*.18,0,0,TAU);ctx.fill();ctx.globalAlpha=1}}
+// ground treats
+function envelope(ctx,x,y,s,t){const b=Math.sin(t*3+x)*s*.08;ctx.save();ctx.translate(x,y+b);ctx.fillStyle='rgba(20,20,30,.22)';ctx.beginPath();ctx.ellipse(0,s*.62-b,s*.5,s*.12,0,0,TAU);ctx.fill();ctx.rotate(-.12);
+  glow(ctx,0,0,s*1.3,'rgba(255,90,60,A)',.35);const g=ctx.createLinearGradient(-s*.4,-s*.6,s*.4,s*.6);g.addColorStop(0,'#ff4a3a');g.addColorStop(1,'#b3160f');ctx.fillStyle=g;ctx.strokeStyle='#f2c14e';ctx.lineWidth=Math.max(1,s*.06);
+  ctx.beginPath();ctx.roundRect(-s*.4,-s*.56,s*.8,s*1.12,s*.08);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(-s*.4,-s*.3);ctx.quadraticCurveTo(0,-s*.05,s*.4,-s*.3);ctx.stroke();
+  ctx.fillStyle='#f6c445';ctx.beginPath();ctx.arc(0,-s*.08,s*.17,0,TAU);ctx.fill();ctx.fillStyle='#b3160f';ctx.font=`700 ${s*.22}px 'Noto Sans SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('福',0,-s*.07);
+  const sp=(t*2+x)%3;if(sp<.6){ctx.fillStyle=`rgba(255,250,210,${1-sp/.6})`;const k=s*.18;ctx.beginPath();ctx.moveTo(s*.35,-s*.6-k);ctx.lineTo(s*.39,-s*.6);ctx.lineTo(s*.35+k,-s*.6);ctx.lineTo(s*.39,-s*.56);ctx.lineTo(s*.35,-s*.6+k);ctx.lineTo(s*.31,-s*.56);ctx.lineTo(s*.35-k,-s*.6);ctx.lineTo(s*.31,-s*.64);ctx.closePath();ctx.fill()}
+  ctx.restore()}
+function mooncake(ctx,x,y,s,t){ctx.save();ctx.translate(x,y);ctx.fillStyle='rgba(20,20,30,.22)';ctx.beginPath();ctx.ellipse(0,s*.5,s*.62,s*.13,0,0,TAU);ctx.fill();
+  glow(ctx,0,0,s*1.25,'rgba(255,214,120,A)',.3+.1*Math.sin(t*3));
+  ctx.fillStyle='#a8641f';ctx.beginPath();ctx.ellipse(0,s*.16,s*.55,s*.3,0,0,TAU);ctx.fill(); // side
+  const top=new Path2D();for(let i=0;i<=24;i++){const a=i/24*TAU,r=s*(i%2?.5:.56);const px=Math.cos(a)*r,py=Math.sin(a)*r*.55;i?top.lineTo(px,py):top.moveTo(px,py)}top.closePath();
+  const g=ctx.createRadialGradient(-s*.15,-s*.12,s*.05,0,0,s*.6);g.addColorStop(0,'#f5c56c');g.addColorStop(1,'#c7802e');ctx.fillStyle=g;ctx.fill(top);ctx.strokeStyle='#8e4f16';ctx.lineWidth=Math.max(.8,s*.04);ctx.stroke(top);
+  ctx.strokeStyle='rgba(120,60,15,.55)';ctx.beginPath();ctx.ellipse(0,0,s*.32,s*.17,0,0,TAU);ctx.stroke();ctx.beginPath();for(let i=0;i<4;i++){const a=i*Math.PI/4;ctx.moveTo(Math.cos(a)*s*.22,Math.sin(a)*s*.12);ctx.lineTo(-Math.cos(a)*s*.22,-Math.sin(a)*s*.12)}ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.ellipse(-s*.2,-s*.12,s*.12,s*.05,-.3,0,TAU);ctx.fill();ctx.restore()}
+
+// ---------- field treats: red envelopes (Spring Festival) and mooncakes (Mid-Autumn) ----------
+let items=[],itemPlace=-1,nextDrop=null,greeted=null;
+const CAP={env:{field:2,day:8,every:18},cake:{field:1,day:4,every:30}};
+function dropSpot(){let bx=.5,by=.75,best=-1;for(let k=0;k<14;k++){const cx=.14+Math.random()*.72,cy=.64+Math.random()*.26;let md=9;
+  for(const o of (typeof wild!=='undefined'?wild:[]))md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6),Math.hypot((o.x-cx)*1.3,(o.y+.07-cy)*1.6));/* the creature and its name tag */for(const o of items)md=Math.min(md,Math.hypot(o.x-cx,(o.y-cy)*1.6));if(md>best){best=md;bx=cx;by=cy}}return{x:bx,y:by}}
+function drop(kind){const ev=now();kind=kind||(ev&&ev.k==='cny'?'env':ev&&ev.k==='moon'?'cake':null);if(!kind)return null;const p=dropSpot(),it={kind,x:p.x,y:p.y,born:typeof T!=='undefined'?T:0};items.push(it);itemPlace=S.place;try{LOG('holiday_drop',{kind})}catch(e){}return it}
+function grab(it){items=items.filter(o=>o!==it);const h=st();
+  if(it.kind==='env'){const r=Math.random(),rw=r<.1?{ultra:1}:r<.35?{great:1}:r<.6?{berry:1}:{orb:3};give(rw);h.env=(h.env||0)+1;sfx('item');speak(SAY.envelope[0]);
+    toast(`${UI.env[1]} ${UI.env[2]}! ${SAY.envelope[0]} (${SAY.envelope[1]}) · You got ${rwTxt(rw)}.`);try{LOG('holiday_envelope',{rw:Object.keys(rw)[0]})}catch(e){}}
+  else{for(const c of party())c.hp=stats(c).maxhp;give({berry:1});h.cake=(h.cake||0)+1;sfx('berry');speak(SAY.cake[0]);
+    toast(`${UI.cakeN[1]} ${UI.cakeN[2]}! ${SAY.cake[0]} (${SAY.cake[1]}) · Your team is full of energy! +1 Calm Berry.`);try{LOG('holiday_mooncake')}catch(e){}}
+  save();try{updateUI()}catch(e){}}
+
+// ---------- riddles ----------
+function curRiddles(){const n=localDn(new Date());return RL.map((_,i)=>(n*RL.length+i)%RIDDLES.length)}
+function seenRiddle(ri){const ev=now();if(!ev)return false;const h=S.hol&&S.hol.rid;return!!(h&&Array.isArray(h[ev.id])&&h[ev.id].includes(ri))}
+let rsh=null,rgen=0;
+function riddleSheet(){if(rsh)return rsh;const css=`#sHol .inner{height:100%;gap:10px}#sHol .stage{gap:8px}#sHol canvas.rl{width:84px;height:112px;flex:none}
+#sHol .rq{font-family:'Noto Sans SC',sans-serif;text-wrap:balance;font-size:1.35rem;font-weight:700;line-height:1.35;cursor:pointer}#sHol .rpy{text-wrap:balance;font-size:.92rem;opacity:.9}#sHol .ren{font-size:.8rem;color:var(--muted)}
+#sHol .ans{display:flex;flex-direction:column;align-items:center;gap:2px;animation:holpop .45s ease-out}#sHol .ans .bigpic{font-size:3.6rem}#sHol .ans .bigzh{font-size:2rem;cursor:pointer}
+#sHol .rbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:none}#sHol .rbtns .one{grid-column:1/-1}
+@keyframes holpop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@media (max-height:600px){#sHol canvas.rl{width:66px;height:88px}#sHol .rq{font-size:1.25rem}#sHol .ans .bigpic{font-size:2.8rem}#sHol .ans .bigzh{font-size:1.7rem}}`;
+  const sty=document.createElement('style');sty.textContent=css;document.head.appendChild(sty);
+  rsh=document.createElement('div');rsh.className='sheet lesson';rsh.id='sHol';rsh.hidden=true;
+  rsh.innerHTML=`<div class="inner"><div class="row"><h2>${UI.title[0]}${zw(UI.title[1],UI.title[2])}</h2><button class="small" id="holClose">${UI.close[0]}${zw(UI.close[1],UI.close[2])}</button></div>
+  <div class="stage" id="holStage"></div><div class="rbtns" id="holBtns"></div></div>`;document.body.appendChild(rsh);
+  rsh.querySelector('#holClose').onclick=closeRiddle;return rsh}
+function closeRiddle(){rgen++;try{window.stopSpeech&&stopSpeech()}catch(e){}if(rsh)rsh.hidden=true;try{lastIdle=T}catch(e){}try{updateUI()}catch(e){}}
+async function sayAll(list,gen){for(const z of list){if(gen!==rgen)return;try{await (window.speakAsync?speakAsync(z):Promise.resolve(speak(z)))}catch(e){}await new Promise(r=>setTimeout(r,250))}}
+function openRiddle(i){const ri=curRiddles()[i];if(ri==null)return;const R=RIDDLES[ri],L=RL[i],el=riddleSheet(),gen=++rgen;
+  const stage=el.querySelector('#holStage'),btns=el.querySelector('#holBtns');
+  stage.innerHTML=`<canvas class="rl"></canvas><div class="rq" data-say="${R.q[0]}">${R.q[0]}</div><div class="rpy">${R.q[1]}</div><div class="ren">${R.q[2]}</div><div class="ans" id="holAns" hidden></div>`;
+  const cv=stage.querySelector('canvas'),d=Math.min(3,devicePixelRatio||1),W=84,H=112;cv.width=W*d;cv.height=H*d;const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);lantern(x,W/2,4,30,L.col,0,{slip:'谜',lit:L.lit,dark:L.dark,glow:false});
+  const reveal=()=>{if(gen!==rgen)return;const a=el.querySelector('#holAns');a.hidden=false;a.innerHTML=`<div class="bigpic">${R.pic}</div><div class="bigzh" data-say="${R.a[0]}">${R.a[0]}</div><div class="rpy">${R.a[1]}</div><div class="ren">${R.a[2]}</div>`;
+    btns.innerHTML='';const ag=document.createElement('button');ag.innerHTML=`🔊 ${UI.again[0]}${zw(UI.again[1],UI.again[2])}`;ag.onclick=()=>{const g=++rgen;sayAll([R.q[0],R.a[0]],g)};
+    const ok=document.createElement('button');ok.className='primary';ok.innerHTML=`${UI.ok[0]}${zw(UI.ok[1],UI.ok[2])}`;ok.onclick=closeRiddle;btns.append(ag,ok);
+    const ev=now(),h=st();if(ev){const list=Array.isArray(h.rid[ev.id])?h.rid[ev.id]:(h.rid[ev.id]=[]);if(!list.includes(ri)){list.push(ri);give({orb:2});toast('You got 2 orbs.')}}
+    sfx('quest');try{LOG('holiday_riddle',{ri})}catch(e){}save();rgen++;sayAll([R.a[0]],rgen)};
+  btns.innerHTML='';const what=document.createElement('button');what.className='primary one';what.id='holWhat';what.innerHTML=`${UI.what[0]}${zw(UI.what[1],UI.what[2])}`;what.onclick=reveal;btns.appendChild(what);
+  el.hidden=false;sfx('tap');try{LOG('holiday_riddle_open',{ri})}catch(e){}
+  sayAll([SAY.guess[0],R.q[0]],gen)}
+
+// ---------- the scene: decorations, treats and taps ----------
+window.SCENE_HOOKS=window.SCENE_HOOKS||[];window.TAP_HOOKS=window.TAP_HOOKS||[];
+SCENE_HOOKS.push((ctx,w,h)=>{const ev=now();if(!ev||!here()){items=[];return}const t=typeof T!=='undefined'?T:0;
+  if(ev.k==='cny')cnyScene(ctx,w,h,t);else if(ev.k==='lantern')lanternScene(ctx,w,h,t);else moonScene(ctx,w,h,t);
+  if(itemPlace!==S.place)items=[];
+  const kind=ev.k==='cny'?'env':ev.k==='moon'?'cake':null;items=items.filter(o=>o.kind===kind);
+  if(kind){const c=CAP[kind],hs=st(),busy=(typeof sheetOpen==='function'&&sheetOpen())||(typeof C!=='undefined'&&C)||(typeof B!=='undefined'&&B);
+    if(nextDrop==null||nextDrop>t+c.every)nextDrop=t+4;
+    if(!busy&&(S.mode==='staying'||S.mode==='arrived')&&t>nextDrop){nextDrop=t+c.every;if(items.length<c.field&&(hs[kind]||0)+items.length<c.day)drop(kind)}
+    for(const o of items){const s=h*(kind==='env'?.062:.07)*Math.min(1,(t-o.born)*3+.05);(kind==='env'?envelope:mooncake)(ctx,o.x*w,o.y*h,s,t)}}
+  // one greeting per festival per session, once the field is free
+  if(greeted!==ev.id&&!(typeof sheetOpen==='function'&&sheetOpen())){greeted=ev.id;const g=EV[ev.k].greet;setTimeout(()=>{try{if(sheetOpen())return;toast(`${g[0]} ${g[1]} · ${g[2]}`);speak(g[0])}catch(e){}},1500)}});
+TAP_HOOKS.push((x,y)=>{const ev=now();if(!ev||!here())return false;
+  for(const o of items)if(Math.hypot(x-o.x,(y-o.y+.02)*.8)<.065){grab(o);return true}
+  if(ev.k==='lantern'){for(let i=0;i<RL.length;i++){const L=RL[i];if(Math.abs(x-L.x)<.085&&y>L.y-.02&&y<L.y+.25){openRiddle(i);return true}}}
+  else if(ev.k==='moon'){if(Math.hypot(x-MOONP.x,y-MOONP.y)<MOONP.r*1.4){sfx('tap');speak(SAY.moon[0]);toast(`${SAY.moon[0]} ${SAY.moon[1]} · ${SAY.moon[2]}`);return true}}
+  else if(y<.2){for(const q of CNY_L)if(Math.abs(x-q)<.07){const l=Math.random()<.5?EV.cny.greet:SAY.fortune;sfx('tap');speak(l[0]);toast(`${l[0]} ${l[1]} · ${l[2]}`);return true}}
+  return false});
+
+// ---------- the holiday conversation: once per festival, when the field is free ----------
+const od=window.onTalkDone;window.onTalkDone=k=>{try{od&&od(k)}catch(e){}const ev=now();if(ev&&k===EV[ev.k].talk){st().done[ev.id]=1;save()}};
+let qAt=0;
+setInterval(()=>{try{const ev=now();if(!ev||typeof S==='undefined'||!here())return;const k=EV[ev.k].talk,h=st();
+  if(h.done[ev.id]||!(S.talked||{}).intro_neighbor||typeof hasTalk!=='function'||!hasTalk(k))return;
+  if(pendingTalks.includes(k)||Date.now()-qAt<60000)return;
+  if(sheetOpen()||C||B||E)return;qAt=Date.now();pendingTalks.push(k);try{LOG('holiday_talk_queue',{k})}catch(e){}}catch(e){console.error(e)}},1000);
+
+window.HOLIDAYS={DATES,EV,RIDDLES,SAY,at,now,force(v){forced=v==null?null:String(v);items=[];nextDrop=null;greeted=null},drop,items:()=>items.slice(),grab:i=>{const o=items[i];if(o)grab(o)},
+  lanterns:()=>RL.map(L=>({x:L.x,y:L.y})),moonPos:()=>({...MOONP}),openRiddle,closeRiddle,todayRiddles:curRiddles,moonLine:MOON.slice(),isMoon};
 })();
 
 </script>
