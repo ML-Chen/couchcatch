@@ -76,6 +76,8 @@ function collect(root) {
   zhValues(g.DIALOGUES, []).forEach(s => add(s, 'DIALOGUES'));
   // graded readers: each sentence is spoken whole, plus titles and single words
   (g.READINGS || []).forEach(r => { if (r.title) add(r.title[0], 'READINGS'); (r.lines || []).forEach(l => { add((l.w || []).map(t => t[0]).join(''), 'READINGS'); (l.w || []).forEach(t => t.length > 1 && add(t[0], 'READINGS.word')) }) });
+  // the companion's lines (src/companion.js): a finite set of templates x trace characters / phrasebook phrases
+  try { require('./companion_lines.js').companionLines(root).forEach(l => add(l.zh, 'COMPANION')); } catch (e) { errors.push('companion.js: ' + e.message); }
   const species = [...new Set(Object.values(g.ZH_SPECIES || {}).map(e => e && e.zh).filter(Boolean))];
   const places = [...new Set(Object.values(g.ZH_PLACES || {}).map(e => e && e.zh).filter(Boolean))];
   species.forEach(n => TEMPLATES_SPECIES.forEach(t => add(t(n), 'template', 'template')));

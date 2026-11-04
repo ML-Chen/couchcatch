@@ -1379,4 +1379,152 @@ module.exports = [
   T.ok(!/使用了/.test(blog) && /tǔ chū le huǒ/.test(blog) && /Smoldy spits fire/.test(blog), 'battle line: ' + blog.replace(/\s+/g, ' '));
 }},
 
+{name: '44 the companion only says back what the child traced or said, at most once every few minutes, and every line it can say is in the enumerated list (tools/new_lines/companion.txt)', timeout: 60000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  await T.stay();
+  const force = () => T.ev(() => { Companion.hide(true); Companion.st.idleSince = 0; Companion.state().last = 0; });
+  // nothing learned yet: nothing to say, even when idle and long overdue
+  await T.ev(() => { S.tr = {}; S.ph = {}; delete S.comp; });
+  await force();
+  T.ok(!(await T.ev(() => Companion.tick())), 'no line before the child has traced or said anything');
+  T.ok(!(await T.ev(() => !!document.querySelector('.cbub'))), 'no bubble before anything is learned');
+  // 水 traced 3 times (known), 火 once (not yet), one phrasebook phrase said, plus a conversation line (not a phrasebook phrase)
+  const r = await T.ev(() => {
+    S.tr = {'水': 3, '火': 1};
+    S.ph = {'我饿了。': {n: 1, intro: true, due: 0}, '我们开始吧！': {n: 1, intro: true, due: 0}, '我渴了。': {n: 0, intro: false, due: 0}};
+    const seen = new Set(); for (let i = 0; i < 400; i++) seen.add(Companion.pickLine().zh);
+    return {seen: [...seen].sort(), known: Companion.known().map(k => k.k).sort()};
+  });
+  T.eq(r.known.join(' '), 'c:水 p:我饿了。', 'what the companion knows');
+  T.eq(r.seen.join(' '), ['水！喝水的水！', '水，水！我喜欢水！', '我也会写水了！', '我也饿了！'].sort().join(' '), 'lines built only from 水 and 我饿了');
+  // idle and overdue: it speaks once, as a bubble with Chinese, pinyin and English, spoken aloud and logged
+  await force();
+  const said = await T.ev(() => { const spoken = []; const sp0 = window.speak; window.speak = z => spoken.push(z);
+    try { const ok = Companion.tick(); const b = document.querySelector('.cbub');
+      return {ok, zh: b && b.querySelector('.czh').innerText, py: b && b.querySelector('.cpy').innerText, en: b && b.querySelector('.cen').innerText, spoken, log: __TT.lastLog('companion'), n: S.comp.n, last: S.comp.last};
+    } finally { window.speak = sp0; } });
+  T.ok(said.ok, 'idle, overdue and knowing something: it speaks');
+  T.ok(said.zh && /水|饿/.test(said.zh) && /[āáǎàēéěèīíǐìōóǒòūúǔù]/.test(said.py) && /[a-z]/i.test(said.en), 'bubble shows Chinese, pinyin and English: ' + JSON.stringify(said));
+  T.eq(said.spoken.join(), said.zh.replace(/\s/g, ''), 'the line is spoken aloud');
+  T.ok(said.log && said.log.zh === said.spoken[0], 'a companion LOG event');
+  T.eq(said.n, 1, 'S.comp.n counts lines');
+  // rate limit: not again right away, nor just before the gap; again once the gap has passed
+  const rl = await T.ev(() => { const o = {gap: Companion.GAP}; Companion.hide(true); Companion.st.idleSince = 0;
+    o.again = Companion.tick();
+    o.almost = Companion.tick(S.comp.last + Companion.GAP - 5000);
+    for (let i = 0; i < 50; i++) o.almost = o.almost || Companion.tick(S.comp.last + 1000 + i * 1000);
+    o.after = Companion.tick(S.comp.last + Companion.GAP + 1); Companion.hide(true); return o; });
+  T.ok(rl.gap >= 3 * 60e3, 'at most one line every few minutes (GAP ' + rl.gap + ' ms)');
+  T.ok(!rl.again && !rl.almost, 'no second line within the gap');
+  T.ok(rl.after, 'a line again once the gap has passed');
+  // the time of the last line is saved, so a reload does not reset the limit; an old save without S.comp still loads
+  const sv = await T.ev(() => { writeLocal(); const j = JSON.parse(localStorage.getItem(lkey())); return {comp: j.comp}; });
+  T.ok(sv.comp && sv.comp.last > 0 && sv.comp.used && Object.keys(sv.comp.used).length >= 1, 'S.comp is saved: ' + JSON.stringify(sv.comp));
+  await T.reload();
+  T.eq(await T.ev(() => S.comp && S.comp.last), sv.comp.last, 'after a reload the time of the last line is still there');
+  T.ok(await T.ev(() => { delete S.comp; Companion.st.idleSince = 0; Companion.tick(); return !!(S.comp && S.comp.last > 0 && S.comp.used); }), 'a save without S.comp (older games) gets one');
+  T.ok(!(await T.ev(() => Companion.canSpeak(Date.now() + 1000))), 'a fresh S.comp waits a full gap before its first line');
+  // every line it could ever say is in the enumerated list, and the list is the file the recordings are made from
+  const all = await T.ev(() => {
+    const all = Companion.lines(), set = new Set(all.map(l => l.zh)), out = {n: all.length, missing: [], bad: [], zh: all.map(l => l.zh)};
+    for (const l of all) if (!l.zh || !l.py || !l.en || !/[āáǎàēéěèīíǐìōóǒòūúǔù]/.test(l.py) || /["“”「」:：]/.test(l.zh)) out.bad.push(l.zh);
+    const chars = Object.values(TRACE_SETS).flat().map(e => e[0]), book = PHRASEBOOK.map(p => p.zh);
+    for (let i = 0; i < 300; i++) {
+      S.tr = {}; S.ph = {}; for (const c of chars) if (Math.random() < .1) S.tr[c] = 2 + (Math.random() * 4 | 0);
+      for (const z of book) if (Math.random() < .15) S.ph[z] = {n: 1, intro: true, due: 0};
+      const l = Companion.pickLine(); if (l && !set.has(l.zh)) out.missing.push(l.zh);
+      for (const k of Companion.known()) for (const x of k.lines) if (!set.has(x.zh)) out.missing.push(x.zh);
+    }
+    // every learnable character and phrasebook phrase gives at least one line
+    out.noLine = chars.filter(c => !all.some(l => l.hi === c)).concat(book.filter(z => !Companion.ECHO[z]));
+    return out; });
+  T.ok(!all.missing.length, 'lines outside the enumerated list: ' + [...new Set(all.missing)].slice(0, 5).join(' '));
+  T.ok(!all.bad.length, 'lines without pinyin/English, or with quote marks the clip keys keep: ' + all.bad.slice(0, 5).join(' '));
+  T.ok(!all.noLine.length, 'characters or phrases with no line: ' + all.noLine.join(' '));
+  T.ok(all.n >= 100 && all.n < 400, 'a reasonable number of lines to record: ' + all.n);
+  const file = require('fs').readFileSync(require('path').join(__dirname, '..', 'tools', 'new_lines', 'companion.txt'), 'utf8').split('\n').filter(Boolean);
+  T.eq(file.join('\n'), all.zh.join('\n'), 'tools/new_lines/companion.txt lists exactly the enumerated lines (node tools/companion_lines.js --write)');
+  T.note(`${all.n} companion lines`);
+}},
+
+{name: '45 the companion never speaks while catching, tracing, battling, travelling or in a conversation; its bubble fits at 360x629 and 336x560', talk: ['gym_backyard'], timeout: 60000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  await T.stay();
+  await T.spawn(1);
+  await T.ev(() => { S.tr = {'水': 3, '花': 2}; S.ph = {'我很开心！': {n: 1, intro: true, due: 0}}; });
+  const force = () => T.ev(() => { Companion.hide(true); Companion.st.idleSince = 0; Companion.state().last = 0; });
+  const busy = async (label) => { await force(); const r = await T.ev(() => ({ok: Companion.tick(), idle: Companion.idleNow(), bub: !!document.querySelector('.cbub:not(.out)')}));
+    T.ok(!r.ok && !r.idle && !r.bub, `no line while ${label}: ` + JSON.stringify(r)); };
+  // a bubble that is up goes away as soon as a catch starts
+  await force();
+  T.ok(await T.ev(() => Companion.tick()), 'idle in the field: it speaks');
+  await T.ev(() => openCatch(wild[0]));
+  await T.until(() => !!C, null, 'catch opened');
+  T.ok(await T.ev(() => { Companion.tick(); return !document.querySelector('.cbub:not(.out)'); }), 'the bubble leaves when a catch starts');
+  await busy('catching');
+  await T.ev(() => endCatch());
+  await T.sleep(400);
+  // after any of these, it waits for a stretch of idle time again
+  const back = await T.ev(() => { Companion.state().last = 0; const now = Date.now(); return {soon: Companion.tick(now), later: (Companion.hide(true), Companion.tick(now + Companion.IDLE + 50))}; });
+  T.ok(!back.soon && back.later, 'after a catch it waits for idle time again: ' + JSON.stringify(back));
+  await T.ev(() => Companion.hide(true));
+  // tracing (the real overlay)
+  await T.ev(() => { window.__realTrace('water'); });
+  await T.until(() => !!document.querySelector('.tracewrap'), null, 'trace overlay open');
+  await busy('tracing');
+  await T.ev(() => document.querySelectorAll('.tracewrap').forEach(x => x.remove()));
+  await T.sleep(500);
+  // a conversation
+  await T.ev(() => { runTalk('gym_backyard'); });
+  await T.until(() => !!document.querySelector('.sheet.talk:not([hidden])'), null, 'conversation open');
+  await busy('in a conversation');
+  await T.ev(() => { stopTalk(); });
+  await T.until(() => !document.querySelector('.sheet.talk:not([hidden])'), null, 'conversation closed');
+  // a battle
+  await T.ev(() => { pendingTalks.length = 0; S.talked = Object.assign(S.talked || {}, {gym_backyard: 1}); startGym(); });
+  await T.until(() => !!B, null, 'battle started');
+  await busy('battling');
+  await T.ev(() => endBattle());
+  await T.ev(() => { document.querySelectorAll('.sheet').forEach(s => s.hidden = true); });
+  // travelling
+  await T.ev(() => { S.mode = 'travel'; });
+  await busy('travelling');
+  await T.ev(() => { S.mode = 'staying'; updateUI(); });
+  // the longest lines fit inside the scene, for Little Star (top right) and the lead creature (bottom left), on both phone sizes
+  const fit = async (label) => {
+    for (const who of ['star', 'lead']) {
+      const r = await T.ev(who => {
+        S.story = who === 'star' ? {ch: 3, t: {}, pc: 0} : {ch: 0, t: {}};
+        const L = Companion.lines().slice().sort((a, b) => (b.zh.length * 3 + b.py.length + b.en.length) - (a.zh.length * 3 + a.py.length + a.en.length)).slice(0, 6);
+        const probs = []; let worst = 0;
+        for (const l of L) {
+          Companion.show(l); const b = document.querySelector('.cbub'); const r = b.getBoundingClientRect(), s = document.getElementById('scene').getBoundingClientRect();
+          if (Companion.st.who !== who) probs.push('speaker ' + Companion.st.who);
+          if (r.left < s.left - .5 || r.right > s.right + .5 || r.top < s.top - .5 || r.bottom > s.bottom + .5) probs.push(`${l.zh} outside the scene ${[r.left, r.top, r.right, r.bottom].map(Math.round)} vs ${[s.left, s.top, s.right, s.bottom].map(Math.round)}`);
+          if (r.right > innerWidth || r.bottom > innerHeight) probs.push(l.zh + ' outside the viewport');
+          for (const part of b.children) if (part.scrollWidth > part.clientWidth + 1 || part.getBoundingClientRect().right > r.right || part.getBoundingClientRect().bottom > r.bottom) probs.push(l.zh + ' overflows its bubble (' + part.className + ')');
+          for (const sp of b.querySelectorAll('.czh span')) if (sp.offsetWidth > b.querySelector('.czh').clientWidth + 1) probs.push(l.zh + ' sentence wider than the bubble');
+          worst = Math.max(worst, r.height / s.height);
+        }
+        Companion.hide(true); return {probs, worst};
+      }, who);
+      T.ok(!r.probs.length, `${label} ${who}: ` + r.probs.slice(0, 4).join(' | '));
+      T.ok(r.worst < .55, `${label} ${who}: the bubble covers at most about half the scene height (${r.worst.toFixed(2)})`);
+    }
+  };
+  await fit('360x629');
+  await T.atSize(336, 560, () => fit('336x560'));
+  // the bubble never takes taps from the creatures under it
+  T.eq(await T.ev(() => { Companion.show(Companion.lines()[0]); const v = getComputedStyle(document.querySelector('.cbub')).pointerEvents; Companion.hide(true); return v; }), 'none', 'bubble pointer-events');
+  // tapping Little Star: every other tap it says something it learned from her (from the same list)
+  const tap = await T.ev(() => { S.story = {ch: 3, t: {}, pc: 0}; S.mode = 'staying'; Companion.st.taps = 0; const all = new Set(Companion.lines().map(l => l.zh)), out = [];
+    for (let i = 0; i < 4; i++) { Companion.hide(true); const x = .86 + Math.sin(T * .35) * .05, y = .27 + Math.sin(T * 1.1) * .025;
+      const r = document.getElementById('scene').getBoundingClientRect(); sceneTap({clientX: r.left + x * r.width, clientY: r.top + y * r.height});
+      out.push(Companion.st.bub ? Companion.st.line.zh : ''); }
+    Companion.hide(true); return {out, inList: out.filter(Boolean).every(z => all.has(z))}; });
+  T.ok(tap.out.filter(Boolean).length === 2 && tap.inList && tap.out.filter(Boolean).every(z => /水|花|开心/.test(z)), 'taps on Little Star: ' + JSON.stringify(tap));
+}},
+
 ];
