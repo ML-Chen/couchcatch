@@ -1379,4 +1379,120 @@ module.exports = [
   T.ok(!/使用了/.test(blog) && /tǔ chū le huǒ/.test(blog) && /Smoldy spits fire/.test(blog), 'battle line: ' + blog.replace(/\s+/g, ' '));
 }},
 
+{name: '42 trading between two players on one phone moves exactly one creature each way, keeps ids unique, survives a reload; the last creature cannot be traded', timeout: 60000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  // this player (a big kid) has 3 creatures; a little kid with 2 creatures plays on the same phone
+  await T.ev(() => {
+    for (const [n, l] of [['Otterpip', 12], ['Zipbeak', 22]]) S.col.push(mk(IDX[n], l));
+    curPlayer().name = 'Ana'; PL.list.push({id: 'p2', name: 'Mia', young: true}); writePlayers();
+    const G = fresh(); G.nextId = 1; for (const [n, l] of [['Clovehop', 7], ['Fizzbit', 9]]) { const c = {id: G.nextId++, sp: IDX[n], lvl: l, xp: 0}; c.hp = stats(c).maxhp; G.col.push(c); }
+    localStorage.setItem('couchcatch2_p2', JSON.stringify(G)); save(); flush(); renderWho(); });
+  await T.page.click('#bWho');
+  await T.until(() => __TT.vis('#tgTrade') && __TT.vis('#tgBattle'), null, 'Trade and Friendly battle buttons on the Who\'s playing sheet');
+  const before = await T.ev(() => ({me: S.col.map(c => ({id: c.id, sp: c.sp, lvl: c.lvl})), them: JSON.parse(localStorage.getItem('couchcatch2_p2')).col.map(c => ({id: c.id, sp: c.sp, lvl: c.lvl}))}));
+  await T.page.click('#tgTrade');
+  await T.until(() => __TT.vis('#sTog') && document.querySelectorAll('#tgGrid .tgc').length === 3, null, 'the trade sheet shows this player\'s 3 creatures');
+  const card = await T.ev(() => { const b = document.querySelector('#tgGrid .tgc'); return {art: !!b.querySelector('canvas'), txt: b.innerText, chips: b.querySelectorAll('.type').length}; });
+  T.ok(card.art && /烟狐/.test(card.txt) && /yān hú/.test(card.txt) && /Lv 5/.test(card.txt) && card.chips >= 1, 'a trade card shows art, the Chinese name, pinyin, level and types: ' + card.txt.replace(/\s+/g, ' '));
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, () => T.layoutOk('#sTog', `trade sheet at ${w}x${h}`));
+  await T.page.click('#tgGrid .tgc >> nth=1'); // Otterpip
+  await T.until(() => TOGETHER.trade.side === 1 && document.querySelectorAll('#tgGrid .tgc').length === 2, null, 'after the first pick, the other player picks from their 2 creatures');
+  T.ok(/Read to Mia/.test(await T.ev(() => document.getElementById('tgLine').innerText)), 'the little kid\'s pick has a cue for the big kid to read the line');
+  await T.atSize(336, 560, () => T.layoutOk('#sTog', 'the little kid picking at 336x560'));
+  await T.page.click('#tgGrid .tgc >> nth=1'); // Fizzbit
+  await T.until(() => !document.getElementById('tgGo').disabled, null, 'both picked: the trade button is on');
+  await T.page.click('#tgGo');
+  // both saves change at once, before the animation
+  await T.until(() => __TT.countLog('trade') === 1, null, 'trade logged');
+  await T.until(() => __TT.vis('.tgcv'), null, 'the trade animation plays');
+  await T.until(() => TOGETHER.trade && !TOGETHER.trade.busy && /好了/.test(document.getElementById('tgGo').innerText), null, 'the trade finishes with Done', 15000);
+  await T.atSize(336, 560, () => T.layoutOk('#sTog', 'the trade animation at 336x560'));
+  await T.page.click('#tgGo');
+  await T.until(() => document.getElementById('sTog').hidden, null, 'Done closes the trade');
+  const check = async label => {
+    const a = await T.ev(() => ({me: S.col.map(c => ({id: c.id, sp: c.sp, lvl: c.lvl})), them: JSON.parse(localStorage.getItem('couchcatch2_p2')).col.map(c => ({id: c.id, sp: c.sp, lvl: c.lvl})), meLocal: JSON.parse(localStorage.getItem('couchcatch2')).col.length, caught: S.caught || []}));
+    const key = c => c.sp + ':' + c.lvl, has = (arr, c) => arr.some(x => key(x) === key(c));
+    T.eq(a.me.length, 3, label + ': this player still has 3 creatures'); T.eq(a.them.length, 2, label + ': the other player still has 2'); T.eq(a.meLocal, 3, label + ': this player\'s saved copy has 3');
+    const gone = before.me.filter(c => !has(a.me, c)), came = a.me.filter(c => !has(before.me, c));
+    T.ok(gone.length === 1 && came.length === 1, label + ': exactly one creature left and one arrived: ' + JSON.stringify({gone, came}));
+    T.eq(came[0].sp, before.them[1].sp, label + ': the other player\'s pick arrived'); T.eq(gone[0].sp, before.me[1].sp, label + ': this player\'s pick left');
+    T.ok(has(a.them, gone[0]) && !has(a.them, before.them[1]), label + ': the other save got this player\'s pick and gave its own away');
+    for (const L of [a.me, a.them]) T.eq(new Set(L.map(c => c.id)).size, L.length, label + ': ids are unique in each save');
+    T.ok(a.caught.includes(came[0].sp), label + ': the new creature is in the creature book');
+  };
+  await check('after the trade');
+  const lg = await T.ev(() => __TT.lastLog('trade'));
+  T.ok(/Otterpip/.test(lg.gave) && /Fizzbit/.test(lg.got), 'the LOG names both creatures: ' + JSON.stringify(lg));
+  await T.reload();
+  await check('after a reload');
+  // the last creature can't be traded away (either side)
+  await T.ev(() => { const G = JSON.parse(localStorage.getItem('couchcatch2_p2')); G.col = G.col.slice(0, 1); localStorage.setItem('couchcatch2_p2', JSON.stringify(G)); });
+  await T.ev(() => TOGETHER.startTrade('p2'));
+  await T.sleep(200);
+  T.ok(await T.ev(() => document.getElementById('sTog').hidden && /only one creature/.test(document.getElementById('toast').textContent)), 'a player with one creature can\'t start a trade');
+  await T.ev(() => { const G = JSON.parse(localStorage.getItem('couchcatch2_p2')); G.col.push(Object.assign({}, G.col[0], {id: 99})); localStorage.setItem('couchcatch2_p2', JSON.stringify(G)); S.col = S.col.slice(0, 1); save(); });
+  await T.ev(() => TOGETHER.startTrade('p2'));
+  await T.sleep(200);
+  T.ok(await T.ev(() => document.getElementById('sTog').hidden), 'this player with one creature can\'t trade it either');
+  T.eq(await T.ev(() => S.col.length + JSON.parse(localStorage.getItem('couchcatch2_p2')).col.length), 3, 'nothing moved');
+}},
+
+{name: '43 friendly battle on one phone: turns alternate, the little kid\'s turns use little-kid mode with a cue for the big kid, nobody loses creatures or XP, HP comes back; fits at 360x629 and 336x560', timeout: 180000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  await T.ev(() => {
+    for (const [n, l] of [['Otterpip', 12], ['Zipbeak', 22], ['Pebblin', 6]]) S.col.push(mk(IDX[n], l));
+    S.col[1].hp = 3; S.col[2].hp = 0; // a hurt and a fainted creature in the lead team
+    curPlayer().name = 'Ana'; PL.list.push({id: 'p2', name: 'Mia', young: true}); writePlayers();
+    const G = fresh(); G.nextId = 1; for (const [n, l] of [['Clovehop', 7], ['Fizzbit', 9]]) { const c = {id: G.nextId++, sp: IDX[n], lvl: l, xp: 0}; c.hp = stats(c).maxhp; G.col.push(c); }
+    localStorage.setItem('couchcatch2_p2', JSON.stringify(G)); save(); flush(); renderWho();
+    window.__traces = []; window.traceChar = (k, o) => { __traces.push({turn: TOGETHER.battle.turn, young: isYoung(), kind: k, purpose: o && o.purpose}); return Promise.resolve({ok: true, mistakes: 1}); };
+  });
+  const before = await T.ev(() => ({me: S.col.map(c => ({id: c.id, sp: c.sp, lvl: c.lvl, xp: c.xp, hp: c.hp})), items: JSON.stringify(S.items), them: localStorage.getItem('couchcatch2_p2')}));
+  await T.page.click('#bWho');
+  await T.until(() => __TT.vis('#tgBattle'), null, 'Friendly battle button');
+  await T.page.click('#tgBattle');
+  await T.until(() => TOGETHER.battle && __TT.vis('#sBattle') && B && !B.busy, null, 'the friendly battle starts', 10000);
+  const seen = [], shot = {};
+  for (let i = 0; i < 80; i++) {
+    const st = await T.ev(() => { const f = TOGETHER.battle; if (!f) return {done: true}; return {busy: B.busy, over: !!f.over, turn: f.turn, young: !!f.sides[f.turn].x.young, btns: document.querySelectorAll('#bBtns button').length, blog: document.getElementById('blog').innerText, title: document.getElementById('bTitle').textContent, on: [...document.querySelectorAll('#sBattle .hpbox')].map(b => b.classList.contains('fbon'))}; });
+    if (st.done) break;
+    if (st.busy || st.over) { await T.sleep(60); continue; }
+    seen.push(st);
+    const k = st.young ? 'young' : 'big';
+    if (!shot[k]) { shot[k] = 1; for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, () => T.layoutOk('#sBattle', `friendly battle, ${k} turn, at ${w}x${h}`)); }
+    await T.page.click('#bBtns button >> nth=0');
+    await T.until(n => !TOGETHER.battle || B.busy || TOGETHER.battle.turns > n, seen.length - 1, 'the move starts', 5000);
+    await T.until(() => !TOGETHER.battle || !B.busy || TOGETHER.battle.over, null, 'the turn ends', 15000);
+  }
+  await T.until(() => !TOGETHER.battle && document.getElementById('sBattle').hidden, null, 'the battle ends and closes', 15000);
+  await T.sleep(400); // the save is written 250 ms after the battle
+  const tr = await T.ev(() => __traces);
+  T.ok(seen.length >= 4, 'several turns were played: ' + seen.length);
+  T.ok(seen.every((s, i) => s.turn === i % 2), 'turns alternate: ' + seen.map(s => s.turn).join(''));
+  T.ok(tr.length === seen.length && tr.every(t => t.purpose === 'move' && t.young === (t.turn === 1)), 'every move needs a trace, in little-kid mode exactly on the little kid\'s turns: ' + JSON.stringify(tr.slice(0, 4)));
+  const ys = seen.filter(s => s.young), bs = seen.filter(s => !s.young);
+  T.ok(ys.every(s => s.btns === 1 && /Say to Ana|Say to Mia/.test(s.blog) && /该你了/.test(s.blog) && /gāi nǐ le/.test(s.blog)), 'the little kid gets one move and the big kid a "Say to Mia" cue with 该你了 and pinyin: ' + JSON.stringify(ys[0]));
+  T.ok(bs.every(s => s.btns >= 2) && seen.every(s => /'s turn/.test(s.title)), 'the big kid gets the normal move buttons; the title says whose turn it is');
+  T.ok(seen.every(s => s.on[s.turn === 0 ? 1 : 0] && !s.on[s.turn === 0 ? 0 : 1]), 'the active player\'s HP box is highlighted');
+  const after = await T.ev(() => ({me: S.col.map(c => ({id: c.id, sp: c.sp, lvl: c.lvl, xp: c.xp, hp: c.hp})), items: JSON.stringify(S.items), them: JSON.parse(localStorage.getItem('couchcatch2_p2')), fb: !!(S.fbHp || S.fbTr), local: JSON.parse(localStorage.getItem('couchcatch2')).col.map(c => c.hp), end: __TT.lastLog('friendly_end')}));
+  T.eq(JSON.stringify(after.me), JSON.stringify(before.me), 'this player keeps every creature, level, XP and its HP from before');
+  T.eq(JSON.stringify(after.local), JSON.stringify(before.me.map(c => c.hp)), 'the saved copy has the HP from before too');
+  T.eq(after.items, before.items, 'no items as a reward (no farming)');
+  const bt = JSON.parse(before.them);
+  T.eq(JSON.stringify(after.them.col), JSON.stringify(bt.col), 'the other player keeps every creature unchanged');
+  T.ok(!after.fb, 'the battle backup is cleared');
+  T.ok(after.end && after.end.winner && after.end.turns === seen.length, 'friendly_end logged with a winner: ' + JSON.stringify(after.end));
+  // a battle cut off by a reload gives the HP back
+  await T.ev(() => { window.traceChar = () => new Promise(() => {}); TOGETHER.startFriendly('p2'); });
+  await T.until(() => TOGETHER.battle && B && !B.busy, null, 'second battle ready', 10000);
+  await T.page.click('#bBtns button >> nth=0');
+  await T.until(() => S.fbHp && JSON.parse(localStorage.getItem('couchcatch2') || '{}').fbHp, null, 'the HP backup is saved', 5000);
+  await T.reload();
+  const re = await T.ev(() => ({hp: S.col.map(c => c.hp), fb: !!(S.fbHp || S.fbTr)}));
+  T.eq(JSON.stringify(re.hp), JSON.stringify(before.me.map(c => c.hp)), 'after a reload mid-battle the HP is back to what it was');
+  T.ok(!re.fb, 'and the backup is gone');
+}},
+
 ];
