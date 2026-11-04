@@ -133,6 +133,7 @@ function heard(zh,good=true){const v=pst(zh);v.n++;v.intro=true;v.lvl=Math.max(0
 // little kids practise only the shortest everyday phrases (units 1–3: hello, me, I want)
 const PB=()=>{const all=typeof PHRASEBOOK!=='undefined'?PHRASEBOOK:[];return window.isYoung&&isYoung()?all.filter(p=>p.unit<=3&&p.zh.replace(/[，。！？]/g,'').length<=5):all};
 function nextNew(){return PB().find(p=>!pst(p.zh).intro)}
+window.phraseHeard=(zh,good)=>heard(zh,good); // used by staged conversations (stage.js)
 function dueList(){const now=Date.now();return PB().filter(p=>pst(p.zh).intro&&pst(p.zh).due<=now).sort((a,b)=>pst(a.zh).due-pst(b.zh).due)}
 
 // ---------- quick in-game speaking moment (non-blocking banner) ----------

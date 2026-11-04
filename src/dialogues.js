@@ -1093,34 +1093,35 @@ Object.assign(window.DIALOGUES, {
     reward:{orb:3}
   },
 
+  // staged as a scene (stage.js): optional face/act/item/fx/pet cues on lines and a pic on answers
   visit_shopping: {
     title:{en:"Going Shopping", zh:"去买东西", py:"qù mǎi dōng xi"},
     who:{name:"Auntie Wang", zh:"王阿姨", py:"Wáng ā yí", role:"neighbor"},
     setting:"Auntie Wang is heading to the store and asks if you need anything.",
     turns:[
-      {npc:{zh:"我去买东西。你要什么？", py:"wǒ qù mǎi dōng xi. nǐ yào shén me?", en:"I'm going shopping. What do you want?"}},
+      {npc:{zh:"我去买东西。你要什么？", py:"wǒ qù mǎi dōng xi. nǐ yào shén me?", en:"I'm going shopping. What do you want?", face:"happy", act:"ask"}},
       {you:[
-        {zh:"我要苹果！", py:"wǒ yào píng guǒ!", en:"I want apples!", ok:true, reply:{zh:"好！要几个？", py:"hǎo! yào jǐ ge?", en:"OK! How many?"}},
+        {zh:"我要苹果！", py:"wǒ yào píng guǒ!", en:"I want apples!", ok:true, pic:"apple", reply:{zh:"好！要几个？", py:"hǎo! yào jǐ ge?", en:"OK! How many?", face:"happy", act:"ask", pet:"hop"}},
         {zh:"我卖苹果！", py:"wǒ mài píng guǒ!", en:"I sell apples!", ok:false},
         {zh:"我不要。", py:"wǒ bú yào.", en:"I don't want anything.", ok:false}]},
       {you:[
-        {zh:"三个，谢谢！", py:"sān ge, xiè xie!", en:"Three, please!", ok:true, reply:{zh:"好，三个苹果。还要别的吗？", py:"hǎo, sān ge píng guǒ. hái yào bié de ma?", en:"OK, three apples. Anything else?"}},
+        {zh:"三个，谢谢！", py:"sān ge, xiè xie!", en:"Three, please!", ok:true, pic:"apple3", reply:{zh:"好，三个苹果。还要别的吗？", py:"hǎo, sān ge píng guǒ. hái yào bié de ma?", en:"OK, three apples. Anything else?", face:"happy", act:"talk", item:"apple", n:3, pet:"munch"}},
         {zh:"三岁，谢谢！", py:"sān suì, xiè xie!", en:"Three years old, thanks!", ok:false},
         {zh:"三点，谢谢！", py:"sān diǎn, xiè xie!", en:"Three o'clock, thanks!", ok:false}]},
       {you:[
-        {zh:"我要牛奶！", py:"wǒ yào niú nǎi!", en:"I want milk!", ok:true, reply:{zh:"好，牛奶！", py:"hǎo, niú nǎi!", en:"OK, milk!"}},
-        {zh:"不要了，谢谢！", py:"bú yào le, xiè xie!", en:"Nothing else, thanks!", ok:true, reply:{zh:"好的！", py:"hǎo de!", en:"OK!"}},
+        {zh:"我要牛奶！", py:"wǒ yào niú nǎi!", en:"I want milk!", ok:true, pic:"milk", reply:{zh:"好，牛奶！", py:"hǎo, niú nǎi!", en:"OK, milk!", face:"happy", act:"talk", item:"milk", pet:"munch"}},
+        {zh:"不要了，谢谢！", py:"bú yào le, xiè xie!", en:"Nothing else, thanks!", ok:true, pic:"no", reply:{zh:"好的！", py:"hǎo de!", en:"OK!", face:"happy", act:"chest"}},
         {zh:"我渴了。", py:"wǒ kě le.", en:"I'm thirsty.", ok:false}]},
       {you:[
-        {zh:"多少钱？", py:"duō shao qián?", en:"How much is it?", ok:true, reply:{zh:"不贵！阿姨请你！", py:"bú guì! ā yí qǐng nǐ!", en:"It's cheap! It's my treat!"}},
+        {zh:"多少钱？", py:"duō shao qián?", en:"How much is it?", ok:true, pic:"coin", react:"surprised", reply:{zh:"不贵！阿姨请你！", py:"bú guì! ā yí qǐng nǐ!", en:"It's cheap! It's my treat!", face:"happy", act:"chest", fx:"hearts", pet:"hop"}},
         {zh:"几钱？", py:"jǐ qián?", en:"(mixed-up word) How-few money?", ok:false},
         {zh:"几点？", py:"jǐ diǎn?", en:"What time?", ok:false}]},
       {you:[
-        {zh:"谢谢阿姨！", py:"xiè xie ā yí!", en:"Thank you, Auntie!", ok:true, reply:{zh:"不客气！一会儿见！", py:"bú kè qi! yí huìr jiàn!", en:"You're welcome! See you soon!"}},
+        {zh:"谢谢阿姨！", py:"xiè xie ā yí!", en:"Thank you, Auntie!", ok:true, pic:"heart", reply:{zh:"不客气！一会儿见！", py:"bú kè qi! yí huìr jiàn!", en:"You're welcome! See you soon!", face:"happy", act:"wave", fx:"sparkle"}},
         {zh:"不客气。", py:"bú kè qi.", en:"You're welcome.", ok:false},
         {zh:"对不起。", py:"duì bu qǐ.", en:"I'm sorry.", ok:false}]}
     ],
-    end:{zh:"我很快回来！", py:"wǒ hěn kuài huí lái!", en:"I'll be right back!"},
+    end:{zh:"我很快回来！", py:"wǒ hěn kuài huí lái!", en:"I'll be right back!", face:"happy", act:"offer"},
     reward:{orb:3}
   },
 
