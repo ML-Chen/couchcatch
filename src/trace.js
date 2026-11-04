@@ -82,7 +82,7 @@ window.traceChar=function(kind,opts){if(typeof opts==='string')opts={title:opts}
     <div class="tracebox"><svg class="grid" viewBox="0 0 240 240"><g stroke="#d9c7a6" stroke-width="1" stroke-dasharray="5 5"><line x1="0" y1="120" x2="240" y2="120"/><line x1="120" y1="0" x2="120" y2="240"/><line x1="0" y1="0" x2="240" y2="240"/><line x1="240" y1="0" x2="0" y2="240"/></g></svg><div class="hw"></div></div>
     <div class="traceword" data-say="${wz}"><b>${wz}</b><span>${wpy} · ${wen}</span></div>
     <div class="tracemsg"></div>
-    <div class="tracebtns"><button data-a="show">Show me${zw('看笔顺','kàn bǐshùn')}</button><button data-a="hear">Hear it${zw('听一听','tīng yi tīng')}</button></div></div>`;
+    <div class="tracebtns"><button data-a="show">Show me${zw('看笔顺','kàn bǐshùn')}</button><button data-a="hear">Hear it${zw('听一听','tīng yi tīng')}</button>${opts.cancel?`<button data-a="cancel">${opts.cancel[0]}${zw(opts.cancel[1],opts.cancel[2])}</button>`:''}</div></div>`;
   document.body.appendChild(wrap);const msgEl=wrap.querySelector('.tracemsg');const a={wrap,res,ch,done:false};active=a;
   {const pc=wrap.querySelector('.tracepic');if(pc&&opts.pic){const d=Math.min(3,devicePixelRatio||1);pc.width=54*d;pc.height=54*d;const px=pc.getContext('2d');const loop=()=>{if(a.done||!wrap.isConnected)return;px.setTransform(d,0,0,d,0,0);try{opts.pic(px,54,54,performance.now()/1000)}catch(e){}requestAnimationFrame(loop)};loop()}}
   const writer=HanziWriter.create(wrap.querySelector('.hw'),ch,{width:240,height:240,padding:18,showOutline:true,showCharacter:false,strokeColor:'#2b2420',outlineColor:rp>=4?'#ebe2d2':'#d8ccb6',radicalColor:null,
@@ -104,7 +104,7 @@ window.traceChar=function(kind,opts){if(typeof opts==='string')opts={title:opts}
   speak(ch);
   // new or barely-known characters get a stroke demo first; familiar ones go straight to tracing
   if(rp<2||young())setTimeout(demo,300);else setTimeout(startQuiz,200);
-  wrap.onclick=ev=>{const b=ev.target.closest('button')?.dataset.a;if(b==='show')demo();else if(b==='hear')speak(ch+'，'+wz)};
+  wrap.onclick=ev=>{const b=ev.target.closest('button')?.dataset.a;if(b==='show')demo();else if(b==='hear')speak(ch+'，'+wz);else if(b==='cancel'){try{writer.cancelQuiz&&writer.cancelQuiz()}catch(e){}try{LOG('trace_cancel',{ch,purpose})}catch(e){}finish(a,{ok:false,cancelled:true,skipped:true,ch})}};
 }catch(err){console.error(err);if(active&&active.res===res)active=null;res({ok:true,mistakes:1,skipped:true})}})};
 // Progress for the Learn screen: every character on every ladder, with how well it is known.
 // For the Learn screen: per type, the hand-picked ladder plus any learned/next themed HSK characters; the general HSK row the same way.

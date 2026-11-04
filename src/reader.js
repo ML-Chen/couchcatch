@@ -28,7 +28,7 @@ const sty=document.createElement('style');sty.textContent=css;document.head.appe
 const sh=document.createElement('div');sh.className='sheet';sh.id='sRead';sh.hidden=true;
 sh.innerHTML=`<div class="inner"><div class="row"><h2 id="rdKind"></h2><button class="small" id="rdClose">Close<span class="zh" data-say="关闭">关闭<i>guānbì</i></span></button></div>
   <div class="paper" id="rdPaper"></div>
-  <div class="readbtns"><button id="rdPrev" aria-label="Back" hidden>‹</button><button id="rdPlay">▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdNext" class="primary" hidden>Next ›<span class="zh" data-say="继续">继续<i>jìxù</i></span></button><button id="rdDone" class="primary">Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
+  <div class="readbtns"><button id="rdPrev" aria-label="Back" hidden>‹</button><button id="rdPlay" data-quiet>▶ Read to me<span class="zh" data-say="读给我听">读给我听<i>dú gěi wǒ tīng</i></span></button><button id="rdNext" class="primary" hidden data-quiet>Next ›<span class="zh" data-say="继续">继续<i>jìxù</i></span></button><button id="rdDone" class="primary" data-quiet>Done<span class="zh" data-say="读完了">读完了<i>dú wán le</i></span></button></div></div>`;
 document.body.appendChild(sh);
 const $=id=>document.getElementById(id);
 const isP=t=>t.length===1;

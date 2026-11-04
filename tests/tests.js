@@ -1147,8 +1147,13 @@ module.exports = [
   T.ok(ch['0b'].p < ch[0].p && ch['2b'].p < ch[2].p, 'a Calm Berry lowers the dodge chance');
   T.ok(ch[0].sway > ch[1].sway && ch[1].sway > ch[2].sway, 'and the sway gets smaller');
   // over many throws at a quick creature
+  // seeded, so the comparison is the same on every run (it used to fail now and then on an unlucky draw)
+  const seed = n => T.ev(n => { window.__rnd0 = window.__rnd0 || Math.random; let a = n >>> 0; Math.random = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }, n);
+  await seed(20261101);
   const none = tally(await T.ev(VTHROWS, {sp: 'Zipbeak', lvl: 25, n: 150, spell: 0}));
+  await seed(20261101);
   const perfect = tally(await T.ev(VTHROWS, {sp: 'Zipbeak', lvl: 25, n: 150, spell: 2}));
+  await T.ev(() => { if (window.__rnd0) Math.random = window.__rnd0; });
   T.note(`Zipbeak Lv25 no spell: ${none.tried} tried, ${none.dodged} dodged, ${none.hit} hit; perfect spell: ${perfect.tried} tried, ${perfect.dodged} dodged, ${perfect.hit} hit (of 150 each)`);
   T.ok(perfect.tried < .85 * none.tried, `a perfect spell means fewer dodge attempts (${perfect.tried} vs ${none.tried})`);
   T.ok(perfect.hit > none.hit, `and more hits (${perfect.hit} vs ${none.hit})`);
@@ -1377,6 +1382,40 @@ module.exports = [
   await T.until(() => /吐出了火/.test(document.getElementById('blog').innerText), null, 'the starter Smoldy 吐出了火', 8000);
   const blog = await T.ev(() => document.getElementById('blog').innerText);
   T.ok(!/使用了/.test(blog) && /tǔ chū le huǒ/.test(blog) && /Smoldy spits fire/.test(blog), 'battle line: ' + blog.replace(/\s+/g, ' '));
+}},
+
+{name: '47 interaction fixes: a tap picks the creature under the finger (or its name tag); the catch spell can be cancelled; Read to me is not cut off by its label; catch creatures stand on ground; curveballs drift like the phone game', timeout: 60000, fn: async T => {
+  await T.start();
+  await T.stay();
+  await T.ev(() => { wild.length = 0; const a = {sp: 1, lvl: 5, x: .5, y: .66, vx: 0, ph: 0, born: -9}, b = {sp: 5, lvl: 5, x: .52, y: .8, vx: 0, ph: 1, born: -9}; wild.push(a, b); window.__ab = [a, b]; });
+  await T.sleep(400);
+  const pick = await T.ev(() => { const [a, b] = __ab, bb = b._box, ab = a._box; const r = {};
+    const inTag = (x, y) => [a, b].some(w => w._tag && x >= w._tag.x && x <= w._tag.x + w._tag.w && y >= w._tag.y && y <= w._tag.y + w._tag.h);
+    let fy = null; for (let f = .1; f < .95; f += .05) { const y = bb.y - bb.ht * f; if (!inTag(bb.x, y) && Math.abs(bb.x - ab.x) <= ab.hw && y >= ab.y - ab.ht && y <= ab.y + 6) { fy = y; break; } }
+    if (fy === null) for (let f = .1; f < .95; f += .05) { const y = bb.y - bb.ht * f; if (!inTag(bb.x, y)) { fy = y; break; } }
+    r.front = pickWild(bb.x / bb.W, fy / bb.H) === b;
+    r.back = pickWild(ab.x / ab.W, (ab.y - ab.ht * .8) / ab.H) === a;
+    const t = a._tag; r.tag = !!t && pickWild((t.x + t.w / 2) / ab.W, (t.y + t.h / 2) / ab.H) === a;
+    r.miss = pickWild(.02, .05) === null; return r; });
+  T.ok(pick.front && pick.back && pick.tag && pick.miss, 'tap picking: ' + JSON.stringify(pick));
+  // the spell card has Let it go; it returns to the field with no catch screen and the creature still there
+  await T.ev(() => { if (window.__realTrace) window.traceChar = window.__realTrace; });
+  const dbg = await T.ev(() => { S.trace = true; const pre = {C: !!C, orbs: orbsLeft(), tc: !!window.traceChar, inWild: wild.includes(__ab[0])}; openCatch(__ab[0]); return Object.assign(pre, {after: !!C, wrap: document.querySelectorAll('.tracewrap').length, btns: [...document.querySelectorAll('.tracewrap button')].map(b => b.dataset.a).join(',')}); });
+  T.note('spell open: ' + JSON.stringify(dbg));
+  await T.until(() => document.querySelector('.tracewrap [data-a="cancel"]'), null, 'Let it go on the spell card', 5000);
+  await T.page.click('.tracewrap [data-a="cancel"]');
+  await T.sleep(300);
+  const after = await T.ev(() => ({C: !!C, catchOpen: !document.getElementById('sCatch').hidden, trace: !!document.querySelector('.tracewrap'), still: wild.includes(__ab[0])}));
+  T.ok(!after.C && !after.catchOpen && !after.trace && after.still, 'cancelled spell: back to the field: ' + JSON.stringify(after));
+  // a raid catch keeps no Let it go
+  // Read to me: its label is quiet (the reading itself speaks)
+  const quiet = await T.ev(() => ['rdPlay', 'rdNext', 'rdDone'].every(id => document.getElementById(id) && document.getElementById(id).hasAttribute('data-quiet')));
+  T.ok(quiet, 'reader buttons keep their labels quiet');
+  // catch ground per place, and curve drift direction
+  const g = await T.ev(() => { const o = {}; for (const k of ['sanfrancisco', 'phiphi', 'floatmarket']) { S.place = PLACES.findIndex(p => p.key === k); o[k] = catchGround(); } S.place = 0; return o; });
+  T.ok(g.sanfrancisco >= .6 && g.phiphi > .7 && g.floatmarket > .7, 'creatures stand on the ground, not on water: ' + JSON.stringify(g));
+  const d = await T.ev(() => { const o = {x0: 100, y0: 500, x1: 200 + 40, y1: 200, drift: 40, arc: 50}; const mid = orbPos(o, .5).x, end = orbPos(o, 1).x; return {mid, end}; });
+  T.ok(Math.abs(d.end - 240) < .01 && d.mid < 170 + 1, 'a clockwise curveball drifts right and lands where predicted: ' + JSON.stringify(d));
 }},
 
 ];
