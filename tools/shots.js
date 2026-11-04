@@ -37,6 +37,7 @@ const S_=[
  ['trace-move-known',async()=>{await E(()=>{S.tr['火']=6;S.tr['光']=6;S.tr['红']=6;S.tr['灯']=6;S.tr['热']=6;S.tr['烧']=1;startGym()});await p.waitForTimeout(2600);await E(()=>{turn(1)});await shot('trace-move-familiar',1200)}],
  ['giant-transform',async()=>{await E(()=>{startGym()});await p.waitForTimeout(2600);await E(()=>{B.pm=3;B.busy=false;B.pused=true;B.pt=3;B.grow={side:'p',t0:T};renderBattle()});await shot('giant-transform',700)}],
  ['conversation',async()=>{await E(()=>{runTalk('gym_backyard')});await shot('conversation',4500)}],
+ ['conversation-stage',async()=>{await E(()=>{runTalk('visit_shopping')});await shot('conversation-stage',6500)}],
  ['contacts',async()=>{await p.click('#bTalk');await shot('contacts',500)}],
  ['speak-lesson',async()=>{await E(()=>{runLesson()});await shot('speak-lesson',1500)}],
  ['learn',async()=>{await p.click('#bLearn');await shot('learn',400)}],

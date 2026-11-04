@@ -1379,4 +1379,71 @@ module.exports = [
   T.ok(!/使用了/.test(blog) && /tǔ chū le huǒ/.test(blog) && /Smoldy spits fire/.test(blog), 'battle line: ' + blog.replace(/\s+/g, ' '));
 }},
 
+{name: '46 staged conversation: Auntie Wang (visit_shopping) plays as a scene start to finish with one bubble at a time and only correct answers; little-kid mode hears one answer first; fits at 360x629 and 336x560; other conversations keep the chat player', talk: ['visit_shopping', 'visit_weather'], timeout: 120000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  await T.ev(() => { window.__said = []; const f = window.speakAsync; window.speakAsync = z => { __said.push(z); return f(z); }; });
+  const layout = () => T.ev(() => {
+    const vw = innerWidth, vh = innerHeight, el = document.querySelector('.stagetalk'), r = e => e.getBoundingClientRect(), out = [];
+    const inV = (n, b) => { if (b.left < -.5 || b.right > vw + .5 || b.top < -.5 || b.bottom > vh + .5) out.push(n + ' outside the screen ' + [b.left, b.top, b.right, b.bottom].map(Math.round).join(',')); };
+    const panel = el.querySelector('.stpanel'); inV('answer panel', r(panel));
+    for (const b of el.querySelectorAll('.stpanel.up .sopt')) { inV('answer', r(b)); if (b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1) out.push('answer text overflows: ' + b.innerText.replace(/\s+/g, ' ')); }
+    const bub = el.querySelector('.sbub:not(.out)'); if (bub) { inV('bubble', r(bub)); if (r(bub).bottom > r(panel).top) out.push('the bubble runs into the answer panel'); }
+    if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1 || document.documentElement.scrollWidth > vw) out.push('the scene scrolls');
+    return out; });
+  const play = async (label, young) => {
+    const orbs0 = await T.ev(() => S.items.orb || 0);
+    await T.ev(y => { if (y) curPlayer().young = true; else delete curPlayer().young; S.talkDay = {}; __said.length = 0; window.__staged = undefined; runTalk('visit_shopping').then(v => { window.__staged = v; }); }, young);
+    await T.until(() => !!document.querySelector('.stagetalk:not([hidden])'), null, label + ': the staged scene opens');
+    T.ok(await T.ev(() => !document.querySelector('.sheet.talk:not(.stagetalk):not([hidden])') && !document.querySelector('.stagetalk .talklog')), label + ': no chat log');
+    await T.skipRings();
+    const D = await T.ev(() => { const D = DIALOGUES.visit_shopping; return {ok: D.turns.flatMap(t => (t.you || []).filter(o => o.ok).map(o => o.zh)), wrong: D.turns.flatMap(t => (t.you || []).filter(o => !o.ok).map(o => o.zh)), targets: D.turns.filter(t => t.you).map(t => t.you.find(o => o.ok).zh), order: D.turns.flatMap(t => (t.you || []).filter(o => o.ok).map(o => o.zh))}; });
+    let answered = 0, maxBubs = 0, sawNpc = 0, state = null; const t0 = Date.now();
+    while (Date.now() - t0 < 50000) {
+      const st = await T.ev(() => ({bubs: document.querySelectorAll('.stagetalk .sbub:not(.out)').length, npc: !!document.querySelector('.stagetalk .sbub.npc:not(.out)'),
+        opts: [...document.querySelectorAll('.stagetalk .stpanel.up .sopt:not([disabled])')].map(b => b.querySelector('.z').textContent),
+        cont: !!document.querySelector('.stagetalk .stpanel.up .scont'), gone: !document.querySelector('.stagetalk')}));
+      maxBubs = Math.max(maxBubs, st.bubs); if (st.npc) sawNpc++;
+      if (st.gone) break;
+      if (st.cont) { state = await T.ev(() => stageState()); await T.page.click('.stagetalk .scont'); await T.until(() => !document.querySelector('.stagetalk'), null, label + ': Continue closes the scene', 3000); break; }
+      if (!st.opts.length) { await T.sleep(40); continue; }
+      for (const z of st.opts) { T.ok(D.ok.includes(z), `${label}: answer ${answered + 1} offers only correct lines, got ${z}`); T.ok(!D.wrong.includes(z) || D.ok.includes(z), `${label}: a wrong line is offered: ${z}`); }
+      const target = D.targets[answered];
+      if (young) { T.eq(st.opts.length, 1, `${label}: answer ${answered + 1} shows one answer`); T.eq(st.opts[0], target, `${label}: the one answer is the target`);
+        T.ok(await T.ev(z => __said.includes(z), target), `${label}: the answer is spoken before she says it: ${target}`); }
+      await T.sleep(520);
+      const bad = await layout(); T.ok(!bad.length, `${label}: layout at answer ${answered + 1}: ` + bad.join(' | '));
+      const pick = young ? st.opts[0] : D.order.find(z => st.opts.includes(z));
+      const i = st.opts.indexOf(pick), btn = `.stagetalk .stpanel.up .sopt:not([disabled]) >> nth=${i}`;
+      await T.page.click(btn);
+      await T.sleep(120);
+      T.ok(await T.ev(() => !document.querySelector('.stagetalk .sbub.you:not(.out)') && /I said it/.test(document.querySelector('.stagetalk .sopt.armed').innerText)), `${label}: the first tap only plays the line and asks "I said it"`);
+      await T.page.click(btn);
+      await T.until(z => { const b = document.querySelector('.stagetalk .sbub.you:not(.out)'); return b && b.querySelector('.z').textContent === z; }, pick, `${label}: answer ${answered + 1} shows her line in her bubble`, 3000);
+      answered++;
+    }
+    T.eq(answered, D.targets.length, `${label}: answers given`);
+    T.eq(await T.ev(() => window.__staged), true, `${label}: runTalk resolves true`);
+    T.ok(maxBubs <= 1, `${label}: at most one bubble at a time (saw ${maxBubs})`);
+    T.ok(sawNpc > 0, `${label}: Auntie Wang's bubbles show`);
+    const r = await T.ev(() => ({orb: S.items.orb || 0, talked: (S.talked || {}).visit_shopping || 0, end: __TT.countLog('talk_end')}));
+    T.eq(r.orb, orbs0 + 3, `${label}: the reward lands in the bag`);
+    T.ok(state && state.bag === 3, `${label}: 3 orbs flew into the bag: ` + JSON.stringify(state));
+    if (!young) T.eq((state.basket || []).join(','), 'apple,apple,apple,milk', `${label}: three apples and the milk dropped into her basket`);
+    return r;
+  };
+  // the cues in the data turn into faces and gestures
+  T.eq(await T.ev(() => typeof window.stageState), 'function', 'stage.js is loaded');
+  const a = await play('360x629', false);
+  T.eq(a.talked, 1, 'recorded as talked');
+  await T.atSize(336, 560, async () => { await play('336x560 little kid', true); });
+  await T.ev(() => { delete curPlayer().young; });
+  await T.atSize(336, 560, async () => { await play('336x560', false); });
+  // every other conversation still uses the chat player unchanged
+  await T.ev(() => { runTalk('visit_weather'); });
+  await T.until(() => __TT.vis('.sheet.talk:not(.stagetalk)') && !!document.querySelector('.sheet.talk:not(.stagetalk) .talklog'), null, 'visit_weather opens the chat player');
+  T.ok(await T.ev(() => !document.querySelector('.stagetalk')), 'no stage for visit_weather');
+  await T.ev(() => stopTalk());
+}},
+
 ];
