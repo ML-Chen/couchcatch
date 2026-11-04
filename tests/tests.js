@@ -65,6 +65,36 @@ const tally = rs => ({n: rs.length, hit: rs.filter(r => r.hit).length, tried: rs
   hops: rs.reduce((a, r) => a.concat(r.hops), [])});
 const mean = a => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
 
+// ---------- food stalls (tests 38, 39) ----------
+// Put the player at a place with an empty field, without travelling (no spawns: the mode is 'arrived').
+const atPlace = (T, key) => T.ev(k => { S.place = PLACES.findIndex(p => p.key === k); S.mode = 'arrived'; wild = []; updateUI(); return S.place; }, key);
+// Tap the food cart for real, inside its hit box (scene fractions -> page pixels).
+const tapCart = async (T) => {
+  const pt = await T.ev(() => { const r = document.getElementById('scene').getBoundingClientRect(), b = Food.box(); return {x: r.left + r.width * (b.x0 + b.x1) / 2, y: r.top + r.height * (b.y0 * .4 + b.y1 * .6)}; });
+  await T.page.mouse.click(pt.x, pt.y);
+};
+// Play the open ordering scene through with real clicks: pick option `pick` (or the last one) at every choice, then "I said it!".
+// Returns what each choice offered; closes with Continue. check(kind, state) runs at every choice and at the meal.
+const orderThrough = async (T, pick = 0, {timeout = 20000, check} = {}) => {
+  const turns = [], t0 = Date.now();
+  while (Date.now() - t0 < timeout) {
+    const st = await T.ev(() => { const sh = document.getElementById('sFood'); if (sh.hidden) return {closed: true};
+      const ds = [...sh.querySelectorAll('.dishes .dish')], said = sh.querySelector('.said');
+      return {fed: !!sh.querySelector('.fed'), opts: ds.map(d => ({zh: d.querySelector('.z').textContent, pic: !!d.querySelector('canvas'), sel: d.classList.contains('sel')})),
+        saidOn: !!said && !said.disabled, you: sh.querySelectorAll('.bub.you').length}; });
+    if (st.closed) return turns;
+    if (st.fed) { if (check) await check('fed', st); await T.page.click('#sFood .said'); await T.until(() => document.getElementById('sFood').hidden, null, 'Continue closes the stall', 3000); return turns; }
+    if (!st.opts.length) { await T.sleep(40); continue; }
+    turns.push(st);
+    if (check) await check('choice', st);
+    const i = Math.min(pick, st.opts.length - 1);
+    await T.page.click(`#sFood .dishes .dish >> nth=${i}`);
+    await T.page.click('#sFood .said');
+    await T.until(n => document.querySelectorAll('#sFood .bub.you').length > n, st.you, 'I said it! sends the line', 3000);
+  }
+  throw new Error('the ordering scene did not finish');
+};
+
 module.exports = [
 
 {name: '01 loads with no errors and shows the starter picker', fn: async T => {
@@ -1384,6 +1414,106 @@ module.exports = [
   T.ok(!/使用了/.test(blog) && /tǔ chū le huǒ/.test(blog) && /Smoldy spits fire/.test(blog), 'battle line: ' + blog.replace(/\s+/g, ' '));
 }},
 
+
+{name: '38 food stall: only at the Hawker Centre, the Night Market and the Backyard; every option is right; the meal heals the team and gives XP; 2 meals a day per place; old saves load', timeout: 90000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  // where the stall is
+  const where = await T.ev(() => { const out = []; for (let i = 0; i < PLACES.length; i++) { S.place = i; S.mode = 'arrived'; if (Food.here()) out.push(PLACES[i].key); S.mode = 'travel'; if (Food.here()) out.push('travel:' + PLACES[i].key); } S.place = 0; S.mode = 'arrived'; return out; });
+  T.eq(where.sort().join(','), 'backyard,hawker,hknight', 'places with a food stall (never while travelling)');
+  // a real tap where the cart stands does nothing at a place without a stall
+  await atPlace(T, 'lakeshore'); await T.sleep(100); await tapCart(T); await T.sleep(200);
+  T.ok(await T.ev(() => document.getElementById('sFood').hidden), 'no stall at the Lakeshore');
+  // an old save without S.food loads, and every stall has its meals
+  await atPlace(T, 'hawker');
+  await T.ev(() => { delete S.food; flush(); });
+  await T.reload();
+  await T.ev(() => { window.speakAsync = () => Promise.resolve(); window.TALK_PACE = .15; S.mode = 'arrived'; wild = []; updateUI(); });
+  T.eq(await T.ev(() => [PLACES[S.place].key, Food.left('hawker'), Food.left('hknight'), Food.left('backyard'), S.food === undefined].join()), 'hawker,2,2,2,true', 'an old save loads with two meals at each stall');
+  // a hurt and a fainted creature, then order with real taps
+  const before = await T.ev(() => { if (S.col.length < 2) S.col.push(mk(IDX.Barkpup, 9)); S.col[0].hp = 1; S.col[1].hp = 0; return S.col.slice(0, 2).map(c => ({lvl: c.lvl, xp: c.xp})); });
+  await T.sleep(100); await tapCart(T);
+  await T.until(() => __TT.vis('#sFood'), null, 'a tap on the cart opens the stall', 3000);
+  T.ok(await T.ev(() => sheetOpen() === 'sFood'), 'the field counts the stall as an open sheet (no idle chats behind it)');
+  const right = await T.ev(() => { const s = new Set(); const w = n => { if (!n || typeof n !== 'object') return; if (Array.isArray(n)) return n.forEach(w); if (typeof n.zh === 'string') s.add(n.zh); for (const k in n) if (k !== 'zh') w(n[k]); };
+    w(FOOD.dishes); w(FOOD.asks); w(FOOD.lines.thanks); return [...s]; });
+  let waits = null;
+  const turns = await orderThrough(T, 1, {check: async (k, st) => { if (k === 'choice' && waits === null) waits = !st.saidOn && !st.opts.some(o => o.sel); }});
+  T.ok(waits, '"I said it!" waits until a dish is picked');
+  T.eq(turns.length, 3, 'three things to say: the dish, the follow-up, 谢谢 (coconut rice comes with a spicy question)');
+  T.eq(turns[0].opts.map(o => o.zh).join(' '), '我要一盘鸡饭。 我要椰浆饭。 我要一碗面。 我要一杯奶茶。', 'Hawker Centre dishes');
+  T.ok(turns[0].opts.every(o => o.pic), 'every dish has a drawn picture');
+  T.eq(turns[1].opts.map(o => o.zh).join(' '), '不要辣，谢谢！ 要一点儿辣！', 'the spicy follow-up');
+  T.eq(turns[2].opts.map(o => o.zh).join(' '), '谢谢！', 'then 谢谢！');
+  const offered = turns.flatMap(t => t.opts.map(o => o.zh));
+  T.ok(offered.every(z => right.includes(z)), 'only right answers are offered: ' + offered.join(' '));
+  const after = await T.ev(() => ({hp: S.col.slice(0, 2).map(c => c.hp === stats(c).maxhp), lx: S.col.slice(0, 2).map(c => ({lvl: c.lvl, xp: c.xp})), n: S.food.n.hawker, day: S.food.day === today(),
+    log: __TT.lastLog('food_order'), saved: (flush(), JSON.parse(localStorage.getItem('couchcatch2')).food)}));
+  T.ok(after.hp.every(Boolean), 'the team is healed, the fainted one too: ' + JSON.stringify(after.hp));
+  after.lx.forEach((c, i) => T.ok(c.lvl > before[i].lvl || c.xp > before[i].xp, `creature ${i} got XP: ` + JSON.stringify([before[i], c])));
+  T.ok(after.n === 1 && after.day, 'one meal recorded for today');
+  T.ok(after.log && after.log.dish === 'nasilemak' && after.log.place === 'hawker', 'the order is logged: ' + JSON.stringify(after.log));
+  T.ok(after.saved && after.saved.n && after.saved.n.hawker === 1, 'the meal count is saved: ' + JSON.stringify(after.saved));
+  // the second meal, then sold out for today
+  await T.ev(() => Food.open()); await T.until(() => __TT.vis('#sFood'), null, 'second meal', 3000);
+  await orderThrough(T, 3);
+  T.eq(await T.ev(() => [Food.left('hawker'), Food.left('hknight')].join()), '0,2', 'two meals a day at the Hawker Centre; the Night Market keeps its own');
+  T.eq(await T.ev(() => Food.open()), false, 'a third meal does not open');
+  await tapCart(T); await T.sleep(250);
+  const sold = await T.ev(() => ({hidden: document.getElementById('sFood').hidden, toast: document.getElementById('toast').textContent}));
+  T.ok(sold.hidden && /卖完了/.test(sold.toast) && /mài wán le/.test(sold.toast), 'sold out: ' + JSON.stringify(sold));
+  // a new day, new meals
+  T.eq(await T.ev(() => { S.food.day = '2000-1-1'; return Food.left('hawker'); }), 2, 'the next day the stall serves again');
+  // the Night Market's menu; closing before ordering costs nothing
+  await atPlace(T, 'hknight'); await T.ev(() => Food.open());
+  await T.until(() => document.querySelectorAll('#sFood .dishes .dish').length, null, 'Night Market menu', 4000);
+  T.eq(await T.ev(() => [...document.querySelectorAll('#sFood .dishes .dish .z')].map(e => e.textContent).join(' ')), '我要一串鱼蛋。 我要一个鸡蛋仔。 我要一碗云吞面。 我要一杯奶茶。', 'Night Market dishes');
+  await T.page.click('#fdClose');
+  T.ok(await T.ev(() => document.getElementById('sFood').hidden && Food.left('hknight') === 2), 'closing before ordering costs no meal');
+  const missing = await T.ev(() => { const s = []; const w = n => { if (!n || typeof n !== 'object') return; if (Array.isArray(n)) return n.forEach(w); if (typeof n.zh === 'string' && zhPlan(n.zh) === 'device') s.push(n.zh); for (const k in n) if (k !== 'zh') w(n[k]); }; w(FOOD); return [...new Set(s)]; });
+  if (missing.length) T.note(`${missing.length} food-stall lines still to record (tools/new_lines/food.txt): ` + missing.join(' '));
+}},
+
+{name: '39 food stall: a little kid hears the one answer first and sees its picture; the stall and its ordering scene fit at 360x629 and 336x560', timeout: 120000, fn: async T => {
+  await T.start();
+  await T.fastSpeech();
+  // little kid: one answer at every turn, spoken before it is sent, with a picture
+  await T.ev(() => { PL.list[0].young = true; applyYoung(); S.foodN = 3; window.__said = []; window.speakAsync = zh => { __said.push(zh); return Promise.resolve(); }; });
+  await atPlace(T, 'backyard'); await T.sleep(100); await tapCart(T);
+  await T.until(() => __TT.vis('#sFood'), null, 'the stall opens for a little kid', 3000);
+  const turns = await orderThrough(T, 0, {check: async (k, st) => { if (k !== 'choice') return;
+    const r = await T.ev(() => ({said: __said.slice(), txt: document.querySelector('#sFood .talkpanel').innerText}));
+    T.eq(st.opts.length, 1, 'one answer for a little kid');
+    T.ok(st.opts[0].sel && st.saidOn, 'the one answer is ready to send: ' + JSON.stringify(st.opts[0]));
+    T.ok(r.said.includes(st.opts[0].zh), 'the answer is spoken first: ' + st.opts[0].zh + ' / heard: ' + r.said.join(' '));
+    T.ok(!/Pick one|Say it in Chinese/.test(r.txt), 'no English instruction for a little kid: ' + r.txt.replace(/\s+/g, ' '));
+    T.ok(st.opts[0].pic, 'the answer has a picture'); }});
+  T.eq(turns.map(t => t.opts[0].zh).join(' '), '我要一杯果汁。 要冰的！ 谢谢！', 'a little kid orders a juice (the next dish in turn), with ice, and says thank you');
+  T.ok(await T.ev(() => S.food.n.backyard === 1 && S.foodN === 4), 'the meal counts');
+  await T.ev(() => { PL.list[0].young = false; applyYoung(); window.speakAsync = () => Promise.resolve(); S.food = null; });
+  // layout: the cart sits inside the scene, and every stage of the ordering scene fits without scrolling
+  const probe = (label) => T.ev(label => { const bad = [], sh = document.getElementById('sFood');
+    if (sh.scrollHeight > sh.clientHeight + 1 || sh.scrollWidth > sh.clientWidth + 1) bad.push(label + ': the sheet scrolls');
+    for (const e of sh.querySelectorAll('.talkhead *, .talkpanel *')) { const r = e.getBoundingClientRect(); if (r.width && (r.right > innerWidth + .5 || r.left < -.5 || r.bottom > innerHeight + .5)) { bad.push(label + ': off screen ' + e.className + ' ' + e.textContent.slice(0, 20)); break; } }
+    for (const d of sh.querySelectorAll('.dishes .dish')) if (d.scrollWidth > d.clientWidth + 1) bad.push(label + ': a dish is cut: ' + d.innerText.split('\n')[0]);
+    const nm = document.getElementById('fdWho'); if (Math.abs(nm.querySelector('b').getBoundingClientRect().bottom - nm.querySelector('i').getBoundingClientRect().bottom) > 4) bad.push(label + ': the name wraps');
+    return bad; }, label);
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, async () => {
+    for (const key of ['hawker', 'hknight', 'backyard']) {
+      await atPlace(T, key); await T.sleep(60);
+      T.ok(await T.ev(() => { const b = Food.box(); return b.x0 >= 0 && b.x1 <= 1 && b.y0 >= 0 && b.y1 <= 1; }), `${w}x${h} ${key}: the cart is inside the scene`);
+      await T.ev(() => Food.open());
+      await T.until(() => document.querySelectorAll('#sFood .dishes .dish').length, null, 'dishes shown', 4000);
+      await T.sleep(150);
+      let bad = await probe(`${w}x${h} ${key} dishes`);
+      const greet = await T.ev(() => { const log = document.getElementById('fdLog'), b = log.querySelector('.bub.npc').getBoundingClientRect(), l = log.getBoundingClientRect(); return b.top >= l.top - 1 && b.bottom <= l.bottom + 1; });
+      if (!greet) bad.push(`${w}x${h} ${key}: the greeting is cut off while choosing a dish`);
+      await T.layoutOk('#sFood', `${w}x${h} ${key}`);
+      await orderThrough(T, 0, {check: async (k) => { await T.sleep(60); bad = bad.concat(await probe(`${w}x${h} ${key} ${k}`)); }});
+      T.ok(!bad.length, bad.slice(0, 5).join(' | '));
+    }
+  });
+}},
 {name: '47 interaction fixes: a tap picks the creature under the finger (or its name tag); the catch spell can be cancelled; Read to me is not cut off by its label; catch creatures stand on ground; curveballs drift like the phone game', timeout: 60000, fn: async T => {
   await T.start();
   await T.stay();

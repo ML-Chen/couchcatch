@@ -53,6 +53,9 @@ const S_=[
  ['san-francisco-field',async()=>{await stay(9);await shot('san-francisco-field',0)}],
  ['yosemite-field',async()=>{await stay(10);await shot('yosemite-field',0)}],
  ['san-diego-field',async()=>{await stay(7);await shot('san-diego-field',0)}],
+ ['food-stall',async()=>{const i=await E(()=>PLACES.findIndex(q=>q.key==='hawker'));await stay(i,2500);await shot('food-stall',0)}],
+ ['food-order',async()=>{const i=await E(()=>PLACES.findIndex(q=>q.key==='hawker'));await E(i=>{S.place=i;S.mode='arrived';wild=[];S.food=null;updateUI();window.TALK_PACE=.3;Food.open()},i);await shot('food-order',2200);
+   await E(()=>{const d=document.querySelector('#sFood .dish');if(d)d.click();window.TALK_PACE=1});await shot('food-order-picked',300)}],
 ];
 (async()=>{b=await chromium.launch();await fresh();await setup().catch(e=>errs.push('setup: '+e.message));let needFresh=false;
   for(const [name,fn,opt] of S_){
