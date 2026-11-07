@@ -7,6 +7,8 @@
 #   to workflows started from forks or pull requests, and this workflow only runs for pushes to main (which
 #   only the owner and collaborators can make) or a manual start by them.
 # - Third-party code is limited to actions/checkout, pinned to an exact commit.
+# - The APK on the site is the one attached to the newest android-v* release (built and signed by
+#   release-apk.yml), or android/release/couchcatch.apk if there is none.
 name: Publish game and signed app update
 on:
   push:
@@ -28,6 +30,14 @@ jobs:
           fetch-depth: 0
       - name: Build the single-file game
         run: cd src && python3 build.py draw.js ../dist/couchcatch.html
+      - name: Fetch the newest released Android APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 --json tagName,isDraft --jq '[.[] | select(.isDraft | not) | select(.tagName | startswith("android-v"))][0].tagName // empty')"
+          if [ -n "$tag" ] && gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern couchcatch.apk --dir "$RUNNER_TEMP/apk" 2>/dev/null; then
+            echo "COUCHCATCH_APK=$RUNNER_TEMP/apk/couchcatch.apk" >> "$GITHUB_ENV"; echo "Using the APK from $tag"
+          fi
       - name: Assemble the site and sign the update
         env:
           COUCHCATCH_UPDATE_KEY: ${{ secrets.COUCHCATCH_UPDATE_KEY }}

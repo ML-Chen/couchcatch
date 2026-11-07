@@ -4,7 +4,7 @@ A small Android app around the same single-file game. It works offline, and it u
 
 ## Install
 
-Download `couchcatch.apk` from https://ml-chen.github.io/couchcatch/couchcatch.apk (the same file is committed at `android/release/couchcatch.apk`) and open it on the phone. Android asks once to allow installs from the browser or files app. Saves stay on the phone inside the app, and survive updates of the game. They are deleted only when the app is uninstalled or its storage is cleared. Settings → Save code moves a save between devices.
+Download `couchcatch.apk` from https://ml-chen.github.io/couchcatch/couchcatch.apk (it is the APK attached to the newest `android-v*` GitHub Release) and open it on the phone. Android asks once to allow installs from the browser or files app. Saves stay on the phone inside the app, and survive updates of the game. They are deleted only when the app is uninstalled or its storage is cleared. Settings → Save code moves a save between devices.
 
 ## How updates work, and why they are safe
 
@@ -31,6 +31,15 @@ android/build.sh dist/couchcatch.html dist/couchcatch.apk
 ```
 
 No Gradle: aapt2 → javac → d8 → zipalign → apksigner. Every future APK must be signed with the same release keystore, or Android refuses to install it over the old one. Keep the keystore and its password safe, and outside the repository. Game updates don't need a new APK; only changes to the Android code do.
+
+### Releasing a new app version from GitHub
+
+GitHub builds and signs the app itself. Once the two secrets below are added (Settings → Secrets and variables → Actions), publish a release whose tag starts with `android-v` (for example `android-v1.2`). The **Release Android APK** workflow builds the game and the APK, signs it, checks the signing certificate is the project's (SHA-256 `CF:9A:2F:61:…:37:60:E6`), attaches `couchcatch.apk` to the release and republishes the Pages site so the download link serves it. Running the workflow by hand (Actions → Release Android APK → Run workflow) builds a signed APK as a downloadable artifact without making a release.
+
+| Secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_B64` | the release keystore as one line of base64 (`base64 -w0 android_release.keystore`) |
+| `ANDROID_KEYSTORE_PASSWORD` | the keystore password (the key inside uses the same one; the alias is `couchcatch`) |
 
 Tests:
 - `node tools/test_app_csp.js dist/couchcatch.html` runs the game under the app's exact security policy.

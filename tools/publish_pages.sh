@@ -42,4 +42,5 @@ else
   echo "COUCHCATCH_UPDATE_KEY not set: published the web game; the app update stays at the last signed build" >&2
 fi
 # The Android app itself, for direct download from the Pages site.
-if [ -f "$ROOT/android/release/couchcatch.apk" ]; then cp "$ROOT/android/release/couchcatch.apk" "$OUT/couchcatch.apk"; fi
+APK="${COUCHCATCH_APK:-$ROOT/android/release/couchcatch.apk}"  # the newest released APK, when the workflow fetched one
+if [ -f "$APK" ]; then cp "$APK" "$OUT/couchcatch.apk"; fi
