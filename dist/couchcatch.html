@@ -11541,7 +11541,7 @@ function catchFrame(){if(!C)return;const {w,h,d}=sizeCanvas(ccv);cctx.setTransfo
 }
 function decideCatch(){const s=SP[C.wd.sp],avg=party().reduce((a,c)=>a+c.lvl,0)/Math.max(1,party().length)||5;
   const kb=({orb:0,great:.15,ultra:.3}[C.kind]||0)+(C.power?.15:0)+(C.spell===2?.15:C.spell?.08:0);C.power=false;C.rollSpell=C.spell||0; // the spell lasts the whole catch
-  const chance=Math.max(s.leg?.1:.25,Math.min(.92,.66-(C.wd.lvl-avg)*.02-(s.stage-1)*.08+(C.bonus||0)+kb+(C.berry?.1:0)+(C.wd.raid?.1:0)+(isYoung()?.25:0)-(s.leg?.35:0)));C.berry=false;
+  const chance=Math.max(s.leg?.1:.25,Math.min(.88,.60-(C.wd.lvl-avg)*.02-(s.stage-1)*.08+(C.bonus||0)+kb+(C.berry?.1:0)+(C.wd.raid?.1:0)+(isYoung()?.25:0)-(s.leg?.35:0)));C.berry=false;
   C.caught=Math.random()<chance;LOG('catch_roll',{sp:SP[C.wd.sp].n,chance:+chance.toFixed(2),caught:C.caught});C.nShakes=C.caught?3:RI(0,2);renderSpell()}
 function finishCatch(){const wd=C.wd,s=SP[wd.sp];
   if(C.caught){sfx('catch');C.burstT=T;const c=mk(wd.sp,wd.lvl,wd.shiny);S.col.push(c);S.caught=[...new Set([...(S.caught||[]),wd.sp])];wild=wild.filter(x=>x!==wd);burst(C.hit.x,C.hit.y,'#ffd23f');burst(C.hit.x,C.hit.y,'#45dc9a');
