@@ -1,6 +1,10 @@
 Couchcatch for Android.
 
-**New in 1.1:**
+**New in 1.2:**
+- A save code made with a newer version of the game no longer breaks the app (the Team button doing nothing, a blank white field after reopening). The app now updates itself right away and then loads the code by itself.
+- The game inside the app is the newest one, so a fresh install starts up to date.
+
+**In 1.1:**
 - The game no longer slides under the navigation buttons or the status bar on Android 15 and later.
 - The first screen can load a save code instead of starting a new game.
 

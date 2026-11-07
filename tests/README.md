@@ -37,6 +37,8 @@ A full run takes about 2 minutes. Playwright is preinstalled, so do not install 
   Some tests replace `speakAsync` with an instant resolver. Promises that wait for taps, like
   `runLesson()` and `runTalk()`, are never awaited from `page.evaluate`.
 
+- A test can list console errors it causes on purpose in `allowErrors` (regexes), such as the 404 from a stand-in server in test 54.
+
 ## Files
 
 - `run.js`: the runner, the in-page helpers (`window.__TT`) and the test helpers (`start`, `stay`, `spawn`,

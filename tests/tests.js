@@ -2022,4 +2022,145 @@ module.exports = [
   });
 }},
 
+// ---------- saves from a newer build (Nov 2026: a fresh Android install runs the APK's older bundled build until its update arrives) ----------
+{name: '51 a save code from a newer build (a creature, place, field creature or raid this build lacks) is never half-loaded: the game reloads once for the newest build, keeps the code, and loads it by itself once a build can read it; "Not now" goes back', timeout: 90000, fn: async T => {
+  await T.until(() => __TT.vis('#sStart') && document.querySelectorAll('#starterList button').length === 3, null, 'starter picker visible');
+  const codes = await T.ev(() => {
+    const code = o => 'CC1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+    const cr = (sp, id) => ({id, sp, lvl: 12, xp: 0, hp: 40});
+    const ok = () => ({...fresh(), col: [cr(0, 1), cr(SP.length - 1, 2)], nextId: 3, mode: 'staying', savedAt: Date.now(), talked: {intro_neighbor: 1}});
+    return {
+      species: code({...ok(), col: [cr(0, 1), cr(SP.length, 2)]}),
+      place: code({...ok(), place: PLACES.length, visited: [0, PLACES.length]}),
+      visited: code({...ok(), visited: [0, PLACES.length + 3]}),
+      wild: code({...ok(), wild: [{sp: SP.length + 1, lvl: 9, x: .5, y: .7, vx: 0, ph: 0, road: false, shiny: false}]}),
+      raid: code({...ok(), raid: {place: 0, sp: SP.length, lvl: 30, shiny: false, shown: false}}),
+      good: JSON.stringify(ok()),
+    };
+  });
+  const state = () => T.ev(() => ({st: document.getElementById('newerBtns').dataset.st || '', notice: __TT.vis('#sNewer'), start: __TT.vis('#sStart'), col: S.col.length,
+    pending: !!localStorage.getItem('couchcatch_pending_save'), saved: (JSON.parse(localStorage.getItem('couchcatch2') || '{"col":[]}').col || []).length, text: document.getElementById('sNewer').innerText.replace(/\s+/g, ' ')}));
+  for (const k of ['species', 'place', 'visited', 'wild', 'raid']) {
+    await T.ev(() => { document.getElementById('stImpBox').hidden = false; });
+    await T.page.fill('#stImpText', codes[k]);
+    await T.waitReload(() => T.page.click('#stImpLoad')); // one automatic reload, to pick up the newest build
+    await T.until(() => document.getElementById('newerBtns').dataset.st === 'reload', null, `too-new ${k}: after one reload the game asks for an update`);
+    const r = await state();
+    T.ok(r.notice && !r.start && r.col === 0 && r.pending && !r.saved, `too-new ${k}: nothing loaded or saved, the code is kept for later: ` + JSON.stringify(r));
+    T.ok(/Reload this page/.test(r.text) && /请更新游戏/.test(r.text) && /qǐng gēngxīn yóuxì/.test(r.text), `too-new ${k}: the notice reads clearly with pinyin: ` + r.text);
+    await T.page.click('#newerBack');
+    const b = await state();
+    T.ok(!b.notice && b.start && !b.pending, `too-new ${k}: "Not now" goes back to the starter picker and forgets the code: ` + JSON.stringify(b));
+  }
+  // the update arrives: the next launch can read the kept code, and loads it without asking again
+  await T.ev(g => { localStorage.setItem('couchcatch_pending_save', g); }, codes.good);
+  await T.waitReload(() => T.reload()); // launch; the game reloads itself after loading the code
+  await T.sleep(800);
+  const g = await T.ev(() => ({col: S.col.map(c => c.sp), pending: !!localStorage.getItem('couchcatch_pending_save'), notice: __TT.vis('#sNewer'), start: __TT.vis('#sStart'), saved: JSON.parse(localStorage.getItem('couchcatch2') || '{}').col.length}));
+  T.ok(g.col.length === 2 && g.saved === 2 && !g.pending && !g.notice && !g.start, 'the kept code is loaded at the next launch that can read it: ' + JSON.stringify(g));
+  // Settings → Save code in a running game: same path, and "Not now" keeps the game that was there
+  await T.page.click('#bSet');
+  await T.until(() => __TT.vis('#sSet') && !!document.getElementById('svText'), null, 'Settings with the save box');
+  await T.page.fill('#svText', codes.species);
+  await T.page.click('#svLoad'); await T.sleep(200);
+  await T.waitReload(() => T.page.click('#svLoad'));
+  await T.until(() => document.getElementById('newerBtns').dataset.st === 'reload', null, 'Settings: the game asks for an update');
+  await T.page.click('#newerBack');
+  const s = await T.ev(() => ({col: S.col.length, notice: __TT.vis('#sNewer'), pending: !!localStorage.getItem('couchcatch_pending_save')}));
+  T.ok(s.col === 2 && !s.notice && !s.pending, 'Settings: "Not now" goes back to the same game: ' + JSON.stringify(s));
+}},
+
+{name: '52 a too-new save already on the device makes the game update instead of crashing, and is never overwritten, even across launches', timeout: 60000, fn: async T => {
+  await T.until(() => __TT.vis('#sStart'), null, 'starter picker visible');
+  const raw = await T.ev(() => {
+    const o = {...fresh(), col: [{id: 1, sp: 0, lvl: 30, xp: 0, hp: 100}, {id: 2, sp: SP.length + 4, lvl: 30, xp: 0, hp: 100}], nextId: 3, mode: 'staying', place: 0, visited: [0], stayed: [0], savedAt: Date.now()};
+    const s = JSON.stringify(o);
+    window.writeLocal = () => {}; // so this page's own exit save doesn't replace the seeded save
+    localStorage.setItem('couchcatch2', s); return s;
+  });
+  for (const run of [1, 2]) {
+    await T.reload();
+    await T.sleep(2500); // the first launch reloads itself once for the newest build
+    await T.until(() => typeof S !== 'undefined' && document.getElementById('newerBtns').dataset.st === 'reload', null, `launch ${run}: the game asks for an update`);
+    const r = await T.ev(() => ({notice: __TT.vis('#sNewer'), start: __TT.vis('#sStart'), sheet: sheetOpen(), col: S.col.length, back: !!document.getElementById('newerBack'), logged: !!__TT.lastLog('update_needed')}));
+    T.ok(r.notice && r.sheet === 'sNewer' && !r.start && r.col === 0 && r.logged, `launch ${run}: update notice, no starter picker, no game started over the save: ` + JSON.stringify(r));
+    T.ok(!r.back, `launch ${run}: no "Not now" (there is no other game on this device to go back to)`);
+    await T.layoutOk('#sNewer', `update notice, launch ${run}`);
+    // everything that normally saves: an explicit save, the exit save, hiding the page, and the 4-second writer
+    await T.ev(() => { save(); flush(); dispatchEvent(new Event('pagehide')); document.dispatchEvent(new Event('visibilitychange')); S.mode = 'staying'; });
+    await T.sleep(4600);
+    T.ok(await T.ev(r => localStorage.getItem('couchcatch2') === r, raw), `launch ${run}: the newer save on the device is byte-for-byte untouched`);
+    await T.ev(() => sessionStorage.removeItem('couchcatch_update_reloaded')); // the next run is a new app launch
+  }
+}},
+
+{name: '54 in the Android app a too-new code asks the app for an update (/update-now), reloads once it is installed, and otherwise says why: offline, nothing newer yet, or an older app that needs a restart', init: 'window.COUCHCATCH_IN_APP = true', allowErrors: [/status of 404/], timeout: 90000, fn: async T => {
+  // stand-in for MainActivity's /update-now and /update-status
+  const app = {mode: 'ok', calls: [], polls: 0, served: 100};
+  await T.page.route('https://appassets.androidplatform.net/update-*', route => {
+    const path = new URL(route.request().url()).pathname; app.calls.push(path);
+    const json = o => route.fulfill({status: 200, contentType: 'application/json', headers: {'Access-Control-Allow-Origin': '*'}, body: JSON.stringify(o)});
+    if (app.mode === 'old') return route.fulfill({status: 404, headers: {'Access-Control-Allow-Origin': '*'}, body: ''});
+    if (path === '/update-now') { app.polls = 0; return json({running: true, served: app.served, available: app.served, result: ''}); }
+    app.polls++;
+    if (app.mode === 'ok') { if (app.polls < 3) return json({running: true, served: app.served, available: app.served, result: ''}); app.mode = 'latest'; return json({running: false, served: app.served, available: app.served + 1, result: 'installed'}); }
+    return json({running: false, served: app.served, available: app.served, result: app.mode === 'offline' ? 'failed' : 'latest'});
+  });
+  await T.until(() => __TT.vis('#sStart'), null, 'starter picker visible');
+  const code = await T.ev(() => 'CC1:' + btoa(unescape(encodeURIComponent(JSON.stringify({...fresh(), col: [{id: 1, sp: SP.length, lvl: 12, xp: 0, hp: 40}], nextId: 2})))));
+  await T.ev(() => { document.getElementById('stImpBox').hidden = false; });
+  await T.page.fill('#stImpText', code);
+  // the update installs: the game reloads into it (here the same build comes back, which still can't read the code, and the app now has nothing newer)
+  await T.waitReload(async () => { await T.page.click('#stImpLoad'); await T.until(() => __TT.vis('#sNewer') && /正在更新/.test(document.getElementById('sNewer').innerText), null, 'shows "Updating… 正在更新" while the app updates', 3000); });
+  T.ok(app.calls[0] === '/update-now' && app.calls.filter(c => c === '/update-status').length >= 3, 'asked the app to update, then waited for it: ' + app.calls.join(' '));
+  await T.until(() => document.getElementById('newerBtns').dataset.st === 'none', null, 'after the reload, with nothing newer: "No update yet" with Try again');
+  T.ok(await T.ev(() => !!localStorage.getItem('couchcatch_pending_save') && S.col.length === 0 && !!document.getElementById('newerRetry') && !!document.getElementById('newerBack')), 'the code is still kept; Try again and Not now are offered');
+  app.mode = 'offline'; await T.page.click('#newerRetry');
+  await T.until(() => document.getElementById('newerBtns').dataset.st === 'offline' && /Connect to the internet/.test(document.getElementById('newerText').innerText), null, 'offline: says to connect and try again');
+  app.mode = 'old'; await T.page.click('#newerRetry');
+  await T.until(() => document.getElementById('newerBtns').dataset.st === 'reopen' && /open it again/.test(document.getElementById('newerText').innerText), null, 'an app without /update-now: says to close and reopen the game');
+  for (const [w, h] of [[360, 629], [336, 560]]) await T.atSize(w, h, () => T.layoutOk('#sNewer', `update notice at ${w}x${h}`));
+  await T.page.click('#newerBack');
+  T.ok(await T.ev(() => __TT.vis('#sStart') && !__TT.vis('#sNewer') && !localStorage.getItem('couchcatch_pending_save')), '"Not now" goes back to the starter picker');
+}},
+
+{name: '53 a save holding the newest creatures and places imports, then Team opens, the scene draws, and a relaunch in the middle of a gym battle comes back to a working field (the Nov 2026 Android bug)', timeout: 90000, fn: async T => {
+  await T.until(() => __TT.vis('#sStart'), null, 'starter picker visible');
+  const code = await T.ev(() => {
+    const last = PLACES.map((p, i) => i).filter(i => !PLACES[i].rift && PLACES[i].leader).pop();
+    const o = {...fresh(), col: SP.map((s, i) => ({id: i + 1, sp: SP.length - 1 - i, lvl: 12, xp: 0, hp: 1})), nextId: SP.length + 1, caught: SP.map((s, i) => i),
+      place: last, visited: PLACES.map((p, i) => i), stayed: PLACES.map((p, i) => i).filter(i => !PLACES[i].rift), mode: 'staying', badges: [0, 1], savedAt: Date.now(),
+      talked: {intro_neighbor: 1}, raid: {place: last, sp: SP.length - 1, lvl: 30, shiny: true, shown: true}};
+    for (const c of o.col) c.hp = stats(c).maxhp; // every creature fit to battle (and none due to evolve: Lv 12 is under every evolution level)
+    return 'CC1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+  });
+  await T.page.click('#stImpBtn');
+  await T.page.fill('#stImpText', code);
+  await T.waitReload(() => T.page.click('#stImpLoad'));
+  await T.fastSpeech();
+  const inked = () => T.ev(() => { const c = document.getElementById('scene'); if (!c.width || !c.height) return 0; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 200) n++; return n / (d.length / 4 / 97); });
+  const teamOpens = async label => {
+    await T.ev(() => { document.querySelectorAll('.sheet:not([hidden])').forEach(s => s.hidden = true); });
+    await T.page.click('#bTeam');
+    await T.until(() => __TT.vis('#sTeam'), null, `${label}: tapping Team opens the team sheet`, 4000);
+    const n = await T.ev(() => document.querySelectorAll('#teamList .card.team').length);
+    T.eq(n, await T.ev(() => SP.length), `${label}: every creature is listed`);
+    await T.ev(() => close('sTeam'));
+  };
+  await T.sleep(1200);
+  const a = await T.ev(() => ({col: S.col.length, top: S.col[0].sp, place: S.place, B: !!B}));
+  T.ok(a.col === await T.ev(() => SP.length) && a.top === await T.ev(() => SP.length - 1), 'the save was imported: ' + JSON.stringify(a));
+  T.ok(await inked() > .9, 'after import the scene is drawn (opaque pixels: ' + (await inked()).toFixed(2) + ')');
+  await teamOpens('after import');
+  await T.ev(() => startGym());
+  await T.until(() => B && __TT.vis('#sBattle'), null, 'the gym battle starts');
+  await T.sleep(1500);
+  await T.reload(); // the app is closed mid-battle and opened again
+  await T.sleep(1500);
+  const b = await T.ev(() => ({B: !!B, battle: __TT.vis('#sBattle'), sheet: sheetOpen(), mode: S.mode, col: S.col.length}));
+  T.ok(!b.B && !b.battle && b.mode === 'staying', 'after relaunch: back on the field, no battle: ' + JSON.stringify(b));
+  T.ok(await inked() > .9, 'after relaunch the scene is drawn, not blank (opaque pixels: ' + (await inked()).toFixed(2) + ')');
+  await teamOpens('after relaunch');
+}},
+
 ];

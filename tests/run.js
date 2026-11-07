@@ -259,7 +259,8 @@ async function runOne(browser, url, test) {
   if (test.init) await ctx.addInitScript(test.init);
   const page = await ctx.newPage();
   page.on('pageerror', e => state.errors.push('pageerror: ' + (e.stack || e.message).split('\n').slice(0, 3).join(' | ')));
-  page.on('console', m => { if (m.type() === 'error') state.errors.push('console.error: ' + m.text().slice(0, 300)); });
+  // test.allowErrors: console errors a test causes on purpose (e.g. a 404 from a stand-in server), as regexes
+  page.on('console', m => { if (m.type() === 'error' && !(test.allowErrors || []).some(r => r.test(m.text()))) state.errors.push('console.error: ' + m.text().slice(0, 300)); });
   const T = mkHelpers(page, state);
   const t0 = Date.now();
   let fail = null;

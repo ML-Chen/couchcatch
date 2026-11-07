@@ -343,6 +343,7 @@ canvas.mini{border-radius:8px;background:radial-gradient(circle at 50% 70%,rgba(
   <button class="big" id="bEvoOk" hidden>Nice!</button>
 </div></div>
 
+<div class="sheet" id="sNewer" hidden><div class="inner"><h2 id="newerH"></h2><p class="sub" id="newerText"></p><div class="row" id="newerBtns" style="justify-content:flex-start;gap:8px"></div></div></div>
 <div class="sheet" id="sStart" hidden><div class="inner">
   <h2>Pick your first partner<span class="zh" data-say="选择你的第一个伙伴">选择你的第一个伙伴<i>xuǎnzé nǐ de dì yī gè huǒbàn</i></span></h2>
   
@@ -422,6 +423,12 @@ const NORMAL=PLACES.map((p,i)=>p.rift?-1:i).filter(i=>i>=0);
 let S;
 function fresh(){return{v:2,items:{orb:20,great:2,ultra:0,berry:3},col:[],badges:[],place:0,stayed:[],visited:[0],mode:'arrived',spawned:0,nextId:1,wild:[],travelTo:0,travelT:0,savedAt:0}}
 function parse(str){try{const d=JSON.parse(str);if(d&&d.v===2&&Array.isArray(d.col))return d}catch(e){}return null}
+// A save made by a newer build can hold creatures or places this build doesn't have yet (species and places are only ever appended).
+// Loading one crashes restore() and every screen that draws a creature (seen on a fresh Android install, which runs the APK's older
+// bundled build until its update arrives), so such a save is never loaded here, and never overwritten.
+function saveTooNew(o){const sp=i=>i!=null&&!SP[i],pl=i=>i!=null&&!PLACES[i];
+  try{return (o.col||[]).some(c=>sp(c.sp))||(o.wild||[]).some(w=>sp(w.sp))||(o.caught||[]).some(sp)||!!(o.raid&&sp(o.raid.sp))||pl(o.place)||pl(o.travelTo)||(o.visited||[]).some(pl)||(o.stayed||[]).some(pl)||(o.badges||[]).some(pl)||!!(o.rift&&pl(o.rift.place))}catch(e){return true}}
+let NEWER=null; // a too-new save found on this device: kept as it is until this build is updated
 // ---------- players: each child has their own save (player 1 keeps the original save slot) ----------
 const PLAYERS_KEY='couchcatch_players';
 function readPlayers(){try{const p=JSON.parse(localStorage.getItem(PLAYERS_KEY));if(p&&Array.isArray(p.list)&&p.list.length)return p}catch(e){}return{cur:'p1',list:[{id:'p1',name:'',young:false}],at:0}}
@@ -432,16 +439,17 @@ function curPlayer(){return PL.list.find(x=>x.id===PID)||PL.list[0]}
 window.isYoung=()=>!!curPlayer().young;
 function writePlayers(){PL.at=Date.now();PL.cur=PID;try{localStorage.setItem(PLAYERS_KEY,JSON.stringify(PL))}catch(e){}if(DB&&UID)DB.doc('data/users/'+UID+'/players').set({json:JSON.stringify(PL),at:PL.at}).catch(()=>{})}
 function readLocal(){try{return parse(localStorage.getItem(lkey()))}catch(e){return null}}
-S=readLocal()||fresh();
+function loadLocal(){const l=readLocal();NEWER=l&&saveTooNew(l)?l:null;return NEWER?fresh():l||fresh()}
+S=loadLocal();
 function migrate(){if(!S.items){S.items={orb:S.orbs??20,great:1,ultra:0,berry:2}}delete S.orbs;S.streak=S.streak||0;S.raid=S.raid||null;S.staysNoRaid=S.staysNoRaid||0;S.kind=S.kind||'orb';S.caught=S.caught||[]}
 migrate();
 let DB=null,UID=null,localTimer=null,remoteTimer=null,remoteBusy=false,remoteAgain=false;
 function snapshotState(){S.wild=wild.map(w=>({sp:w.sp,lvl:w.lvl,x:w.x,y:w.y,vx:w.vx,ph:w.ph,road:w.road,shiny:w.shiny}));S.travelTo=travelTo;S.travelT=travelT}
-function writeLocal(){snapshotState();try{localStorage.setItem(lkey(),JSON.stringify(S))}catch(e){}}
+function writeLocal(){if(NEWER)return;snapshotState();try{localStorage.setItem(lkey(),JSON.stringify(S))}catch(e){}}
 function setSave(t){document.getElementById('cSave').textContent=t}
 function save(){S.savedAt=Date.now();setSave('Saving…');clearTimeout(localTimer);localTimer=setTimeout(()=>{writeLocal();if(!DB)setSave('Saved')},250);
   clearTimeout(remoteTimer);remoteTimer=setTimeout(pushRemote,1500)}
-async function pushRemote(){if(!DB||!UID)return;if(remoteBusy){remoteAgain=true;return}remoteBusy=true;snapshotState();
+async function pushRemote(){if(!DB||!UID||NEWER)return;if(remoteBusy){remoteAgain=true;return}remoteBusy=true;snapshotState();
   try{await DB.doc('data/users/'+UID+'/'+rdoc()).set({json:JSON.stringify(S),savedAt:S.savedAt});setSave('Saved')}catch(e){setSave('Saved on this device')}
   remoteBusy=false;if(remoteAgain){remoteAgain=false;setTimeout(pushRemote,1500)}}
 function flush(){clearTimeout(localTimer);writeLocal();clearTimeout(remoteTimer);pushRemote()}
@@ -460,7 +468,7 @@ async function connectCloud(){
     const d=snap.exists?snap.data():null,remote=d&&parse(d.json);
     // the cloud copy wins when it is newer, and also when this device only has a brand-new game (a cleared browser where the child picked a starter before the cloud answered): a fresh start must never overwrite real progress
     const freshHere=(S.col||[]).length<=2&&remote&&(remote.col||[]).length>(S.col||[]).length;
-    if(remote&&(remote.savedAt>(S.savedAt||0)||freshHere)&&!C&&!B){LOG('load_remote_save',{fresh:freshHere});S=remote;restore();close('sStart');updateUI();toast('Your saved game is back')}
+    if(remote&&!NEWER&&!saveTooNew(remote)&&(remote.savedAt>(S.savedAt||0)||freshHere)&&!C&&!B){LOG('load_remote_save',{fresh:freshHere});S=remote;restore();close('sStart');updateUI();toast('Your saved game is back')}
     else if(S.col.length)pushRemote();
     setSave('Saved');
   }catch(e){}
@@ -840,7 +848,7 @@ let lastIdle=0,idleHold=0;
 // wait for a spoken line (e.g. "到达…") to finish before a conversation can start and cut it off
 function holdIdle(p){const my=++idleHold;Promise.race([Promise.resolve(p).catch(()=>{}),new Promise(r=>setTimeout(r,4000))]).then(()=>{if(idleHold===my){idleHold=0;lastIdle=T}})}
 // what is covering the scene right now (null when the player is just looking at the field); travel and the field pause while anything is
-function sheetOpen(){if(document.querySelector('.sheet.talk:not([hidden]),.sheet.lesson:not([hidden])'))return'talk';for(const id of['sCatch','sBattle','sEvo','sStart','sQuest','sBag','sTeam','sMap','sContacts','sSet','sLearn','sRead','sWho']){const el=document.getElementById(id);if(el&&!el.hidden)return id}
+function sheetOpen(){if(document.querySelector('.sheet.talk:not([hidden]),.sheet.lesson:not([hidden])'))return'talk';for(const id of['sNewer','sCatch','sBattle','sEvo','sStart','sQuest','sBag','sTeam','sMap','sContacts','sSet','sLearn','sRead','sWho']){const el=document.getElementById(id);if(el&&!el.hidden)return id}
   if(document.querySelector('.tracewrap'))return'trace';if(C)return'catch';const qz=document.getElementById('quiz');if(qz&&!qz.hidden)return'quiz';return null}
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.closest('.sheet').id));
 // over an open sheet, a toast sits just below the sheet's header (its title, the speaker's name, the foe's name) instead of covering it;
@@ -1427,7 +1435,10 @@ function decodeSaveCode(raw){try{const o=JSON.parse(decodeURIComponent(escape(at
 document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('stImpBtn'),box=document.getElementById('stImpBox'),ta=document.getElementById('stImpText'),go=document.getElementById('stImpLoad');if(!b)return;
   b.onclick=()=>{box.hidden=!box.hidden;if(!box.hidden)ta.focus()};
   go.onclick=()=>{const obj=decodeSaveCode(ta.value);if(!obj){toast('That is not a save code');return}LOG('start_import',{n:obj.col.length});importSave(obj)}});
-function importSave(obj){LOG('save_import',{n:obj.col.length});
+function importSave(obj){
+  // a code from a newer build: keep it, update the game, and the updated game finishes loading it (see bootSave)
+  if(saveTooNew(obj)){LOG('save_import_too_new',{n:obj.col.length});try{localStorage.setItem(PENDING_KEY,JSON.stringify(obj))}catch(e){}needUpdate('code');return}
+  dropPending();NEWER=null;LOG('save_import',{n:obj.col.length});
   try{window.stopTalk&&stopTalk();window.stopLesson&&stopLesson()}catch(e){}document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());
   C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;
   S=obj;S.savedAt=Date.now();migrate();
@@ -1435,6 +1446,43 @@ function importSave(obj){LOG('save_import',{n:obj.col.length});
   S.talked=S.talked||{};if(S.col.length&&!S.talked.intro_neighbor){S.talked.intro_neighbor=1;(S.talkDay=S.talkDay||{}).intro_neighbor=S.talkDay.intro_neighbor||'imported'}
   restore(); // restore() sets the field and the trip from the save, so writing it back keeps them
   writeLocal();clearTimeout(localTimer);clearTimeout(remoteTimer);pushRemote();setTimeout(()=>location.reload(),400)}
+// ---------- a save from a newer build: update the game, then carry on ----------
+// The Android app answers /update-now (check for a signed update right away) and /update-status at its own address; the game
+// reloads into the new build as soon as it is installed. In a browser one reload gets the newest build. Words only if that fails.
+const PENDING_KEY='couchcatch_pending_save',RELOADED_KEY='couchcatch_update_reloaded',UPD='https://appassets.androidplatform.net/';
+const inApp=()=>window.COUCHCATCH_IN_APP!=null?!!window.COUCHCATCH_IN_APP:location.host==='appassets.androidplatform.net';
+const NEWER_MSG={
+  busy:['Updating…','正在更新','zhèngzài gēngxīn',''],
+  offline:['Could not update','更新不了','gēngxīn bù liǎo','Connect to the internet, then tap Try again.'],
+  reopen:['Almost done','快好了','kuài hǎo le','Close the game and open it again to finish updating.'],
+  none:['No update yet','还没有新版本','hái méiyǒu xīn bǎnběn','This save needs a newer Couchcatch than this app can get yet. Try again later.'],
+  reload:['Update the game','请更新游戏','qǐng gēngxīn yóuxì','Reload this page to get the newest version.']};
+function pendingSave(){try{return parse(localStorage.getItem(PENDING_KEY))}catch(e){return null}}
+function dropPending(){try{localStorage.removeItem(PENDING_KEY);sessionStorage.removeItem(RELOADED_KEY)}catch(e){}}
+function setNewer(st){const m=NEWER_MSG[st];document.getElementById('newerH').innerHTML=m[0]+zw(m[1],m[2]);document.getElementById('newerText').textContent=m[3];
+  const bb=document.getElementById('newerBtns');bb.innerHTML='';bb.dataset.st=st;
+  if(st==='offline'||st==='none'){const b=document.createElement('button');b.className='small big';b.id='newerRetry';b.innerHTML='Try again'+zw('再试一次','zài shì yí cì');b.onclick=()=>needUpdate('retry');bb.appendChild(b)}
+  // a pasted code can wait: go back to the game on this device (a newer save already on this device has nothing to go back to)
+  if(st!=='busy'&&!NEWER){const b=document.createElement('button');b.className='small';b.id='newerBack';b.innerHTML='Not now'+zw('先不要','xiān bú yào');b.onclick=()=>{LOG('update_skip');dropPending();updTok++;close('sNewer');if(!S.col.length)starters()};bb.appendChild(b)}
+  if(st!=='busy')LOG('update_state',{st})}
+let updTok=0;
+function needUpdate(why){const tok=++updTok;LOG('update_needed',{why,app:inApp()});for(const id of['sStart','sSet'])close(id);open('sNewer');setNewer('busy');
+  if(inApp()){fetch(UPD+'update-now',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(()=>pollUpdate(tok,Date.now()))
+    .catch(()=>{if(tok===updTok)setNewer('reopen')})} // an app from before /update-now: its own update check runs at launch
+  else{let n=9;try{n=+sessionStorage.getItem(RELOADED_KEY)||0;sessionStorage.setItem(RELOADED_KEY,String(n+1))}catch(e){}
+    if(n<1)setTimeout(()=>{if(tok===updTok)location.reload()},700);else setNewer('reload')}}
+function pollUpdate(tok,t0){if(tok!==updTok)return;
+  fetch(UPD+'update-status',{cache:'no-store'}).then(r=>r.json()).then(s=>{if(tok!==updTok)return;
+    if(s.available>s.served){LOG('update_ready',{served:s.served,available:s.available});location.reload();return}
+    if(!s.running){setNewer(s.result==='failed'?'offline':'none');return}
+    if(Date.now()-t0>180000){setNewer('offline');return}
+    setTimeout(()=>pollUpdate(tok,t0),1000)}).catch(()=>{if(tok===updTok)setNewer('reopen')})}
+// at launch: finish a pasted code that waited for this build, or update for a newer save on this device, or start as usual
+function bootSave(){const p=pendingSave();
+  if(p){if(saveTooNew(p)){needUpdate('code');return}LOG('pending_import',{n:p.col.length});importSave(p);return}
+  if(NEWER){needUpdate('save');return}
+  try{sessionStorage.removeItem(RELOADED_KEY)}catch(e){}
+  if(!S.col.length)starters()}
 document.getElementById('bSet').onclick=()=>{renderSettings(true);open('sSet')};
 const CONTACTS=[
  {en:'Grandma',zh:'奶奶',py:'nǎinai',keys:['phone_grandma','phone_grandma_2'],call:1},
@@ -1471,10 +1519,10 @@ async function switchPlayer(id){if(id===PID)return;LOG('player_switch',{from:PID
   try{window.stopTalk&&stopTalk();window.stopLesson&&stopLesson()}catch(e){}
   document.querySelectorAll('.sheet').forEach(x=>x.hidden=true);document.querySelectorAll('.tracewrap,.saycard,.dexwrap,#knock').forEach(x=>x.remove());try{stopSpeech()}catch(e){}
   C=null;B=null;E=null;pendingTalks.length=0;evoQueue.length=0;PID=id;writePlayers();
-  S=readLocal()||fresh();migrate();restore();applyLevel();applyYoung();renderWho();updateUI();if(!S.col.length)starters();
+  S=loadLocal();migrate();restore();applyLevel();applyYoung();renderWho();updateUI();updTok++;close('sNewer');if(NEWER)needUpdate('save');else if(!S.col.length)starters()
   toast(`${playerName()} is playing!`);
   if(DB&&UID){try{const sn=await DB.doc('data/users/'+UID+'/'+rdoc()).get();const d=sn.exists?sn.data():null,remote=d&&parse(d.json);
-    if(remote&&remote.savedAt>(S.savedAt||0)&&PID===id){S=remote;restore();close('sStart');applyLevel();updateUI();renderWho()}}catch(e){}}}
+    if(remote&&!NEWER&&!saveTooNew(remote)&&remote.savedAt>(S.savedAt||0)&&PID===id){S=remote;restore();close('sStart');applyLevel();updateUI();renderWho()}}catch(e){}}}
 document.getElementById('bWho').onclick=()=>{renderWho();open('sWho')};
 document.querySelectorAll('#sWho [data-young]').forEach(b=>b.onclick=()=>{const inp=document.getElementById('whoName'),name=inp.value.trim().slice(0,16);if(!name){inp.focus();toast('Type a name first');return}
   let n=2;while(PL.list.some(x=>x.id==='p'+n))n++;PL.list.push({id:'p'+n,name,young:b.dataset.young==='1'});inp.value='';writePlayers();switchPlayer('p'+n)});
@@ -1499,7 +1547,7 @@ const vBtn=document.getElementById('cVoice');const showV=()=>vBtn.textContent=S.
 vBtn.onclick=()=>{S.zhVoice=S.zhVoice===false;save();showV();if(S.zhVoice!==false)speak('你好！我们一起学中文吧。')};
 muteBtn.onclick=()=>{if(window.SFX){SFX.toggle();showMute();sfx('tap')}};showMute();
 applyLevel();biWrap(document.body);restore();renderWho();applyYoung();LOG('page_open',{version:'v11',prevLogError:(()=>{try{return localStorage.getItem('couchcatch_logerr')||''}catch(e){return''}})(),snap:snap()});
-if(!S.col.length)starters();
+bootSave();
 updateUI();requestAnimationFrame(frame);
 connectCloud();
 </script>

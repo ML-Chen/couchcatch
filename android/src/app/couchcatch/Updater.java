@@ -21,7 +21,8 @@ import javax.net.ssl.HttpsURLConnection;
  * and it only installs a build whose manifest is signed with the project's update key (see UpdateCheck).
  * Steps: fetch manifest.json and manifest.sig, verify the signature, and skip unless the version is newer than
  * what is installed. Then download index.html to a temporary file, check its size and SHA-256 against the
- * signed manifest, and only then move it into place. The new build loads the next time the app starts.
+ * signed manifest, and only then move it into place. The new build loads the next time the app starts, or right away
+ * when the game asks for it (a save made by a newer build: see MainActivity's /update-now and /update-status).
  */
 final class Updater {
     private Updater() { }
@@ -34,18 +35,37 @@ final class Updater {
 
     static final long MIN_CHECK_INTERVAL_MS = 3L * 60 * 60 * 1000; // at most every 3 hours
     private static volatile boolean running = false;
+    /** How the last check ended: "" (none yet), "installed", "latest" (nothing newer published) or "failed". */
+    static volatile String lastResult = "";
+    /** Version of the build the last check installed (0 if none), so status questions don't re-hash the game file. */
+    static volatile long installedVersion = 0;
 
+    static boolean isRunning() { return running; }
+
+    /** The regular check at launch and resume, at most every few hours. */
     static void checkInBackground(final Activity activity) {
+        start(activity, false);
+    }
+
+    /** A check right now, skipping the wait between checks: the game found a save it can't read yet. */
+    static void checkNow(final Activity activity) {
+        start(activity, true);
+    }
+
+    private static synchronized void start(final Activity activity, final boolean asked) {
         final Context context = activity.getApplicationContext();
         SharedPreferences prefs = context.getSharedPreferences("updater", Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
-        if (running || now - prefs.getLong("lastCheck", 0) < MIN_CHECK_INTERVAL_MS) return;
+        if (running || (!asked && now - prefs.getLong("lastCheck", 0) < MIN_CHECK_INTERVAL_MS)) return;
         running = true;
         prefs.edit().putLong("lastCheck", now).apply();
         new Thread(new Runnable() {
             @Override public void run() {
+                String result = "failed";
                 try {
-                    if (checkOnce(context)) {
+                    boolean installed = checkOnce(context);
+                    result = installed ? "installed" : "latest";
+                    if (installed && !asked) { // when the game asked, it reloads into the new build itself
                         activity.runOnUiThread(new Runnable() {
                             @Override public void run() {
                                 Toast.makeText(context, "新版本准备好了 · New version ready next time", Toast.LENGTH_LONG).show();
@@ -55,14 +75,16 @@ final class Updater {
                 } catch (Exception ignored) {
                     // Offline or a bad download: keep playing the installed build and try again later.
                 } finally {
+                    lastResult = result;
                     running = false;
                 }
             }
         }, "couchcatch-updater").start();
     }
 
-    /** Returns true if a newer, verified build was installed. */
+    /** Returns true if a newer, verified build was installed, false if nothing newer is published; throws if no source answered. */
     static boolean checkOnce(Context context) throws Exception {
+        Exception lastError = null;
         for (String base : SOURCES) {
             try {
                 byte[] manifestBytes = fetch(base + "update/manifest.json", 64 * 1024);
@@ -87,14 +109,16 @@ final class Updater {
                     || !new File(dir, "manifest.sig.partial").renameTo(GameStore.updateSignature(context))) {
                     throw new IllegalStateException("could not install update");
                 }
-                return GameStore.verifiedUpdateVersion(context) == manifest.version;
+                boolean ok = GameStore.verifiedUpdateVersion(context) == manifest.version;
+                if (ok) installedVersion = manifest.version;
+                return ok;
             } catch (SecurityException e) {
                 throw e; // a bad signature or hash is never retried from another source
             } catch (Exception e) {
-                // network trouble with this source: try the next one
+                lastError = e; // network trouble with this source: try the next one
             }
         }
-        return false;
+        throw lastError != null ? lastError : new IllegalStateException("no update source");
     }
 
     private static HttpsURLConnection open(String url) throws Exception {

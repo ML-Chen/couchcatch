@@ -52,6 +52,8 @@ public class MainActivity extends Activity {
     private static final int BACKGROUND = Color.parseColor("#eef3fb"); // the game's light page colour
 
     private WebView web;
+    /** Version of the game page last served to the WebView. */
+    private volatile long servedVersion = 0;
 
     /** Dark status-bar and navigation icons, readable on the game's light background. */
     @SuppressWarnings("deprecation")
@@ -151,12 +153,21 @@ public class MainActivity extends Activity {
                         Map<String, String> headers = new HashMap<>();
                         headers.put("Content-Security-Policy", CONTENT_SECURITY_POLICY);
                         headers.put("Cache-Control", "no-store");
+                        servedVersion = GameStore.currentVersion(MainActivity.this);
                         return new WebResourceResponse("text/html", "utf-8", 200, "OK", headers,
                             GameStore.openGame(MainActivity.this));
                     } catch (Exception e) {
                         return blocked(500);
                     }
                 }
+                // The game found a save made by a newer build. It asks for an update by fetching these two addresses
+                // (plain requests to the app's own address, so the page still gets no bridge into Android), then reloads
+                // once a newer build is installed. The update itself goes through the same signature checks as always.
+                if (path.equals("/update-now")) {
+                    Updater.checkNow(MainActivity.this);
+                    return updateStatus();
+                }
+                if (path.equals("/update-status")) return updateStatus();
                 return blocked(404);
             }
             if ("https".equals(url.getScheme())) {
@@ -178,6 +189,17 @@ public class MainActivity extends Activity {
             }
             return true;
         }
+    }
+
+    /** {"running":…, "served":…, "available":…, "result":…}: "available" above "served" means reloading gets a newer build. */
+    private WebResourceResponse updateStatus() {
+        long available = Math.max(servedVersion, Updater.installedVersion);
+        String json = "{\"running\":" + Updater.isRunning() + ",\"served\":" + servedVersion + ",\"available\":" + available
+            + ",\"result\":\"" + Updater.lastResult + "\"}";
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Cache-Control", "no-store");
+        return new WebResourceResponse("application/json", "utf-8", 200, "OK", headers,
+            new ByteArrayInputStream(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
 
     private static WebResourceResponse blocked(int status) {
